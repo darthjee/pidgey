@@ -1,1 +1,7 @@
 .claude/state/
+docker_volumes/*/*
+!docker_volumes/*/.gitkeep
+source/vendor/
+source/coverage
+source/.phpunit.result.cache
+source/complexity.html
