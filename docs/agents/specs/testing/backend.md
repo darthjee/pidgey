@@ -7,7 +7,9 @@ Purpose: define backend test suites and quality tooling.
   - `integration` (`source/tests/integration/`): run against the dockerized MySQL
     (dedicated test database, migrations applied) and Mailpit (real SMTP sends,
     asserted through Mailpit's API — see [email/testing.md](../email/testing.md)).
-- Coverage with pcov.
+- Coverage with pcov. Coverage is **report-only**: `tests` writes an HTML report to
+  `source/coverage/`, and `coverage` writes Clover to `source/coverage/clover.xml`. No
+  coverage threshold is enforced yet.
 
 Test folders under `source/tests/`:
 
@@ -27,8 +29,8 @@ Composer scripts:
 | `tests:integration` | Integration suite. |
 | `coverage` | PHPUnit with coverage report (pcov, Clover output used by CI). |
 | `lint` | phpcs, then the phpmd unused-code gate. |
-| `lint:fix` | phpcbf: auto-fix what phpcs can fix. |
-| `docs` | phpdocumentor (not installed via Composer; phar or `phpdoc/phpdoc` image, decided in #6 — see [dependencies](../architecture/dependencies.md)). |
+| `lint:fix` | phpcbf: auto-fix what phpcs can fix (a successful fix does not fail the script), then re-runs the phpmd unused-code gate. |
+| `docs` | phpDocumentor via the `phpdoc` phar from the `dev_pidgey` image (not a Composer dependency; not available in CI — see [dependencies](../architecture/dependencies.md)). Output in `source/phpdoc/` (git-ignored). |
 | `complexity` | phpmd complexity report (informational, not a gate). |
 
 Linters:

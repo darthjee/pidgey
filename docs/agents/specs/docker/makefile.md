@@ -9,7 +9,7 @@ Purpose: define the Makefile targets used for local work and CI.
 | `build` | Build the `dev_pidgey` image. |
 | `dev` | Open a shell in the `tests` service (`docker compose run --rm tests bash`), with `mysql` and `mailpit` started. |
 | `dev-up` | `docker compose up` for app, mysql, phpmyadmin, mailpit (and `frontend_dev`, future work). |
-| `tests` | Run all backend and frontend tests and linters in the `tests` container. |
+| `tests` | Run tests and linters in the `tests` container. Currently backend only: `docker compose run --rm tests sh -c "composer lint && composer tests"`. Frontend lint and tests join this target once the frontend exists. |
 | `ci-*` | Wrappers used by CircleCI (e.g. `ci-build`, `ci-tests`, `ci-lint`) that run the same commands non-interactively. |
 
 ## Variables
