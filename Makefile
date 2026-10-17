@@ -6,7 +6,7 @@ BASE_SUFFIX?=$(if $(filter arm64 aarch64,$(shell uname -m)),-arm64,)
 BASE_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)-base
 DEV_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)
 
-.PHONY: build-base push-base build dev dev-up
+.PHONY: build-base push-base build dev dev-up tests
 
 build-base:
 	docker build -f dockerfiles/dev_$(PROJECT)-base/Dockerfile -t $(BASE_IMAGE):$(BASE_VERSION)$(BASE_SUFFIX) source
@@ -22,3 +22,6 @@ dev:
 
 dev-up:
 	docker compose up app mysql phpmyadmin mailpit
+
+tests:
+	docker compose run --rm tests sh -c "composer lint && composer tests"
