@@ -28,7 +28,7 @@ Composer scripts:
 | `coverage` | PHPUnit with coverage report (pcov, Clover output used by CI). |
 | `lint` | phpcs, then the phpmd unused-code gate. |
 | `lint:fix` | phpcbf: auto-fix what phpcs can fix. |
-| `docs` | phpdocumentor. |
+| `docs` | phpdocumentor (not installed via Composer; phar or `phpdoc/phpdoc` image, decided in #6 — see [dependencies](../architecture/dependencies.md)). |
 | `complexity` | phpmd complexity report (informational, not a gate). |
 
 Linters:

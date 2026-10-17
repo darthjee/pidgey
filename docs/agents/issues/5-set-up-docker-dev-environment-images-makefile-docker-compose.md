@@ -68,8 +68,9 @@ and tests, and every following sub-issue (#6 lint/tests, #7 DB/migrations, #8 CI
 - **`docker_volumes/`** placeholder files for `mysql_data/` and `vendor/`.
 - **Minimal `source/composer.json`** (needed because both Dockerfiles run `composer install`):
   PSR-4 `Pidgey\\` → `lib/`; `require`: `php` `^8.4` and `monolog/monolog`; `require-dev`:
-  `phpunit/phpunit`, `squizlabs/php_codesniffer`, `slevomat/coding-standard`, `phpmd/phpmd`,
-  `phpdocumentor/phpdocumentor`; `allow-plugins` for
+  `phpunit/phpunit`, `squizlabs/php_codesniffer`, `slevomat/coding-standard`, `phpmd/phpmd`
+  (not `phpdocumentor/phpdocumentor`: it depends on `league/flysystem` 1.x, which Composer
+  blocks for security advisories; how phpdocumentor runs is deferred to #6); `allow-plugins` for
   `dealerdirect/phpcodesniffer-composer-installer`. Commit `composer.lock`. Lint/test configs
   and composer scripts come in the next sub-issue.
 - **Stub `source/public/index.php`**: a throwaway placeholder that returns a hard-coded

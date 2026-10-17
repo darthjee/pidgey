@@ -19,7 +19,7 @@ Purpose: define the Makefile targets used for local work and CI.
 | `PROJECT` | Project name, `pidgey`; used to build image names (`dev_$(PROJECT)-base`, ...). |
 | `BASE_VERSION` | Version tag of `dev_pidgey-base` to build, push and build from. |
 | `DOCKER_ID_USER` | Docker Hub namespace for published images (`darthjee`). |
-| `BASE_SUFFIX` | Architecture tag suffix: empty for amd64, `-arm64` for arm64. |
+| `BASE_SUFFIX` | Architecture tag suffix: empty for amd64, `-arm64` for arm64. Defaults to `-arm64` when `uname -m` is `arm64`/`aarch64`, empty otherwise; an explicit `BASE_SUFFIX=` overrides. |
 
 ## First run
 
@@ -34,8 +34,9 @@ make dev-up   # or: docker compose up app
 
 Notes:
 
-- **Apple Silicon:** set `BASE_SUFFIX=-arm64`, both for `make` and for `docker compose build`
-  (e.g. `export BASE_SUFFIX=-arm64`).
+- **Apple Silicon:** `make` detects arm64 and sets `BASE_SUFFIX=-arm64` automatically. Docker
+  Compose does not auto-detect, so `docker compose build` still needs
+  `export BASE_SUFFIX=-arm64`.
 - **Container user:** containers run as uid 1000; on a Linux host with a different uid, files
   created from a container may need a `chown`.
 - **Changing `MYSQL_*` in `.env`:** MySQL only applies these on first initialization, so a
