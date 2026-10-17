@@ -8,7 +8,7 @@
 
 Pidgey is a single PHP application served by Apache, backed by MySQL 9:
 
-- **Backend:** plain PHP 8.x with **no application framework**. A single front controller
+- **Backend:** plain PHP 8.4 with **no application framework**. A single front controller
   (`source/public/index.php`) handles every dynamic request: the JSON API (Bearer-token
   authenticated) and the admin session endpoints.
 - **Frontend:** a React 19 admin UI built with Vite. Its `dist/` output is served by Apache

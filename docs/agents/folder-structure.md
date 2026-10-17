@@ -10,7 +10,7 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 |-----------------|-------------|
 | `source/` | *(planned)* PHP backend: `composer.json`, PSR-4 code under `lib/` (namespace `Pidgey\`), public web root with the front controller, SQL migrations and PHPUnit tests. |
 | `frontend/` | *(planned)* React admin UI (Vite project); its built `dist/` is served by Apache as static files. |
-| `dockerfiles/` | *(planned)* Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `pidgey/`. |
+| `dockerfiles/` | *(planned)* Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/` (CI image), `pidgey/`. |
 | `docker_volumes/` | *(planned)* Host-side persistent data mounted into containers. Git-ignored except placeholders. |
 | `dev/` | *(planned)* Development helpers: sample configuration, seed data, local-only scripts. |
 | `scripts/` | *(planned)* Operational scripts used by Docker/CI (e.g. running migrations, waiting for MySQL). |
