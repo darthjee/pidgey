@@ -4,7 +4,7 @@ Purpose: constrain what libraries the project may depend on.
 
 ## Backend (Composer)
 
-- **Runtime (`require`)**: `php` (8.x) and `monolog/monolog` only. Required PHP extensions:
+- **Runtime (`require`)**: `php` (8.4) and `monolog/monolog` only. Required PHP extensions:
   `pdo_mysql` (plus what the base image provides).
 - **Dev (`require-dev`)**: `phpunit/phpunit`, `squizlabs/php_codesniffer`,
   `slevomat/coding-standard`, `phpmd/phpmd`, `phpdocumentor` (as used in the tent repository).
