@@ -28,12 +28,13 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 
 | Subdirectory | Description |
 |--------------|-------------|
-| `lib/` | PSR-4 root for namespace `Pidgey\`. |
+| `lib/` | PSR-4 root for namespace `Pidgey\` (e.g. `Infra/Env.php`). |
 | `public/` | Apache document root: `index.php` (currently a placeholder stub returning `{"status":"ok"}`, replaced by the front controller later); built frontend assets go under `static/`. |
 | `migrations/` | *(planned)* Plain SQL migrations named `NNNN_description.sql`. |
-| `tests/unit/` | *(planned)* PHPUnit unit suite (no database, no network). |
-| `tests/integration/` | *(planned)* PHPUnit integration suite (against dockerized MySQL and Mailpit). |
-| `tests/support/`, `tests/fixtures/` | *(planned)* Shared test helpers and static test data. |
+| `tests/unit/` | PHPUnit unit suite (no database, no network). |
+| `tests/integration/` | PHPUnit integration suite (against dockerized MySQL and Mailpit); empty for now. |
+| `phpcs.xml`, `phpmd*.xml`, `phpunit.xml`, `phpdoc.dist.xml` | Lint, complexity, test and API-docs tool configuration, run via the `composer.json` scripts. |
+| `tests/support/`, `tests/fixtures/` | Shared test helpers and static test data. |
 
 ## docker_volumes/
 
