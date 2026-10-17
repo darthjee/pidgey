@@ -21,6 +21,7 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 | `.github/` | PR template, commit message templates and Copilot instructions. |
 | `AGENTS.md` | Agent entry point (rules and documentation index). |
 | `CLAUDE.md` | Points Claude Code to `AGENTS.md`. |
+| `README.md` | Project intro, first-run setup and local test/lint commands. |
 | `LICENSE` | Project license. |
 
 ## source/
