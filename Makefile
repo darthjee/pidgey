@@ -1,7 +1,7 @@
 PROJECT=pidgey
 BASE_VERSION=0.0.1
 DOCKER_ID_USER?=darthjee
-BASE_SUFFIX?=
+BASE_SUFFIX?=$(if $(filter arm64 aarch64,$(shell uname -m)),-arm64,)
 
 BASE_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)-base
 DEV_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)
