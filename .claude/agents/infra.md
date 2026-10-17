@@ -39,4 +39,4 @@ make build
 - Read `docs/agents/specs/docker.md` and `docs/agents/specs/deployment.md` before changing anything; never implement a **Pending decision** (PHP minor version, registry, hosting target, image tagging, deploy-time migrations) by guessing.
 - The production `pidgey` image ships no dev tooling and no pcov.
 - `make tests` must stay the single command running every backend and frontend check.
-- Never commit secrets; development values live in `docker_volumes/configuration` or git-ignored `.env` files.
+- Never commit real secrets. The committed root `.env` may hold only development-only placeholder values (local MySQL/Mailpit credentials); real secrets are never committed.

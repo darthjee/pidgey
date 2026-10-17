@@ -1,0 +1,60 @@
+x-base: &base
+  image: darthjee/dev_pidgey
+  env_file: .env
+  volumes:
+    - ./source:/home/app/app
+    - ./docker_volumes/vendor:/home/app/app/vendor
+
+services:
+  base_build:
+    <<: *base
+    build:
+      context: source
+      dockerfile: ../dockerfiles/dev_pidgey/Dockerfile
+      args:
+        BASE_VERSION: ${BASE_VERSION:-0.0.1}
+        BASE_SUFFIX: ${BASE_SUFFIX:-}
+    command: "true"
+
+  app:
+    <<: *base
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      PHP_ENV: development
+    depends_on:
+      - base_build
+      - mysql
+    command: apache2-foreground
+
+  tests:
+    <<: *base
+    environment:
+      PHP_ENV: test
+    depends_on:
+      - base_build
+      - mysql
+      - mailpit
+
+  mysql:
+    image: mysql:9
+    env_file: .env
+    volumes:
+      - ./docker_volumes/mysql_data:/var/lib/mysql
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+
+  phpmyadmin:
+    image: phpmyadmin
+    environment:
+      PMA_HOST: mysql
+    ports:
+      - "${PHPMYADMIN_PORT:-8040}:80"
+    depends_on:
+      - mysql
