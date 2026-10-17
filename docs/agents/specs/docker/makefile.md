@@ -4,12 +4,30 @@ Purpose: define the Makefile targets used for local work and CI.
 
 | Target | Action |
 | --- | --- |
-| `build` | Build the `dev_pidgey` image. |
 | `build-base` | Build the `dev_pidgey-base` image. |
-| `push-base` | Push `dev_pidgey-base` to the registry. |
+| `push-base` | Push `dev_pidgey-base` to the registry (manual; there is no automated image build). |
+| `build` | Build the `dev_pidgey` image. |
 | `dev` | Open a shell in a `dev_pidgey` container with volumes mounted. |
-| `dev-up` | `docker compose up` for app, frontend_dev, mysql, phpmyadmin, mailpit. |
+| `dev-up` | `docker compose up` for app, mysql, phpmyadmin, mailpit (and `frontend_dev`, future work). |
 | `tests` | Run all backend and frontend tests and linters in the `tests` container. |
 | `ci-*` | Wrappers used by CircleCI (e.g. `ci-build`, `ci-tests`, `ci-lint`) that run the same commands non-interactively. |
+
+## Variables
+
+| Variable | Meaning |
+| --- | --- |
+| `PROJECT` | Project name, `pidgey`; used to build image names (`dev_$(PROJECT)-base`, ...). |
+| `BASE_VERSION` | Version tag of `dev_pidgey-base` to build, push and build from. |
+| `DOCKER_ID_USER` | Docker Hub namespace for published images (`darthjee`). |
+| `BASE_SUFFIX` | Architecture tag suffix: empty for amd64, `-arm64` for arm64. |
+
+## First run
+
+On a fresh clone:
+
+```bash
+make build-base && make build
+docker compose run --rm tests composer install
+```
 
 `make tests` green is part of the definition of done (see [testing](../testing.md)).

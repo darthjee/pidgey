@@ -1,6 +1,6 @@
 # Contributing
 
-Pidgey's backend is plain PHP 8.x (no framework) and its admin UI is React (plain
+Pidgey's backend is plain PHP 8.4 (no framework) and its admin UI is React (plain
 JavaScript). The examples below are PHP unless they say otherwise. The specs under
 [`docs/agents/specs.md`](specs.md) are the source of truth: when a change alters a
 decision, update the spec first, in the same change set.
