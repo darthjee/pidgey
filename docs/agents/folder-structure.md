@@ -31,6 +31,7 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 | `migrations/` | Plain SQL migrations named `NNNN_description.sql`. |
 | `tests/unit/` | PHPUnit unit suite (no database, no network). |
 | `tests/integration/` | PHPUnit integration suite (against dockerized MySQL and Mailpit). |
+| `tests/support/`, `tests/fixtures/` | Shared test helpers and static test data. |
 
 ## docker_volumes/ *(planned)*
 
