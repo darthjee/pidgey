@@ -5,3 +5,6 @@ source/vendor/
 source/coverage
 source/.phpunit.result.cache
 source/complexity.html
+source/.phpunit.cache
+source/phpdoc
+source/.phpdoc

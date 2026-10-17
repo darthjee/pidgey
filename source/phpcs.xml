@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<ruleset name="Pidgey">
+    <description>Pidgey PHP_CodeSniffer ruleset</description>
+
+    <!-- Use PSR-12 as base -->
+    <rule ref="PSR12"/>
+
+    <!-- Detect unused and useless variables -->
+    <rule ref="SlevomatCodingStandard.Variables.UnusedVariable"/>
+    <rule ref="SlevomatCodingStandard.Variables.UselessVariable"/>
+
+    <!-- Detect and remove unused use statements -->
+    <rule ref="SlevomatCodingStandard.Namespaces.UnusedUses">
+        <properties>
+            <property name="searchAnnotations" value="true"/>
+        </properties>
+    </rule>
+
+    <!-- Tests may declare symbols and run code in the same file -->
+    <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
+        <exclude-pattern>tests/*</exclude-pattern>
+    </rule>
+
+    <!-- Require code documentation (PHPDoc) outside tests -->
+    <rule ref="Squiz.Commenting.FunctionComment">
+        <exclude-pattern>tests/*</exclude-pattern>
+    </rule>
+
+    <arg name="colors"/>
+    <arg value="p"/>
+
+    <!-- Files to check -->
+    <file>lib</file>
+    <file>public</file>
+    <file>tests</file>
+
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>public/static/*</exclude-pattern>
+</ruleset>

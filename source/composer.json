@@ -18,10 +18,37 @@
             "Pidgey\\": "lib/"
         }
     },
+    "scripts": {
+        "tests": "phpunit --coverage-html coverage",
+        "tests:unit": "phpunit --testsuite unit",
+        "tests:integration": "phpunit --testsuite integration",
+        "coverage": "phpunit --coverage-clover coverage/clover.xml",
+        "lint": [
+            "phpcs",
+            "@php -d error_reporting=24575 vendor/bin/phpmd lib,public,tests text phpmd_unusedcode.xml"
+        ],
+        "lint:fix": [
+            "phpcbf || [ $? -eq 1 ]",
+            "@php -d error_reporting=24575 vendor/bin/phpmd lib,public,tests text phpmd_unusedcode.xml"
+        ],
+        "docs": "phpdoc",
+        "complexity": "@php -d error_reporting=24575 vendor/bin/phpmd lib html phpmd.xml --reportfile complexity.html --ignore-violations-on-exit"
+    },
+    "scripts-descriptions": {
+        "tests": "Run all PHPUnit suites with HTML coverage in coverage/.",
+        "tests:unit": "Run the PHPUnit unit suite.",
+        "tests:integration": "Run the PHPUnit integration suite (MySQL and Mailpit).",
+        "coverage": "Run PHPUnit and write Clover coverage to coverage/clover.xml.",
+        "lint": "Run phpcs, then the phpmd unused-code gate.",
+        "lint:fix": "Auto-fix with phpcbf, then run the phpmd unused-code gate.",
+        "docs": "Generate API docs with phpDocumentor into phpdoc/.",
+        "complexity": "Write the informational phpmd complexity report to complexity.html."
+    },
     "config": {
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true
         },
-        "sort-packages": true
+        "sort-packages": true,
+        "process-timeout": 0
     }
 }

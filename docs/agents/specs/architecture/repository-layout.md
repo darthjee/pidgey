@@ -14,6 +14,7 @@ Purpose: define the top-level folders of the repository and their responsibiliti
 | `docker-compose.yml`, `Makefile` | Local orchestration. See [docker](../docker.md). |
 | `.circleci/` | CI configuration. See [deployment](../deployment.md). |
 | `AGENTS.md` | Agent entry point. |
+| `README.md` | Human-facing project intro, first-run setup and common commands. |
 
 ## Inside `source/`
 
