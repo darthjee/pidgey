@@ -7,12 +7,13 @@ volumes, env files and `depends_on` between services, following the tent reposit
 
 | Service | Image | Port (host) | Role |
 | --- | --- | --- | --- |
-| `app` | `dev_pidgey` | 8080 → 80 | Apache + PHP serving the API, session endpoints and static frontend. |
-| `frontend_dev` | `dev_pidgey` | 8030 | Vite dev server (`yarn server`) with hot reload; proxies API calls to `app`. |
+| `base_build` | `dev_pidgey` | — | Builds the `dev_pidgey` image on a fresh clone; the other `dev_pidgey` services depend on its image. |
+| `app` | `dev_pidgey` | 8080 → 80 | Apache + PHP serving the API, session endpoints and static frontend. Runs with `PHP_ENV=development`. |
+| `frontend_dev` | `dev_pidgey` | 8030 | Future work (frontend setup). Vite dev server (`yarn server`) with hot reload; proxies API calls to `app`. |
 | `mysql` | `mysql:9` | 3306 | Database (development and test databases). |
 | `phpmyadmin` | `phpmyadmin` | 8040 | DB inspection during development. |
 | `mailpit` | `axllent/mailpit` | 8025 (UI), 1025 (SMTP) | Fake SMTP server for development and integration tests. |
-| `tests` | `dev_pidgey` | — | Runs `composer tests` / frontend tests; depends on `mysql` and `mailpit`. |
+| `tests` | `dev_pidgey` | — | Runs `composer tests` / frontend tests; depends on `mysql` and `mailpit`. Runs with `PHP_ENV=test`. |
 
 Notes:
 - `app`, `tests` share the backend anchor; `frontend_dev` uses the frontend working directory.
