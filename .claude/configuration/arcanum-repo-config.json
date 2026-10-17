@@ -1,0 +1,15 @@
+{
+  "auto-fix-all": {
+    "ignored_check_patterns": [
+      "Codacy"
+    ]
+  },
+  "next_step": {
+    "auto": {
+      "enhance-issue": true,
+      "discuss-issue": true,
+      "auto-plan-issue": true
+    }
+  },
+  "version": "2.0.0"
+}
