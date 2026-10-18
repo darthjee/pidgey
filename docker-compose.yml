@@ -31,6 +31,7 @@ services:
     <<: *base
     environment:
       PHP_ENV: test
+      DB_NAME: pidgey_test
     depends_on:
       - base_build
       - mysql
@@ -41,6 +42,7 @@ services:
     env_file: .env
     volumes:
       - ./docker_volumes/mysql_data:/var/lib/mysql
+      - ./dockerfiles/mysql/initdb.d:/docker-entrypoint-initdb.d:ro
     ports:
       - "${MYSQL_PORT:-3306}:3306"
 
