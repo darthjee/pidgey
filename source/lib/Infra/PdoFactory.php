@@ -13,7 +13,7 @@ use Pdo\Mysql;
  * Every connection throws on errors, fetches associative arrays, uses native prepared
  * statements and refuses stacked (multi-statement) queries.
  */
-final class PdoFactory
+final class PdoFactory implements ConnectionFactory
 {
     /**
      * Opens a connection to the configured database.
