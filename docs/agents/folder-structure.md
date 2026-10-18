@@ -13,7 +13,7 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 | `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/` (present); `circleci_pidgey-base/` (CI image) and `pidgey/` *(planned)*. |
 | `docker_volumes/` | Host-side persistent data mounted into containers. Git-ignored except placeholders. |
 | `dev/` | *(planned)* Development helpers: sample configuration, seed data, local-only scripts. |
-| `scripts/` | *(planned)* Operational scripts used by Docker/CI (e.g. running migrations, waiting for MySQL). |
+| `scripts/` | *(planned)* Host-side / CI-only operational scripts. DB scripts live in `source/bin/`, since only `source/` ships in the image. |
 | `.circleci/` | *(planned)* CircleCI configuration. |
 | `docker-compose.yml`, `Makefile` | Local orchestration and the `make` targets used locally and by CI. |
 | `.env` | Committed, development-only values (local MySQL credentials, DB/SMTP hosts) loaded by the compose services. Never holds real secrets. |
@@ -30,9 +30,10 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 |--------------|-------------|
 | `lib/` | PSR-4 root for namespace `Pidgey\` (e.g. `Infra/Env.php`). |
 | `public/` | Apache document root: `index.php` (currently a placeholder stub returning `{"status":"ok"}`, replaced by the front controller later); built frontend assets go under `static/`. |
-| `migrations/` | *(planned)* Plain SQL migrations named `NNNN_description.sql`. |
+| `bin/` | Thin PHP CLI entry points (`wait-for-db`, `create-db`, `drop-db`, `migrate`), exposed as `composer db:*` scripts; logic lives in `Pidgey\Infra`. |
+| `migrations/` | Plain SQL migrations named `NNNN_description.sql`, exactly one statement per file. |
 | `tests/unit/` | PHPUnit unit suite (no database, no network). |
-| `tests/integration/` | PHPUnit integration suite (against dockerized MySQL and Mailpit); empty for now. |
+| `tests/integration/` | PHPUnit integration suite (against dockerized MySQL and Mailpit), run against the `pidgey_test` database prepared by `composer db:prepare`. |
 | `phpcs.xml`, `phpmd*.xml`, `phpunit.xml`, `phpdoc.dist.xml` | Lint, complexity, test and API-docs tool configuration, run via the `composer.json` scripts. |
 | `tests/support/`, `tests/fixtures/` | Shared test helpers and static test data. |
 
