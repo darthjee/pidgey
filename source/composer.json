@@ -18,31 +18,58 @@
             "Pidgey\\": "lib/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Pidgey\\Tests\\": "tests/"
+        }
+    },
     "scripts": {
-        "tests": "phpunit --coverage-html coverage",
+        "tests": [
+            "@db:prepare",
+            "phpunit --coverage-html coverage"
+        ],
         "tests:unit": "phpunit --testsuite unit",
-        "tests:integration": "phpunit --testsuite integration",
+        "tests:integration": [
+            "@db:prepare",
+            "phpunit --testsuite integration"
+        ],
         "coverage": "phpunit --coverage-clover coverage/clover.xml",
         "lint": [
             "phpcs",
-            "@php -d error_reporting=24575 vendor/bin/phpmd lib,public,tests text phpmd_unusedcode.xml"
+            "@php -d error_reporting=24575 vendor/bin/phpmd bin,lib,public,tests text phpmd_unusedcode.xml --suffixes php,"
         ],
         "lint:fix": [
             "phpcbf || [ $? -eq 1 ]",
-            "@php -d error_reporting=24575 vendor/bin/phpmd lib,public,tests text phpmd_unusedcode.xml"
+            "@php -d error_reporting=24575 vendor/bin/phpmd bin,lib,public,tests text phpmd_unusedcode.xml --suffixes php,"
         ],
         "docs": "phpdoc",
-        "complexity": "@php -d error_reporting=24575 vendor/bin/phpmd lib html phpmd.xml --reportfile complexity.html --ignore-violations-on-exit"
+        "complexity": "@php -d error_reporting=24575 vendor/bin/phpmd lib html phpmd.xml --reportfile complexity.html --ignore-violations-on-exit",
+        "db:wait": "@php bin/wait-for-db",
+        "db:create": "@php bin/create-db",
+        "db:drop": "@php bin/drop-db",
+        "db:migrate": "@php bin/migrate",
+        "db:status": "@php bin/migrate --status",
+        "db:prepare": [
+            "@db:wait",
+            "@db:create",
+            "@db:migrate"
+        ]
     },
     "scripts-descriptions": {
-        "tests": "Run all PHPUnit suites with HTML coverage in coverage/.",
+        "tests": "Prepare the database (db:prepare), then run all PHPUnit suites with HTML coverage in coverage/.",
         "tests:unit": "Run the PHPUnit unit suite.",
-        "tests:integration": "Run the PHPUnit integration suite (MySQL and Mailpit).",
+        "tests:integration": "Prepare the database (db:prepare), then run the PHPUnit integration suite (MySQL and Mailpit).",
         "coverage": "Run PHPUnit and write Clover coverage to coverage/clover.xml.",
         "lint": "Run phpcs, then the phpmd unused-code gate.",
         "lint:fix": "Auto-fix with phpcbf, then run the phpmd unused-code gate.",
         "docs": "Generate API docs with phpDocumentor into phpdoc/.",
-        "complexity": "Write the informational phpmd complexity report to complexity.html."
+        "complexity": "Write the informational phpmd complexity report to complexity.html.",
+        "db:wait": "Wait until the MySQL server accepts connections (DB_WAIT_TIMEOUT, default 60s).",
+        "db:create": "Create the DB_NAME database if it does not exist.",
+        "db:drop": "Drop the DB_NAME database if it exists.",
+        "db:migrate": "Apply pending migrations from migrations/ to DB_NAME.",
+        "db:status": "List applied and pending migrations (read-only).",
+        "db:prepare": "Wait for MySQL, create DB_NAME if missing, then apply pending migrations."
     },
     "config": {
         "allow-plugins": {

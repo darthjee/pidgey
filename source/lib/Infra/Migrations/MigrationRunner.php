@@ -13,7 +13,7 @@ use PDOException;
  * Runs are serialized per database with a MySQL named lock (GET_LOCK), which MySQL releases
  * automatically when the session ends.
  */
-final class MigrationRunner
+final class MigrationRunner implements Migrator
 {
     private const LOCK_PREFIX = 'pidgey_migrations:';
     private const LOCK_NAME_MAX_LENGTH = 64;

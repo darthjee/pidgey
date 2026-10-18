@@ -80,4 +80,40 @@ final class EnvTest extends TestCase
 
         Env::required(self::NAME);
     }
+
+    public function testIntegerReturnsDefaultWhenUnset(): void
+    {
+        $this->assertSame(60, Env::integer(self::NAME, 60));
+    }
+
+    public function testIntegerReturnsDefaultWhenEmpty(): void
+    {
+        putenv(self::NAME . '=');
+
+        $this->assertSame(60, Env::integer(self::NAME, 60));
+    }
+
+    public function testIntegerParsesValue(): void
+    {
+        putenv(self::NAME . '=15');
+
+        $this->assertSame(15, Env::integer(self::NAME, 60));
+    }
+
+    public function testIntegerAcceptsZero(): void
+    {
+        putenv(self::NAME . '=0');
+
+        $this->assertSame(0, Env::integer(self::NAME, 60));
+    }
+
+    public function testIntegerThrowsOnInvalidValue(): void
+    {
+        putenv(self::NAME . '=-5');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid ' . self::NAME . ': -5 (expected a non-negative integer)');
+
+        Env::integer(self::NAME, 60);
+    }
 }
