@@ -20,7 +20,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Pidgey\\Tests\\": "tests/"
+            "Pidgey\\Tests\\Support\\": "tests/support/"
         }
     },
     "scripts": {
