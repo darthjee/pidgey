@@ -1,0 +1,5 @@
+-- Widgets table
+CREATE TABLE widgets (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL DEFAULT 'a;b'
+);
