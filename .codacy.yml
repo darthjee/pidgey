@@ -1,0 +1,10 @@
+---
+exclude_paths:
+  - "source/vendor/**"
+  - "source/coverage/**"
+  - "source/phpdoc/**"
+  - "source/.phpdoc/**"
+  - "source/.phpunit.cache/**"
+  - "docs/**"
+  - "docker_volumes/**"
+  - ".claude/**"
