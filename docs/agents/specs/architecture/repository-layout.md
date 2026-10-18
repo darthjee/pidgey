@@ -13,6 +13,7 @@ Purpose: define the top-level folders of the repository and their responsibiliti
 | `docs/agents/` | Specs and agent documentation, starting at `docs/agents/specs.md`. |
 | `docker-compose.yml`, `Makefile` | Local orchestration. See [docker](../docker.md). |
 | `.circleci/` | CI configuration. See [deployment](../deployment.md). |
+| `.codacy.yml` | Codacy static-analysis exclusions (`exclude_paths`). See [pipeline](../deployment/pipeline.md#codacy). |
 | `AGENTS.md` | Agent entry point. |
 | `README.md` | Human-facing project intro, first-run setup and common commands. |
 
