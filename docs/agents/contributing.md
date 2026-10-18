@@ -69,13 +69,15 @@ To determine which checks to run:
 2. Read `.circleci/config.yml` to find which jobs are triggered for those folders (look for path filters, `only` rules, or job names that reference those folders).
 3. Run the corresponding local commands for each relevant job.
 
-Until `.circleci/config.yml` exists, use the jobs planned in [specs/deployment/pipeline.md](specs/deployment/pipeline.md):
+Jobs currently defined in `.circleci/config.yml` (all run on every branch and tag); jobs still
+planned in [specs/deployment/pipeline.md](specs/deployment/pipeline.md) are marked *(planned)*:
 
 | Modified folder | Job | Local commands |
 | --- | --- | --- |
-| `source/` | `backend_checks` | `cd source && composer lint && composer tests && composer coverage` |
-| `frontend/` | `frontend_checks` | `cd frontend && yarn lint && yarn test && yarn coverage` |
-| `dockerfiles/` | `build_images` | `make build` (and `make build-base` when the base changes) |
+| `source/` | `backend_checks` | `composer lint` (in the `tests` container) |
+| `source/` | `backend_tests` | `composer db:prepare && composer coverage` (in the `tests` container) |
+| `frontend/` | `frontend_checks` *(planned)* | `cd frontend && yarn lint && yarn test && yarn coverage` |
+| `dockerfiles/` | `build_images` *(planned)* | `make build` (and `make build-base` / `make build-ci-base` when a base image changes) |
 
 `make tests` runs everything inside the `tests` container.
 
