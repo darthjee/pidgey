@@ -1,0 +1,78 @@
+version: 2.1
+
+executors:
+  pidgey-base:
+    docker:
+      - image: darthjee/circleci_pidgey-base:0.0.1
+
+commands:
+  prepare_source:
+    description: Checkout and keep only the source/ folder at the root
+    steps:
+      - checkout
+      - run:
+          name: Set folder
+          command: mv source old; mv old/* ./; rm -rf old
+
+  composer_setup:
+    description: Copy pre-installed vendor folder and run composer install
+    steps:
+      - run:
+          name: Copy dependencies
+          command: cp /home/circleci/vendor/ ./vendor/ -R
+      - run:
+          name: composer install
+          command: composer install --no-interaction --no-progress
+
+jobs:
+  backend_checks:
+    executor: pidgey-base
+    steps:
+      - prepare_source
+      - composer_setup
+      - run:
+          name: Run Lint
+          command: composer lint
+
+  backend_tests:
+    docker:
+      - image: darthjee/circleci_pidgey-base:0.0.1
+        environment:
+          PHP_ENV: test
+          DB_HOST: mysql
+          DB_PORT: 3306
+          DB_NAME: pidgey_test
+          DB_USER: root
+          DB_PASSWORD: root
+          SMTP_HOST: mailpit
+          SMTP_PORT: 1025
+      - image: mysql:9
+        name: mysql
+        environment:
+          MYSQL_ROOT_PASSWORD: root
+      - image: axllent/mailpit
+        name: mailpit
+    steps:
+      - prepare_source
+      - composer_setup
+      - run:
+          name: Prepare database
+          command: composer db:prepare
+      - run:
+          name: Tests
+          command: composer coverage
+      - run:
+          name: Upload coverage to Codacy
+          command: bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r coverage/clover.xml
+
+all_tags: &all_tags
+  tags:
+    only: /.*/
+
+workflows:
+  main:
+    jobs:
+      - backend_checks:
+          filters: *all_tags
+      - backend_tests:
+          filters: *all_tags

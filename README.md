@@ -89,6 +89,26 @@ composer complexity                              # phpmd complexity report (comp
 composer docs                                    # phpDocumentor output in phpdoc/
 ```
 
+## Continuous integration
+
+CircleCI ([`.circleci/config.yml`](.circleci/config.yml)) runs two jobs in parallel on every
+branch and tag, inside the `darthjee/circleci_pidgey-base` image:
+
+- `backend_checks` — `composer lint`.
+- `backend_tests` — with MySQL 9 and Mailpit service containers: `composer db:prepare`,
+  `composer coverage`, then uploads `coverage/clover.xml` to Codacy.
+
+One-time setup (repository owner):
+
+1. Build and push the CI image: `make build-ci-base && make push-ci-base` (needs Docker Hub
+   credentials; the image is amd64-only and is built with `--platform linux/amd64`).
+2. Enable the project on CircleCI and on Codacy.
+3. Set `CODACY_PROJECT_TOKEN` in the CircleCI project environment variables (never commit it).
+
+When `source/composer.lock` or `dockerfiles/circleci_pidgey-base/Dockerfile` changes, bump
+`CI_BASE_VERSION` in the `Makefile` and the image tag in `.circleci/config.yml`, then build and
+push the new image. Codacy exclusions live in [`.codacy.yml`](.codacy.yml).
+
 ## License
 
 See [LICENSE](LICENSE).

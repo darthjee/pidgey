@@ -12,7 +12,11 @@ Purpose: define the Makefile targets used for local work and CI.
 | `migrate` | Prepare the development database: `docker compose run --rm app composer db:prepare` (wait, create if missing, migrate). Runs on `app` so it targets `pidgey_development` even though `make dev`'s shell points at `pidgey_test`. |
 | `db-reset` | Drop and re-prepare the development database: `docker compose run --rm app sh -c "composer db:drop && composer db:prepare"`. |
 | `tests` | Run tests and linters in the `tests` container. Currently backend only: `docker compose run --rm tests sh -c "composer lint && composer tests"`. Frontend lint and tests join this target once the frontend exists. |
-| `ci-*` | Wrappers used by CircleCI (e.g. `ci-build`, `ci-tests`, `ci-lint`) that run the same commands non-interactively. |
+| `build-ci-base` | Build the `circleci_pidgey-base` CI image (amd64 only) from the `source/` context, tagged `$(CI_BASE_IMAGE):$(CI_BASE_VERSION)`. |
+| `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). |
+
+There are no `ci-*` wrapper targets: CircleCI calls composer directly inside the CI image
+(see [pipeline](../deployment/pipeline.md)).
 
 ## Variables
 
@@ -21,6 +25,8 @@ Purpose: define the Makefile targets used for local work and CI.
 | `PROJECT` | Project name, `pidgey`; used to build image names (`dev_$(PROJECT)-base`, ...). |
 | `BASE_VERSION` | Version tag of `dev_pidgey-base` to build, push and build from. |
 | `DOCKER_ID_USER` | Docker Hub namespace for published images (`darthjee`). |
+| `CI_BASE_VERSION` | Version tag of `circleci_pidgey-base` to build and push (`0.0.1`). |
+| `CI_BASE_IMAGE` | CI image name, `$(DOCKER_ID_USER)/circleci_$(PROJECT)-base`. |
 | `BASE_SUFFIX` | Architecture tag suffix: empty for amd64, `-arm64` for arm64. Defaults to `-arm64` when `uname -m` is `arm64`/`aarch64`, empty otherwise; an explicit `BASE_SUFFIX=` overrides. |
 
 ## First run

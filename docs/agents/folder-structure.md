@@ -10,12 +10,13 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 |-----------------|-------------|
 | `source/` | PHP backend: `composer.json`, PSR-4 code under `lib/` (namespace `Pidgey\`), public web root with the front controller, SQL migrations and PHPUnit tests. |
 | `frontend/` | *(planned)* React admin UI (Vite project); its built `dist/` is served by Apache as static files. |
-| `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/` (present); `circleci_pidgey-base/` (CI image) and `pidgey/` *(planned)*. |
+| `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/` (CI image, built and pushed manually with `make build-ci-base && make push-ci-base`) (present); `pidgey/` *(planned)*. |
 | `docker_volumes/` | Host-side persistent data mounted into containers. Git-ignored except placeholders. |
 | `dev/` | *(planned)* Development helpers: sample configuration, seed data, local-only scripts. |
 | `scripts/` | *(planned)* Host-side / CI-only operational scripts. DB scripts live in `source/bin/`, since only `source/` ships in the image. |
-| `.circleci/` | *(planned)* CircleCI configuration. |
-| `docker-compose.yml`, `Makefile` | Local orchestration and the `make` targets used locally and by CI. |
+| `.circleci/` | CircleCI configuration (`config.yml`): `backend_checks` and `backend_tests` on every branch and tag. |
+| `.codacy.yml` | Codacy analysis configuration (`exclude_paths`). |
+| `docker-compose.yml`, `Makefile` | Local orchestration and `make` targets (including `build-ci-base`/`push-ci-base` for the CI image). CI does not call `make`; its jobs run `composer` directly. |
 | `.env` | Committed, development-only values (local MySQL credentials, DB/SMTP hosts) loaded by the compose services. Never holds real secrets. |
 | `docs/agents/` | Agent documentation: specs, issues, plans, architecture and guides. Entry point is `docs/agents/specs.md`. |
 | `.github/` | PR template, commit message templates and Copilot instructions. |
