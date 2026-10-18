@@ -6,7 +6,7 @@ BASE_SUFFIX?=$(if $(filter arm64 aarch64,$(shell uname -m)),-arm64,)
 BASE_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)-base
 DEV_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)
 
-.PHONY: build-base push-base build dev dev-up tests
+.PHONY: build-base push-base build dev dev-up tests migrate db-reset
 
 build-base:
 	docker build -f dockerfiles/dev_$(PROJECT)-base/Dockerfile -t $(BASE_IMAGE):$(BASE_VERSION)$(BASE_SUFFIX) source
@@ -25,3 +25,9 @@ dev-up:
 
 tests:
 	docker compose run --rm tests sh -c "composer lint && composer tests"
+
+migrate:
+	docker compose run --rm app composer db:prepare
+
+db-reset:
+	docker compose run --rm app sh -c "composer db:drop && composer db:prepare"
