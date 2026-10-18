@@ -26,10 +26,14 @@
         <exclude-pattern>tests/*</exclude-pattern>
     </rule>
 
+    <!-- Also check the extensionless PHP entry points in bin/ -->
+    <arg name="filter" value="phpcs/PhpScriptFilter.php"/>
+
     <arg name="colors"/>
     <arg value="p"/>
 
     <!-- Files to check -->
+    <file>bin</file>
     <file>lib</file>
     <file>public</file>
     <file>tests</file>

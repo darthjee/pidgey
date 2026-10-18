@@ -51,4 +51,29 @@ final class Env
 
         return $value;
     }
+
+    /**
+     * Returns an environment variable as a non-negative integer, or a default when it is unset or empty.
+     *
+     * @param string  $name    Name of the environment variable.
+     * @param integer $default Value returned when the variable is unset or empty.
+     *
+     * @return integer
+     *
+     * @throws RuntimeException When the value is not a non-negative integer.
+     */
+    public static function integer(string $name, int $default): int
+    {
+        $value = self::get($name);
+
+        if ($value === null) {
+            return $default;
+        }
+
+        if (preg_match('/^[0-9]+$/', $value) !== 1) {
+            throw new RuntimeException("Invalid {$name}: {$value} (expected a non-negative integer)");
+        }
+
+        return (int) $value;
+    }
 }

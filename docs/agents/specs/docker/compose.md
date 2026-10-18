@@ -10,14 +10,21 @@ volumes, env files and `depends_on` between services, following the tent reposit
 | `base_build` | `dev_pidgey` | — | Builds the `dev_pidgey` image on a fresh clone; the other `dev_pidgey` services depend on its image. |
 | `app` | `dev_pidgey` | 8080 → 80 | Apache + PHP serving the API, session endpoints and static frontend. Runs with `PHP_ENV=development`. |
 | `frontend_dev` | `dev_pidgey` | 8030 | Future work (frontend setup). Vite dev server (`yarn server`) with hot reload; proxies API calls to `app`. |
-| `mysql` | `mysql:9` | 3306 | Database (development and test databases). |
+| `mysql` | `mysql:9` | 3306 | Database (development and test databases). Mounts `./dockerfiles/mysql/initdb.d` read-only at `/docker-entrypoint-initdb.d`. |
 | `phpmyadmin` | `phpmyadmin` | 8040 | DB inspection during development. |
 | `mailpit` | `axllent/mailpit` | 8025 (UI), 1025 (SMTP) | Fake SMTP server for development and integration tests. |
-| `tests` | `dev_pidgey` | — | Runs `composer tests` / frontend tests; depends on `mysql` and `mailpit`. Runs with `PHP_ENV=test`. |
+| `tests` | `dev_pidgey` | — | Runs `composer tests` / frontend tests; depends on `mysql` and `mailpit`. Runs with `PHP_ENV=test` and `DB_NAME=pidgey_test` (overriding `.env`'s `pidgey_development`). |
 
 Notes:
 - `app`, `tests` share the backend anchor; `frontend_dev` uses the frontend working directory.
-- Integration tests use a dedicated test database on the same `mysql` service.
+- Integration tests use a dedicated test database (`pidgey_test`) on the same `mysql`
+  service; see [architecture/database.md](../architecture/database.md#test-database).
+- The `mysql` image only grants `MYSQL_USER` on `MYSQL_DATABASE`. The init script
+  `dockerfiles/mysql/initdb.d/01-grant-pidgey-dbs.sh` grants ``ALL ON `pidgey\_%`.*`` to
+  `$MYSQL_USER`@`%` (read from the env, not hard-coded; `\_` escapes the `_` wildcard), so
+  the app user can create and drop `pidgey_development`, `pidgey_test` and throwaway
+  `pidgey_*_test` databases. Application containers never receive root credentials. Init
+  scripts only run on an empty data volume (see [makefile.md](makefile.md#first-run)).
 - Port numbers other than 8080, 8030 and 3306 are working assumptions.
 - Published host ports are overridable via env vars, defaulting to the ports above (not set
   in `.env`): `APP_PORT` (8080), `MYSQL_PORT` (3306), `MAILPIT_UI_PORT` (8025),
