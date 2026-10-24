@@ -8,3 +8,8 @@ source/complexity.html
 source/.phpunit.cache
 source/phpdoc
 source/.phpdoc
+frontend/dist/
+frontend/.nyc_output/
+frontend/coverage/
+backend/coverage/
+backend/report/
