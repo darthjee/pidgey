@@ -17,8 +17,13 @@ request (Apache rewrites requests that are not existing files or directories to 
 the PDO connection and the logger, then dispatches to the router.
 
 Static files are served directly by Apache. The built frontend lives under `admin/` in the web
-root and is served at `/admin/` (see [frontend/build.md](../frontend/build.md)); `/admin/` is
-reserved for the UI and the API router never claims it.
+root and is served at `/admin/` (see [frontend/build.md](../frontend/build.md)). Non-`.json`
+paths under `/admin/` are reserved for the UI; `*.json` paths are always routed to the API,
+anywhere in the tree, including under `/admin/` (e.g. `/admin/users/search.json`). The UI never
+ships `.json` files under `/admin/`, and since Apache already rewrites requests that are not
+existing files to the front controller, no rewrite change is needed. API paths are
+root-relative with no prefix; `POST /v1/messages` is the only prefixed route (see
+[api/conventions/format.md](../api/conventions/format.md#paths)).
 
 ## Layers
 
