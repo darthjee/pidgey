@@ -13,3 +13,4 @@ except for its `/v1` path prefix and its Bearer-token authentication.
 | [validation.md](conventions/validation.md) | Validation order, unknown fields dropped, all errors at once, message templates. |
 | [errors.md](conventions/errors.md) | Error envelope, `error.smtp`, category and specific codes, status codes, "never `401` for a business rule". |
 | [origin-check.md](conventions/origin-check.md) | Origin (CSRF) check, trusted origins and CORS. |
+| [client-ip.md](conventions/client-ip.md) | Client IP resolution (`X-Forwarded-For`, `TRUSTED_PROXY_HOPS`) and user agent. |

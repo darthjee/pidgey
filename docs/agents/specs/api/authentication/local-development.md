@@ -30,7 +30,8 @@ TLS, and what production requires.
 
 Production must be served over **HTTPS**, either directly or behind a TLS-terminating proxy.
 Behind a proxy, `TRUSTED_PROXY_HOPS` sets how many `X-Forwarded-For` hops are trusted for the
-client IP (see [architecture/configuration.md](../../architecture/configuration.md)). Set it to
+client IP (see [architecture/configuration.md](../../architecture/configuration.md); the
+resolution rules are in [conventions/client-ip.md](../conventions/client-ip.md)). Set it to
 `0` when no reverse proxy sits in front of the app; otherwise clients can spoof their IP
 through `X-Forwarded-For`.
 
