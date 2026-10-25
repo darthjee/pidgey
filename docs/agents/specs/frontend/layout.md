@@ -33,7 +33,8 @@ Target clients in `assets/js/client/`: `ApiClient`, `SessionClient`, `Organizati
 
 - `ApiClient` is the base class: builds URLs, sends JSON with `fetch`
   (`credentials: 'same-origin'` so the session cookie is sent), parses JSON,
-  normalizes errors into the API error shape ([api/conventions.md](../api/conventions.md)).
+  normalizes errors into the API error envelope
+  ([api/conventions/errors.md](../api/conventions/errors.md)).
 - Domain clients extend/compose `ApiClient` and expose one method per endpoint
   (e.g. `ApiTokensClient#list`, `#create`, `#revoke`).
 - Components never call `fetch` directly; they use the clients.
