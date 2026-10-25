@@ -33,19 +33,25 @@ It is a JWT signed with **HS256** and carried **only** in the `access_token` coo
 Every rule below must hold; any failure is the uniform gate `401` (see [gate.md](gate.md)).
 
 1. The token has **exactly three** segments separated by `.`.
-2. Each segment is **strict base64url**: the URL-safe alphabet only, no padding, no other
-   characters.
-3. The header decodes to a JSON object whose `alg` is exactly `HS256`. `none` and every
-   other algorithm are rejected. Header parameters such as `kid`, `jku`, `x5u`, `x5c` or
-   `jwk` are **never honored** (they do not select a key or an algorithm).
-4. The signature is computed with HMAC-SHA256 over `<header>.<payload>` and compared in
+2. Each segment is **strict, canonical base64url**: the URL-safe alphabet only, no padding,
+   no other characters, and re-encoding the decoded bytes gives back **the same segment**
+   (no alternative encodings of the same bytes).
+3. The header segment must be **byte for byte equal** to the base64url encoding of the fixed
+   header `{"alg":"HS256","typ":"JWT"}`. Any other header is rejected, so `none`, every other
+   algorithm and header parameters such as `kid`, `jku`, `x5u`, `x5c` or `jwk` are **never
+   honored** (they cannot select a key or an algorithm).
+4. The expected signature is computed with HMAC-SHA256 over `<header>.<payload>` (the two
+   segments as received), base64url-encoded, and compared with the signature segment in
    constant time (`hash_equals`): first with the current `SECRET_KEY`, then with each
    `PREVIOUS_SECRET_KEYS` entry in order. No match → rejected.
-5. The payload decodes to a JSON **object** with:
+5. Only **after the signature matches** is the payload decoded. It must be a JSON
+   **object** with:
    - `sub` an integer;
    - `sid` a well-formed UUID string;
    - `iat` and `exp` integers;
-   - `exp > now`, with **no leeway**.
+   - `iat <= now`;
+   - `exp > now`, with **no leeway**;
+   - `exp - iat <= ACCESS_TOKEN_TTL`.
 6. No other claim is trusted. Unknown claims are ignored.
 
 ### Clock
@@ -68,8 +74,9 @@ Set-Cookie: access_token=<jwt>; HttpOnly; Secure; SameSite=Strict; Path=/; Max-A
   `Secure` (see [local-development.md](local-development.md)).
 - The token is **never** put in a response body. The frontend cannot read it, which is why
   `isAdmin` is returned in the JSON payloads (see [gate.md](gate.md#shared-user-payload)).
-- Logout clears the cookie: `Set-Cookie: access_token=; Path=/; Expires=<past date>`
-  (with the same `HttpOnly; Secure; SameSite=Strict` attributes).
+- Logout clears the cookie:
+  `Set-Cookie: access_token=; Path=/; Max-Age=0; Expires=<past date>` (with the same
+  `HttpOnly; Secure; SameSite=Strict` attributes).
 - `SameSite=Strict` and the [origin check](../conventions/origin-check.md) together are the
   CSRF protection for cookie-authenticated requests.
 
@@ -85,6 +92,19 @@ rotated without logging anyone out:
 Dropping a key from `PREVIOUS_SECRET_KEYS` only invalidates the access tokens signed with it.
 The client then gets a `401` and refreshes: refresh tokens are not signed with the key, so
 rotation never logs anyone out unless their refresh token has also expired.
+
+### Compromised key
+
+The procedure above is for **routine** rotation only. When a key has leaked:
+
+1. **Do not** move the leaked key into `PREVIOUS_SECRET_KEYS`.
+2. Replace `SECRET_KEY` with a new key and drop the leaked key **at once** (also from
+   `PREVIOUS_SECRET_KEYS` if it is there), then restart the app.
+3. Every access token signed with the leaked key becomes invalid; clients get a `401` and
+   refresh, which issues a token signed with the new key.
+
+Tokens forged with the leaked key before the switch still need a **live `sid`** to pass the
+gate (see [gate.md](gate.md#the-gate)), so a forger cannot open a session that does not exist.
 
 Key rules (minimum length, boot refusal) are in
 [architecture/configuration.md](../../architecture/configuration.md#secret-keys).
@@ -103,4 +123,6 @@ lines), with no JWT library:
 
 ## Pending decisions
 
-None.
+- **Pending decision:** renaming the cookie to `__Host-access_token`. The `__Host-` prefix
+  makes the browser enforce `Secure`, `Path=/` and no `Domain`; the Citadel contract uses
+  `access_token`, which is kept until this is decided.

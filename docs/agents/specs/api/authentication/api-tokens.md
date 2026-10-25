@@ -11,9 +11,10 @@ They are created, listed and revoked from the admin UI (endpoints specified in #
 
 - Sent as `Authorization: Bearer <token>`.
 - Generated with a CSPRNG (`random_bytes`, at least 32 bytes), encoded, with a short
-  non-secret prefix `pdg_` to help identification (`api_tokens.token_prefix`).
+  non-secret prefix `pdg_` to help identification. `api_tokens.token_prefix` stores **only**
+  the non-secret display prefix, never any part of the secret.
 - **Hashed at rest** with SHA-256 (`api_tokens.token_hash`); the plain token is shown only
-  once, at creation.
+  once, at creation. The plain token is never stored or logged.
 - Belongs to an organization; a request authenticated by a token acts within that
   organization ([organizations/scope.md](../../organizations/scope.md)).
 

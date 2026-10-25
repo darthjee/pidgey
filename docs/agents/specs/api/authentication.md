@@ -14,6 +14,9 @@ There is no PHP session. Endpoint payloads and error codes live in the endpoint 
 ([endpoints.md](endpoints.md)); the settings used here are in
 [architecture/configuration.md](../architecture/configuration.md).
 
+Request logging must never record the `Authorization` header, the `Cookie` header, or
+`refreshToken`/`password` body fields.
+
 | File | Content |
 | --- | --- |
 | [access-token.md](authentication/access-token.md) | JWT HS256 claims, strict verification rules, `access_token` cookie, key rotation, why hand-rolled. |
@@ -30,3 +33,8 @@ Each detail file lists its own. Summary:
 - Cleanup of `refresh_tokens` ([sessions.md](authentication/sessions.md)).
 - Refresh-token storage in the browser (XSS exposure, revisited with #32)
   ([sessions.md](authentication/sessions.md)).
+- An absolute session lifetime checked against `started_at` (e.g. `SESSION_MAX_AGE`)
+  ([sessions.md](authentication/sessions.md)).
+- Renaming the cookie to `__Host-access_token` ([access-token.md](authentication/access-token.md)).
+- Refusing to boot with the shipped development key outside development/test
+  ([architecture/configuration.md](../architecture/configuration.md)).

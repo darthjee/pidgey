@@ -41,6 +41,7 @@ not live in browsers. The trusted-origins list must not be widened to allow such
   the default: the admin UI is served from the same origin as the API.
 - An `ALLOWED_ORIGINS` entry matches the request `Origin` **exactly** (scheme, host and
   port). `*`, wildcards and suffix or pattern matching are not supported.
+- In production, every `ALLOWED_ORIGINS` entry must use the `https` scheme.
 - `Origin: null` is never trusted, whatever the configuration.
 - The API never reflects an arbitrary `Origin`: `Access-Control-Allow-Origin` is sent only
   when the request `Origin` matches a trusted origin, and it echoes that matched origin.

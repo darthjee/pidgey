@@ -29,17 +29,28 @@ A **session** is a chain of rotated refresh tokens sharing one `session_uuid` an
   and `started_at = now`.
 - Refresh **continues** the session: the new row copies `session_uuid` and `started_at`.
 - A session has **at most one active row** (`revoked_at IS NULL`) and never forks.
+- There is **no absolute session lifetime** in v1: `started_at` is recorded but not enforced,
+  so a session refreshed at least every `REFRESH_TOKEN_TTL` lives indefinitely (see the
+  pending decision below).
 
 ## Rotation
 
-Refresh rotates the presented token, in **one transaction**:
+Before rotating, the presented token is looked up by its `token_hash`. Rotation proceeds only
+when the row exists, is **unrevoked** (`revoked_at IS NULL`) and **unexpired**
+(`expires_at > now`), and its user is not `denied`. Every other outcome follows
+[Replay detection](#replay-detection) (and the `admin_denied` rule for a denied user); the
+endpoint's error payloads stay in the `/auth/*` endpoint specs (#28).
+
+Refresh then rotates the presented token, in **one transaction**:
 
 1. Insert a new row with the same `session_uuid` and `started_at`, a fresh token and
    `issued_at = now`.
 2. Revoke the presented row with reason `rotated`, **conditionally**:
-   `WHERE id = ? AND revoked_at IS NULL`.
-3. If the conditional revoke affects **0 rows**, a concurrent refresh already won: roll back
-   the transaction and answer `401`.
+   `WHERE id = ? AND revoked_at IS NULL AND expires_at > ?` (`now` bound from PHP, see
+   [Clock](#clock)).
+3. If the conditional revoke affects **0 rows**, a concurrent refresh already won (or the
+   token expired in between): roll back the transaction and answer a plain `401`, with **no
+   side effect** (no replay revocation).
 
 Request and response payloads and the other refresh errors belong to the `/auth/*` endpoint
 specs (#28).
@@ -67,11 +78,16 @@ their original reason.
 - A token revoked with any other reason, an expired token or an unknown token answers a plain
   `401` with no side effect.
 - There is **no grace window**: re-presenting a `rotated` token is always a replay.
-- **Multi-tab race (accepted):** when two tabs refresh with the same token, one wins and the
-  other presents a token that is now `rotated`. That is treated as a replay, so **every
-  session of the user is revoked** and the user must log in again. This strict rule is kept
-  on purpose; the frontend must run a single refresh at a time across tabs (single-flight,
-  checked in #32).
+- **Multi-tab race (accepted):** when two tabs refresh with the same token, two cases exist:
+  - **After the winner committed:** the other tab's request looks the token up after the
+    winning refresh committed, finds it `rotated`, and it is treated as a replay: **every
+    session of the user is revoked** and the user must log in again.
+  - **Strictly concurrent:** both requests pass the lookup before either commits; the loser's
+    conditional revoke affects 0 rows (see [Rotation](#rotation)), so it rolls back and gets a
+    plain `401` **without** replay revocation. This gap is accepted.
+
+  This strict rule is kept on purpose; the frontend must run a single refresh at a time
+  across tabs (single-flight, checked in #32).
 
 ## Clock
 
@@ -95,3 +111,5 @@ not when the access token expires.
   the frontend keeps the refresh token and sends it in request bodies, which makes it readable
   by XSS; the frontend XSS posture therefore matters. To be revisited with #32 (e.g. an
   `HttpOnly` refresh cookie scoped to the refresh path).
+- **Pending decision:** an absolute session lifetime: a cap (e.g. a `SESSION_MAX_AGE` setting)
+  checked against `started_at` on refresh, after which the session must log in again.

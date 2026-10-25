@@ -39,8 +39,9 @@ route.
 
 ### Uniform `401`
 
-Every failure in steps 1–4 answers the **same** `401`, byte for byte apart from the
-`timestamp` (envelope in [conventions/errors.md](../conventions/errors.md)):
+Every failure in steps 1–4 answers the **same** `401`: same status, headers and body, byte
+for byte apart from the `timestamp` (no `Set-Cookie` or other header differences; envelope in
+[conventions/errors.md](../conventions/errors.md)):
 
 ```json
 { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token" }, "statusCode": 401, "timestamp": "..." }
