@@ -10,7 +10,7 @@ Pidgey is a single PHP application served by Apache, backed by MySQL 9:
 
 - **Backend:** plain PHP 8.4 with **no application framework**. A single front controller
   (`source/public/index.php`) handles every dynamic request: the JSON API (Bearer-token
-  authenticated) and the admin session endpoints.
+  authenticated) and the auth and admin endpoints (JWT `access_token` cookie).
 - **Frontend:** a React 19 admin UI built with Vite. Its `dist/` output is released into
   `source/public/admin` (`make build-fe-release`) and served by Apache at `/admin/`.
 - **Database:** MySQL 9 accessed only through raw PDO with prepared statements (no ORM),
@@ -32,7 +32,7 @@ Layers, with dependencies flowing downward only (HTTP → Services → Repositor
 
 | Namespace | Responsibility |
 | --- | --- |
-| `Pidgey\Http\` | Request/Response, router, controllers, JSON encoding, session and Bearer-token auth middleware. No SQL, no SMTP. |
+| `Pidgey\Http\` | Request/Response, router, controllers, JSON encoding, cookie-session gate and Bearer-token auth middleware. No SQL, no SMTP. |
 | `Pidgey\Service\` | Business logic (registration, login, token issuing/revocation, sending a message). Orchestrates repositories and transport. |
 | `Pidgey\Repository\` | All SQL, through PDO prepared statements. Every organization-scoped query filters by `organization_id`. |
 | `Pidgey\Model\` | Entities and values: Organization, User, SmtpConnection, ApiToken, Message, SendOutcome. |

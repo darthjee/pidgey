@@ -8,8 +8,8 @@ You are the security reviewer for the Pidgey project — a plain-PHP email-deliv
 
 ## What you check
 
-- **Authentication & sessions:** password hashing, session cookie flags, login/registration flows, CSRF on session-authenticated endpoints.
-- **API tokens:** generation entropy, storage (hashed, never plaintext), scope enforcement (e.g. `send`), revocation.
+- **Authentication & sessions:** password hashing, the JWT `access_token` cookie (strict HS256 verification, cookie flags), refresh-token rotation and replay detection, the per-request gate, login/registration flows, and the origin check as CSRF protection.
+- **API tokens:** generation entropy, storage (hashed, never plaintext), scope enforcement (e.g. `send`), revocation; Bearer tokens are only accepted on `/v1`.
 - **Organization isolation:** every organization-scoped query filters by `organization_id`; no cross-tenant access through IDs.
 - **Injection:** SQL (prepared statements only), SMTP/email header injection (CR/LF), command/path injection.
 - **Secrets:** SMTP credentials at rest, secret key handling, nothing sensitive in logs (never message bodies or credentials), no secrets committed.
