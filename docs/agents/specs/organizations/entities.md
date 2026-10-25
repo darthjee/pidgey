@@ -18,6 +18,8 @@ Purpose: define organizations, users and admins, how they relate, and the user s
 - Has a `status` (see [User status lifecycle](#user-status-lifecycle)) and an `is_admin` flag
   (see [Admin](#admin)).
 - Never deleted in v1: denying a user replaces removing them.
+- A user's `organization_id` is set at insert and **never changes** afterwards: users do not
+  move between organizations.
 
 ## Equal access policy
 
@@ -32,8 +34,15 @@ Purpose: define organizations, users and admins, how they relate, and the user s
 - The **only** extra power is user management across all users of the instance: search,
   edit, approve, deny, and generate a recovery link or send a recovery email (the
   `/admin/users/*` endpoints, specified in the endpoint specs, #30).
-- The admin has **no** access to other organizations' SMTP connections or API tokens:
-  organization isolation applies to them like to anyone else.
+- The admin edit cannot change a user's `organization_id`, `is_admin` or `status`. A user's
+  `status` changes only through approve and deny.
+- **Trust level:** the admin is trusted with, in effect, **every account** of the instance.
+  User management includes account recovery (editing a user's email, generating a recovery
+  link), so it grants **indirect** access to any user's account and therefore to any
+  organization.
+- The **direct** boundary still holds: no admin endpoint reads or edits other organizations'
+  SMTP connections or API tokens. For their own organization, the admin has the same access
+  as any other member.
 - No endpoint creates or promotes admins: `is_admin` is set out of band (see
   [bootstrap.md](bootstrap.md) for the first admin).
 
@@ -62,4 +71,14 @@ user's status.
   creation by an existing member, or another mechanism). Registration always creates a new
   organization, so until this is decided an organization effectively has one user.
 - **Pending decision:** whether denying a user revokes their organization's API tokens. For
-  now they keep working.
+  now they keep working. It must be settled **before** the send and API token endpoints
+  ship. Leaning: refuse API tokens of an organization with no `approved` user, or revoke them
+  (set `revoked_at`) on deny.
+- **Pending decision (#30):** whether and how to limit the admin's indirect access through
+  account recovery. Options under consideration (any combination):
+  - the recovery link is only sent to the user's **current** email and is never shown to the
+    admin;
+  - the admin cannot change a user's email and password in the same operation;
+  - an admin-driven email change revokes the target user's sessions and notifies the old
+    email address;
+  - an audit trail of admin actions.

@@ -43,3 +43,9 @@ against CSRF by the origin check (see
 
 - **Pending decision:** how the first admin is created in production, and whether a
   development seed exists. To be handled by a future issue.
+- **Pending decision (#27/#28):** the default value of `USER_APPROVAL_REQUIRED` when it is not
+  set. Leaning: the secure default `true` (new users wait for approval).
+- **Pending decision (#28):** registration's unique `username` / `email` checks reveal that a
+  user exists even when that user is `denied`, which contradicts "denied users look like
+  unknown users" (see [entities.md](entities.md#user-status-lifecycle)). Either accept this as
+  a known limitation, or answer a taken username or email with a generic error.
