@@ -1,34 +1,12 @@
 # Conventions
 
-Purpose: define the shared rules for all API endpoints.
+Purpose: index of the shared rules that every API endpoint follows (the Citadel contract,
+adapted to Pidgey).
 
-- Requests and responses are JSON (`Content-Type: application/json; charset=utf-8`).
-  Requests with another content type on body-bearing endpoints → `415`.
-- Field names in `snake_case`.
-- Validation happens before any side effect; all field errors are reported together.
+The admin frontend was copied from Citadel and calls the Citadel API contract, so every
+endpoint follows these rules. The public sending API (`POST /v1/messages`) follows them too,
+except for its `/v1` path prefix and its Bearer-token authentication.
 
-## Error body
-
-```json
-{
-  "error": {
-    "code": "validation_error",
-    "message": "Human readable summary",
-    "details": { "to": ["must be a valid email address"] }
-  }
-}
-```
-
-## Status codes
-
-| Status | Use |
+| File | Content |
 | --- | --- |
-| 200 / 201 / 204 | Success / created / no content. |
-| 400 | Malformed JSON. |
-| 401 | Not authenticated. |
-| 403 | Authenticated but missing scope. |
-| 404 | Not found (including resources of other organizations). |
-| 409 | State conflict (e.g. no active SMTP connection). |
-| 415 | Unsupported content type. |
-| 422 | Validation error. |
-| 5xx | Upstream SMTP or internal failures (see [email/failures.md](../email/failures.md)). |
+| [format.md](conventions/format.md) | JSON content type, `camelCase`, dates, bodies on `DELETE`, the path rule, success codes, guard order. |
