@@ -5,6 +5,6 @@ Purpose: index of the specs describing the JSON API v1, its authentication and c
 | File | Content |
 | --- | --- |
 | [endpoints.md](api/endpoints.md) | API v1 surface. |
-| [authentication.md](api/authentication.md) | Bearer tokens, scopes, revocation; session auth for the admin UI. |
+| [authentication.md](api/authentication.md) | Cookie session (JWT access token, refresh tokens, gate, admin check) for the admin UI; Bearer API tokens with scopes for `/v1`. |
 | [conventions.md](api/conventions.md) | Shared rules (Citadel contract): format and paths, validation, error envelope and codes, origin check. |
 | [pending.md](api/pending.md) | Rate/size limits, idempotency and other pending decisions. |

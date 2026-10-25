@@ -1,0 +1,97 @@
+# Refresh Tokens and Sessions
+
+Purpose: define refresh tokens, sessions, atomic rotation, revocation reasons and replay
+detection for the admin UI.
+
+The refresh token is the long-lived credential of a session. It is stored in the
+`refresh_tokens` table ([organizations/data-model/refresh-tokens.md](../../organizations/data-model/refresh-tokens.md)).
+`REFRESH_TOKEN_TTL` is defined in
+[architecture/configuration.md](../../architecture/configuration.md).
+
+## Refresh token
+
+- An opaque random string: **48 bytes from a CSPRNG, hex-encoded (96 characters)**.
+- Valid for `REFRESH_TOKEN_TTL` seconds (default `604800`, 7 days):
+  `expires_at = issued_at + REFRESH_TOKEN_TTL`.
+- Returned in the JSON body of login, register, refresh and the winning device poll (see the
+  [shared `user` payload](gate.md#shared-user-payload)). The frontend stores it and sends it
+  back in request bodies as `{ "refreshToken": "..." }`.
+- **Stored only as a SHA-256 hex hash** in `refresh_tokens.token_hash`. The plain value is
+  never stored or logged.
+
+## Sessions
+
+A **session** is a chain of rotated refresh tokens sharing one `session_uuid` and one
+`started_at`. The `session_uuid` is the `sid` claim of the access token (see
+[access-token.md](access-token.md#claims)).
+
+- Login, register and a winning device poll each **start a new session**: a new random UUID
+  and `started_at = now`.
+- Refresh **continues** the session: the new row copies `session_uuid` and `started_at`.
+- A session has **at most one active row** (`revoked_at IS NULL`) and never forks.
+
+## Rotation
+
+Refresh rotates the presented token, in **one transaction**:
+
+1. Insert a new row with the same `session_uuid` and `started_at`, a fresh token and
+   `issued_at = now`.
+2. Revoke the presented row with reason `rotated`, **conditionally**:
+   `WHERE id = ? AND revoked_at IS NULL`.
+3. If the conditional revoke affects **0 rows**, a concurrent refresh already won: roll back
+   the transaction and answer `401`.
+
+Request and response payloads and the other refresh errors belong to the `/auth/*` endpoint
+specs (#28).
+
+## Revocation reasons
+
+Revocation always sets `revoked_at` **and** `revoked_reason` together.
+
+| Reason | Written by |
+| --- | --- |
+| `rotated` | Refresh, on the presented token. |
+| `logout` | Logout, on every active token of the presented token's session. |
+| `password_reset` | Password reset, on every active token of the user. |
+| `replay_detected` | Refresh, when a `rotated` token is presented again: every active token of the user. |
+| `admin_denied` | Admin deny: every active token of the user. Refresh or status of a denied user: the presented token. |
+
+Bulk revokes only touch **active** rows (`revoked_at IS NULL`), so already-revoked rows keep
+their original reason.
+
+## Replay detection
+
+- Presenting a token already revoked with reason `rotated` means it was stolen or replayed:
+  every active token of that user is revoked with `replay_detected`, and the request answers
+  `401`.
+- A token revoked with any other reason, an expired token or an unknown token answers a plain
+  `401` with no side effect.
+- There is **no grace window**: re-presenting a `rotated` token is always a replay.
+- **Multi-tab race (accepted):** when two tabs refresh with the same token, one wins and the
+  other presents a token that is now `rotated`. That is treated as a replay, so **every
+  session of the user is revoked** and the user must log in again. This strict rule is kept
+  on purpose; the frontend must run a single refresh at a time across tabs (single-flight,
+  checked in #32).
+
+## Clock
+
+- Every time comparison (`expires_at`, `issued_at`, `started_at`, JWT `exp`) uses **PHP's
+  clock in UTC**.
+- SQL receives `now` as a **bound parameter**; queries never call `NOW()` or other database
+  clock functions, so PHP and MySQL timezones or clocks cannot disagree.
+
+## Effects on the gate
+
+The gate checks the session in the database on every request (see [gate.md](gate.md)), so
+logout, password reset, replay detection and admin deny take effect on the **next request**,
+not when the access token expires.
+
+## Pending decisions
+
+- **Pending decision:** cleanup of `refresh_tokens`. Nothing purges rows in v1. A future purge
+  must delete **only rows past `expires_at`**: revoked-but-unexpired `rotated` rows are needed
+  for replay detection.
+- **Pending decision:** refresh-token storage in the browser. Following the Citadel contract,
+  the frontend keeps the refresh token and sends it in request bodies, which makes it readable
+  by XSS; the frontend XSS posture therefore matters. To be revisited with #32 (e.g. an
+  `HttpOnly` refresh cookie scoped to the refresh path).
