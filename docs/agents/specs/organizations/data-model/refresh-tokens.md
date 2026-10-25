@@ -3,8 +3,11 @@
 Purpose: define the `refresh_tokens` table backing admin UI sessions.
 
 Each row is one refresh token of a session; rotation creates a new row in the same session.
-Token lifetimes, rotation, replay detection and revocation rules are defined in
-[api/authentication.md](../../api/authentication.md) (#27). Conventions are in
+Rotation, replay detection and revocation rules are defined in
+[api/authentication/sessions.md](../../api/authentication/sessions.md) and the session
+endpoints in [api/endpoints/auth/session.md](../../api/endpoints/auth/session.md); the
+token lifetime (`REFRESH_TOKEN_TTL`) in
+[architecture/configuration.md](../../architecture/configuration.md). Conventions are in
 [conventions.md](conventions.md).
 
 ## `refresh_tokens`

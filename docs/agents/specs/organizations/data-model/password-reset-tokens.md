@@ -3,8 +3,9 @@
 Purpose: define the `password_reset_tokens` table used for account recovery.
 
 Each row is one recovery token (from a recovery link or email). The recovery flow is
-defined in [api/authentication.md](../../api/authentication.md) (#27) and the endpoint
-specs. Conventions are in [conventions.md](conventions.md).
+defined in [api/endpoints/auth/recovery.md](../../api/endpoints/auth/recovery.md); the token
+lifetime (`PASSWORD_RESET_TOKEN_TTL`) and the recover cooldown (`PASSWORD_RESET_COOLDOWN`) in
+[architecture/configuration.md](../../architecture/configuration.md#password-recovery-and-account-edit). Conventions are in [conventions.md](conventions.md).
 
 ## `password_reset_tokens`
 

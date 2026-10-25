@@ -11,7 +11,7 @@ Pidgey has two **disjoint** credentials:
 - a **Bearer API token** with scopes for the public sending API (`POST /v1/messages`).
 
 There is no PHP session. Endpoint payloads and error codes live in the endpoint specs
-([endpoints.md](endpoints.md)); the settings used here are in
+([endpoints/auth.md](endpoints/auth.md)); the settings used here are in
 [architecture/configuration.md](../architecture/configuration.md).
 
 Request logging must never record the `Authorization` header, the `Cookie` header, or
