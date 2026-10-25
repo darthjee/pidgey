@@ -18,5 +18,6 @@ organization exists (multi-tenant signup) or is closed/configurable.
 - Cookie flags: `HttpOnly`, `SameSite=Lax`, `Secure` in production.
 - Logout destroys the session.
 - Passwords stored with `password_hash()` (`PASSWORD_DEFAULT`).
-- State-changing session requests require CSRF protection
-  (**Pending decision:** token header vs. relying on SameSite + JSON content type).
+- State-changing requests are protected against CSRF by the origin check (see
+  [api/conventions/origin-check.md](../api/conventions/origin-check.md)), together with the
+  cookie's `SameSite` flag; no CSRF token header is used.
