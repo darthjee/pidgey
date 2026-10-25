@@ -20,7 +20,7 @@ token lifetime (`REFRESH_TOKEN_TTL`) in
 | `issued_at` | DATETIME | no | now | When this token was issued |
 | `expires_at` | DATETIME | no | | When this token stops being accepted |
 | `revoked_at` | DATETIME | yes | null | When this token was revoked |
-| `revoked_reason` | VARCHAR(32) | yes | null | `rotated` / `logout` / `password_reset` / `replay_detected` / `admin_denied`; set together with `revoked_at` |
+| `revoked_reason` | VARCHAR(32) | yes | null | `rotated` / `logout` / `password_reset` / `replay_detected` / `admin_denied` / `admin_edit`; set together with `revoked_at` |
 | `session_uuid` | VARCHAR(36) | no | | Session id, shared by every token of the same session; indexed |
 | `started_at` | DATETIME | no | | When the session's login happened; copied on rotation |
 

@@ -14,12 +14,14 @@ Isolation rules:
 - Accessing another organization's resource returns `404`, not `403`.
 
 Admin exception:
-- The admin's user-management endpoints (`/admin/users/*`, see
-  [entities.md](entities.md#admin)) are the **only** direct cross-organization access, and
-  only over users.
+- The admin's user-management endpoints (`/admin/users/*.json`, see
+  [entities.md](entities.md#admin) and
+  [api/endpoints/admin-users.md](../api/endpoints/admin-users.md)) are the **only** direct
+  cross-organization access, and only over users (each admin user item also carries the
+  user's organization id and name).
 - No admin endpoint reads or edits another organization's SMTP connections or API tokens: an
   admin's direct access to them is limited to their own organization, like any other user's.
 - This is not full isolation from the admin: user management includes account recovery, so
   the admin can take over any user's account and thus reach any organization indirectly. The
-  admin is trusted with every account (see [entities.md](entities.md#admin), including the
-  pending decision on limiting this).
+  admin is trusted with every account (see [entities.md](entities.md#admin), including the v1
+  limits and the pending decisions on this).

@@ -42,7 +42,9 @@ Side effects:
   collation-equivalent but byte-different address cannot redirect the reset link to an
   address the attacker controls.
 - The cooldown uses `password_reset_tokens.created_at` of the user's most recent token
-  (used or not); no extra table.
+  (used or not, including tokens issued by an admin); no extra table. The admin recovery
+  endpoints are not subject to it
+  ([admin-users/recovery.md](../admin-users/recovery.md#shared-rules)).
 - Sending is **inline**: Pidgey runs PHP synchronously and nothing runs after the response
   (as in [email/send-flow.md](../../../email/send-flow.md)).
 - Every send failure (no sender configured, connection, TLS, authentication, rejection,
@@ -55,7 +57,10 @@ Side effects:
 - "Not sent" and send failures are **additionally** written to the application (operator)
   log; they never reach the response. Operator log lines identify the user by `users.id`
   only and **never include** the reset token, the reset link, or the submitted email (in
-  particular an unknown submitted email is never logged).
+  particular an unknown submitted email is never logged). A send-failure line records only
+  the **failure category** (e.g. `SMTP_REJECTED`, see
+  [email/failures.md](../../../email/failures.md)) and the **numeric reply code**, **never
+  the server reply text**, which often echoes the recipient address.
 - A `pending` user stays `pending`.
 
 **Known limitation (timing):** the response time is not equalised. A request for an
@@ -123,7 +128,8 @@ Steps, in order:
 ## Password-reset tokens
 
 The same mechanism is used by recover and by the admin recovery link / send-recovery-email
-(#30).
+([admin-users/recovery.md](../admin-users/recovery.md)). The admin endpoints **bypass** the
+recover cooldown.
 
 - Token: **48 bytes from a CSPRNG, hex-encoded (96 characters)**.
 - **Stored only as a SHA-256 hex hash** in `password_reset_tokens.token_hash`; the plain value
@@ -150,6 +156,11 @@ organization.
 - It goes through the **same SMTP client** as the [send flow](../../../email/send-flow.md)
   (timeouts, TLS policy, failure categories of [email/failures.md](../../../email/failures.md)),
   with `From:` and envelope sender set to the connection's `from_address`.
+- It does **not** go through the send-flow **attempt log** (step 8 of
+  [email/send-flow.md](../../../email/send-flow.md), which logs the recipient): system
+  recovery emails are logged only per the operator-log rule of
+  [`POST /auth/recover.json`](#post-authrecoverjson) (user id, failure category and numeric
+  reply code; never the token, link, address or reply text).
 - **Content:** plain text.
   - Subject: `Reset your Pidgey password`.
   - Body: a fixed greeting, the link `{FRONTEND_BASE_URL}/#/recover-password?token={token}`,
@@ -163,7 +174,8 @@ organization.
 - **Not sent:** a logged no-op that reports "not sent" when there is no system organization,
   it has no active SMTP connection, or `FRONTEND_BASE_URL` is empty (the link would be
   broken). Recover still answers `200 { "sent": true }`; the "not sent" result only matters
-  to the admin send-recovery-email (#30).
+  to the admin send-recovery-email
+  ([admin-users/recovery.md](../admin-users/recovery.md#post-adminusersidsend-recovery-emailjson)).
 
 **Security consideration:** every member of the system organization can change its SMTP
 connection, and can therefore redirect or read the password-reset emails of the whole
@@ -178,7 +190,9 @@ The implementation must cover at least:
 - identical responses (status, body, request/access log line) for unknown, denied, cooldown
   and sent cases;
 - operator log lines for "not sent" and send failures contain neither the token, the link,
-  nor the submitted email;
+  nor the submitted email, and a send-failure line holds only the failure category and the
+  numeric reply code, never the server reply text;
+- no send-flow attempt log line (with the recipient) is written for the recovery email;
 - a recover request whose email is collation-equivalent but byte-different from the stored
   one (e.g. `BOB@exämple.com` for stored `bob@example.com`) sends the email to the **stored**
   address;
@@ -199,6 +213,5 @@ The implementation must cover at least:
   yet; until it is decided there is no system organization and recovery emails are not sent.
 - **Pending decision:** an outbox table and a CLI worker (or cron) sending system emails
   asynchronously, which would close the recover timing leak. It also applies to the admin
-  send-recovery-email (#30).
-- **Pending decision (#30):** whether the admin send-recovery-email bypasses the
-  `PASSWORD_RESET_COOLDOWN` cooldown (leaning: yes).
+  send-recovery-email, whose response time includes the SMTP round trip
+  ([admin-users/recovery.md](../admin-users/recovery.md#post-adminusersidsend-recovery-emailjson)).

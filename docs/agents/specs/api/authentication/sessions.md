@@ -67,6 +67,7 @@ Revocation always sets `revoked_at` **and** `revoked_reason` together.
 | `password_reset` | Password reset, on every active token of the user. |
 | `replay_detected` | Refresh, when a `rotated` token is presented again: every active token of the user. |
 | `admin_denied` | Admin deny: every active token of the user. Refresh or status of a denied user: the presented token. |
+| `admin_edit` | Admin edit changing the user's email or password: every active token of the user ([endpoints/admin-users/edit.md](../endpoints/admin-users/edit.md)). |
 
 Bulk revokes only touch **active** rows (`revoked_at IS NULL`), so already-revoked rows keep
 their original reason.
@@ -100,7 +101,8 @@ their original reason.
 ## Effects on the gate
 
 The gate checks the session in the database on every request (see [gate.md](gate.md)), so
-logout, password reset, replay detection and admin deny take effect on the **next request**,
+logout, password reset, replay detection, admin deny and an admin email or password change
+take effect on the **next request**,
 not when the access token expires.
 
 ## Pending decisions
