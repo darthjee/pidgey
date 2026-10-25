@@ -131,7 +131,7 @@ There is **no application-level throttle** on login or register in v1 (Citadel p
 per-username lockout was rejected: it lets anyone lock a victim out, and a "locked" answer
 reveals that the username exists. Per-IP throttling is a pending decision in
 [api/pending.md](../../pending.md); until then, rate limiting `/auth/*.json` at the proxy is
-recommended (see [deployment.md](../../../deployment.md)).
+recommended (see [deployment/production.md](../../../deployment/production.md)).
 
 ## `POST /auth/refresh.json`
 

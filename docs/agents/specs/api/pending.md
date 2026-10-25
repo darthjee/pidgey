@@ -3,7 +3,15 @@
 Purpose: track API concerns that are explicitly not decided yet.
 
 - **Pending decision — rate limits:** per-token/per-organization request limits and the
-  `429` response format.
+  `429` response format. This includes throttling the public auth endpoints
+  ([login, register](endpoints/auth/session.md#brute-force) and
+  [recover](endpoints/auth/recovery.md#post-authrecoverjson)), which have no
+  application-level throttle in v1: the recover cooldown (`PASSWORD_RESET_COOLDOWN`) is the
+  only v1 protection. Leaning towards a **per-IP throttle** (failures per window →
+  `429 TOO_MANY_REQUESTS`, client IP resolved through `TRUSTED_PROXY_HOPS`). A per-username
+  login lockout is rejected (it lets anyone lock a victim out and reveals that the username
+  exists). Until then, proxy-level rate limiting is recommended (see
+  [deployment/production.md](../deployment/production.md)).
 - **Pending decision — size limits:** maximum request body size and maximum
   `subject`/`text`/`html` length.
 - **Pending decision — idempotency:** whether `POST /v1/messages` accepts an
