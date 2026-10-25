@@ -54,5 +54,9 @@ This check is Pidgey's CSRF protection for cookie-authenticated requests, togeth
 `SameSite` flag of the auth cookie (see [authentication.md](../authentication.md)). No CSRF
 token header is used.
 
-**Pending decision:** final names of the configuration variables (`ALLOWED_ORIGINS`,
-`FRONTEND_BASE_URL` are the working names, without the Citadel prefix).
+The variables `ALLOWED_ORIGINS` and `FRONTEND_BASE_URL` are defined in
+[architecture/configuration.md](../../architecture/configuration.md#origins).
+
+## Pending decisions
+
+None.
