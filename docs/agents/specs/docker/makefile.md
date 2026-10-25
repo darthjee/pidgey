@@ -11,14 +11,17 @@ Purpose: define the Makefile targets used for local work and CI.
 | `dev-up` | `docker compose up` for app, mysql, phpmyadmin, mailpit and `frontend_dev`. |
 | `migrate` | Prepare the development database: `docker compose run --rm app composer db:prepare` (wait, create if missing, migrate). Runs on `app` so it targets `pidgey_development` even though `make dev`'s shell points at `pidgey_test`. |
 | `db-reset` | Drop and re-prepare the development database: `docker compose run --rm app sh -c "composer db:drop && composer db:prepare"`. |
-| `tests` | Run tests and linters: backend in the `tests` container (`docker compose run --rm tests sh -c "composer lint && composer tests"`), then frontend in `frontend_dev` (`docker compose run --rm frontend_dev sh -c "yarn lint && yarn coverage"`). |
+| `tests` | Run tests and linters: backend in the `tests` container (`docker compose run --rm tests sh -c "composer lint && composer tests"`), then frontend in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev sh -c "yarn lint && yarn coverage"`). |
 | `build-ci-base` | Build the `circleci_pidgey-base` CI image (amd64 only) from the `source/` context, tagged `$(CI_BASE_IMAGE):$(CI_BASE_VERSION)`. |
 | `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). |
 | `build-fe-base` | Build the `vite_pidgey-base` image from the repository-root context, tagged `$(FE_BASE_IMAGE):$(FE_BASE_VERSION)$(BASE_SUFFIX)`. |
 | `push-fe-base` | Push `vite_pidgey-base` to the registry (manual; there is no automated image build). |
 | `build-fe` | Build the `vite_pidgey` image on top of `vite_pidgey-base`. |
-| `fe-install` | Install frontend dependencies into `docker_volumes/node_modules`: `docker compose run --rm frontend_dev yarn install`. |
-| `build-fe-release` | Run `yarn build` in `frontend_dev`, then replace `$(FE_RELEASE_DIR)` with the contents of `frontend/dist/` (see [frontend/build.md](../frontend/build.md)). |
+| `fe-install` | Install frontend dependencies into `docker_volumes/node_modules`: `docker compose run --rm --no-deps frontend_dev yarn install`. |
+| `build-fe-release` | Run `yarn build` in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev yarn build`), then replace `$(FE_RELEASE_DIR)` with the contents of `frontend/dist/` (see [frontend/build.md](../frontend/build.md)). |
+
+One-off frontend commands (`tests` frontend half, `fe-install`, `build-fe-release`) run
+`frontend_dev` with `--no-deps`, so they don't start `app`/`mysql`.
 
 There are no `ci-*` wrapper targets: CircleCI calls composer directly inside the CI image
 (see [pipeline](../deployment/pipeline.md)).

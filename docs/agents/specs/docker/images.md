@@ -14,6 +14,10 @@ https://github.com/darthjee/tent `dockerfiles/`.
 | `vite_pidgey` | `dockerfiles/vite_pidgey/Dockerfile` | `FROM vite_pidgey-base:<version><BASE_SUFFIX>` (`ARG BASE_SUFFIX` selects the amd64 or `-arm64` tag); repository-root context. Used by the `frontend_dev` compose service (see [frontend/development.md](../frontend/development.md)). |
 | `pidgey` | `dockerfiles/pidgey/Dockerfile` | Production image (future work — not part of the initial setup): `php:8.4-apache` with `pdo_mysql`, `composer install --no-dev`, application source, and the built frontend in the web root's `admin/` folder (served at `/admin/`). How the built frontend gets there is a pending decision recorded in [frontend/build.md](../frontend/build.md#pending-decisions). Runs `apache2-foreground`. No dev tooling, no pcov. |
 
+The repository-root build context of `vite_pidgey-base` and `vite_pidgey` is trimmed by the
+root `.dockerignore`, which excludes `docker_volumes/`, `.git`, `node_modules`, and build and
+coverage output.
+
 Apache serves PHP directly (`apache2-foreground`); there is no Tent or reverse proxy layer.
 
 Registry: Docker Hub `darthjee/`.
