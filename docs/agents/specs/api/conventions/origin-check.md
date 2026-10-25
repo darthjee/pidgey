@@ -11,16 +11,26 @@ public routes**. It runs first, before authentication (see the guard order in
 
 1. `GET` / `HEAD` / `OPTIONS` → always allowed.
 2. If `Sec-Fetch-Site` is present: allowed when it is `same-origin` or `none`, or when the
-   `Origin` header is in the trusted-origins list. Otherwise rejected.
+   `Origin` header is in the trusted-origins list. Otherwise rejected. `Origin: null` is never
+   trusted.
 3. If `Sec-Fetch-Site` is absent and `Origin` is absent → allowed (non-browser clients).
-4. If `Sec-Fetch-Site` is absent and `Origin` is present → allowed when `Origin` is trusted or
-   its host equals the `Host` header. Otherwise rejected.
+4. If `Sec-Fetch-Site` is absent and `Origin` is present → allowed when `Origin` is trusted,
+   or when the `Origin` is parsed and both its host **and** port (the scheme's default port
+   when omitted) are equal to the host and port of the `Host` header. Otherwise rejected.
+   `Origin: null`, or an `Origin` that cannot be parsed, is rejected.
 
 Rejection: `403`, `{ "code": "FORBIDDEN", "message": "Cross-site request rejected" }`
 (envelope in [errors.md](errors.md)).
 
+Because rule 1 lets them through unconditionally, `GET` and `HEAD` requests must **never
+change state** on any endpoint; every state change uses `POST`, `PUT`, `PATCH` or `DELETE`.
+
 Non-browser clients send neither `Origin` nor `Sec-Fetch-Site`, so server-to-server callers
 of the public sending API (`POST /v1/messages` with a Bearer token) pass the check.
+
+Browser callers of `POST /v1/messages` from another origin are **rejected** unless that
+origin is trusted. This is intended: API tokens are meant for server-side callers and must
+not live in browsers. The trusted-origins list must not be widened to allow such callers.
 
 ## Trusted origins and CORS
 
@@ -29,7 +39,14 @@ of the public sending API (`POST /v1/messages` with a Bearer token) pass the che
   origin of `FRONTEND_BASE_URL`.
 - When neither is set, CORS is off (same-origin only) and the trusted list is empty. This is
   the default: the admin UI is served from the same origin as the API.
-- CORS, when on, is credentialed (`Access-Control-Allow-Credentials: true`).
+- An `ALLOWED_ORIGINS` entry matches the request `Origin` **exactly** (scheme, host and
+  port). `*`, wildcards and suffix or pattern matching are not supported.
+- `Origin: null` is never trusted, whatever the configuration.
+- The API never reflects an arbitrary `Origin`: `Access-Control-Allow-Origin` is sent only
+  when the request `Origin` matches a trusted origin, and it echoes that matched origin.
+- Responses that depend on the `Origin` header send `Vary: Origin`.
+- CORS, when on, is credentialed: `Access-Control-Allow-Credentials: true` is sent only
+  together with an `Access-Control-Allow-Origin` echoing the matched trusted origin.
 
 ## CSRF protection
 

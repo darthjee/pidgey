@@ -49,6 +49,17 @@ Every error, whatever produced it and on whichever endpoint (admin, auth, operat
 `smtp` mirrors the `smtp` field of the `POST /v1/messages` success body; `details` stays
 reserved for validation messages. Credentials are **never** included.
 
+- `error.smtp` contains **only the server's reply to the failing command**, never
+  client-side data (e.g. the `AUTH` payload, the message content or the envelope sent).
+- `error.smtp.message` is sanitized: CR, LF and other control characters are stripped and
+  its length is capped.
+- For `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED` and `SMTP_TIMEOUT`, `error.message` is a
+  fixed string defined in [email/failures.md](../../email/failures.md), never raw exception
+  text.
+- Endpoints reachable without login that send email (password recovery, registration)
+  never surface `SMTP_*` codes or `error.smtp`: they answer their normal, enumeration-safe
+  response and log the failure (see [Enumeration safety](#enumeration-safety)).
+
 ```json
 {
   "error": {
@@ -92,7 +103,7 @@ here.
 | `USER_DENIED` | 403 | `This account has been denied access` | login |
 | `USER_NOT_PENDING` | 422 | `Only pending users can be approved` | admin approve |
 | `CANNOT_DENY_SELF` | 422 | `You cannot deny your own account` | admin deny |
-| `NO_SMTP_CONNECTION`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED`, `SMTP_TEMPORARY_FAILURE`, `SMTP_TIMEOUT` | 409 / 502 / 503 / 504 | See [email/failures.md](../../email/failures.md). | `POST /v1/messages` (and any endpoint that sends email) |
+| `NO_SMTP_CONNECTION`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED`, `SMTP_TEMPORARY_FAILURE`, `SMTP_TIMEOUT` | 409 / 502 / 503 / 504 | See [email/failures.md](../../email/failures.md). | `POST /v1/messages` and authenticated endpoints that send email; never endpoints reachable without login (see [SMTP send failures](#smtp-send-failures)) |
 
 ## Generic errors
 
@@ -135,3 +146,7 @@ Error responses must not reveal whether an account, user or resource exists when
 is not entitled to know it: unknown and unauthorized cases answer the same status, code and
 message (e.g. resources of other organizations answer `404`, as if they did not exist). The
 concrete rules (login, password recovery, device authorization…) live in the endpoint specs.
+SMTP failures on endpoints reachable without login are not surfaced either (see
+[SMTP send failures](#smtp-send-failures)).
+
+**Pending decision:** maximum length of `error.smtp.message` after sanitization.

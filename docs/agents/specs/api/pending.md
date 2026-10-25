@@ -13,8 +13,10 @@ Purpose: track API concerns that are explicitly not decided yet.
 - **Pending decision — CORS for third-party browser clients:** the origin check and the
   CORS rules (trusted origins from `ALLOWED_ORIGINS` / `FRONTEND_BASE_URL`, off by default)
   are defined in [conventions/origin-check.md](conventions/origin-check.md). The admin UI is
-  served from the same origin, so it needs no CORS; whether third-party browser clients
-  (e.g. calling `POST /v1/messages` from a browser) are supported is not decided.
+  served from the same origin, so it needs no CORS. Third-party browser clients (e.g.
+  calling `POST /v1/messages` from a browser) are rejected by the current rules, by design:
+  API tokens must not live in browsers. Supporting them would need a new decision and must
+  not be done by widening the trusted-origins list.
 - **Pending decision — cache headers:** no cache headers (`X-Skip-Cache`, `Cache-Control`)
   are required for now, since Pidgey has no caching proxy in front of the API (see
   [conventions/format.md](conventions/format.md#cache-headers)). Revisit if a caching proxy

@@ -24,5 +24,24 @@ API uses the same envelope as every other endpoint.
   object (`{ "code": 550, "message": "5.1.1 User unknown" }`), matching the `smtp` field of
   the success body, so the client can act on it. `error.details` stays reserved for
   validation messages. Credentials are never included.
+- `error.smtp` carries only the server's reply to the failing command, never client-side
+  data (e.g. the `AUTH` payload). Its `message` has CR, LF and other control characters
+  stripped and its length capped.
+- For `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED` and `SMTP_TIMEOUT`, `error.message` is a
+  fixed string, never raw exception text:
+
+  | Code | `error.message` |
+  | --- | --- |
+  | `SMTP_CONNECTION_FAILED` | `Could not connect to the SMTP server` |
+  | `SMTP_TLS_FAILED` | `TLS negotiation with the SMTP server failed` |
+  | `SMTP_TIMEOUT` | `The SMTP server timed out` |
+
+- Endpoints reachable without login that send email (password recovery, registration)
+  never surface these codes or `error.smtp`: they answer their normal, enumeration-safe
+  response and log the failure.
 
 **Pending decision:** exact HTTP status mapping (working assumption above).
+
+**Pending decision:** maximum length of `error.smtp.message` after sanitization.
+
+**Pending decision:** exact wording of the fixed messages above (working assumption).
