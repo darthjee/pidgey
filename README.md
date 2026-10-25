@@ -17,8 +17,14 @@ export DOCKER_ID_USER=darthjee
 make build-base && make build
 docker compose run --rm tests composer install
 make migrate  # create and migrate pidgey_development
+make build-fe-base && make build-fe  # frontend images (vite_pidgey-base, vite_pidgey)
+make fe-install                      # frontend dependencies into docker_volumes/node_modules
 make dev-up   # or: docker compose up app
 ```
+
+After `make dev-up`, the admin UI (Vite dev server) is at `http://localhost:8030/admin/`. See the
+[First run](docs/agents/specs/frontend/development.md#first-run) section of the frontend
+development spec for details (Vite proxy, ports, dependencies).
 
 See [`docs/agents/specs/docker/makefile.md`](docs/agents/specs/docker/makefile.md) for
 the full list of `make` targets and platform notes (e.g. Apple Silicon).
@@ -71,7 +77,7 @@ or run the `GRANT` statement from that script manually as MySQL `root`.
 From the host:
 
 ```bash
-make tests                                   # composer lint && composer tests
+make tests                                   # composer lint && composer tests, then frontend yarn lint && yarn coverage
 docker compose run --rm tests composer tests # all PHPUnit suites, HTML coverage in source/coverage/
 ```
 
@@ -91,12 +97,14 @@ composer docs                                    # phpDocumentor output in phpdo
 
 ## Continuous integration
 
-CircleCI ([`.circleci/config.yml`](.circleci/config.yml)) runs two jobs in parallel on every
-branch and tag, inside the `darthjee/circleci_pidgey-base` image:
+CircleCI ([`.circleci/config.yml`](.circleci/config.yml)) runs these jobs in parallel on every
+branch and tag:
 
-- `backend_checks` — `composer lint`.
-- `backend_tests` — with MySQL 9 and Mailpit service containers: `composer db:prepare`,
-  `composer coverage`, then uploads `coverage/clover.xml` to Codacy.
+- `backend_checks` (in `darthjee/circleci_pidgey-base`) — `composer lint`.
+- `backend_tests` (in `darthjee/circleci_pidgey-base`) — with MySQL 9 and Mailpit service
+  containers: `composer db:prepare`, `composer coverage`, then uploads `coverage/clover.xml` to
+  Codacy.
+- `frontend_checks` (in `darthjee/circleci_node`) — frontend `yarn lint` and `yarn coverage`.
 
 One-time setup (repository owner):
 
