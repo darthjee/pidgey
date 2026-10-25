@@ -19,12 +19,11 @@ All operate on the caller's organization.
 | `DELETE /v1/api_tokens/{id}` | Revoke a token. |
 
 Registration, login, logout and the current user's state are served by the auth endpoints
-([auth.md](auth.md)); the current organization is read through `GET /organization.json`
+([auth.md](auth.md)); instance-admin user management (`/admin/users/*.json`) by
+[admin-users.md](admin-users.md); the current organization is read through `GET /organization.json`
 (#31).
 
 ## Pending decisions
 
 - **Pending decision:** final paths (working assumption above; #31).
-- **Pending decision:** admin user management endpoints (`/admin/users/*`, see the admin model
-  in [organizations/entities.md](../../organizations/entities.md#admin); specified in #30).
 - **Pending decision:** a "send test email" endpoint for a connection (#31).

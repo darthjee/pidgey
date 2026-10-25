@@ -33,13 +33,27 @@ Purpose: define organizations, users and admins, how they relate, and the user s
   member of one organization and has the same access as any other member of it.
 - The **only** extra power is user management across all users of the instance: search,
   edit, approve, deny, and generate a recovery link or send a recovery email (the
-  `/admin/users/*` endpoints, specified in the endpoint specs, #30).
+  `/admin/users/*.json` endpoints, see
+  [api/endpoints/admin-users.md](../api/endpoints/admin-users.md)).
 - The admin edit cannot change a user's `organization_id`, `is_admin` or `status`. A user's
   `status` changes only through approve and deny.
 - **Trust level:** the admin is trusted with, in effect, **every account** of the instance.
   User management includes account recovery (editing a user's email, generating a recovery
   link), so it grants **indirect** access to any user's account and therefore to any
   organization.
+- **Limits on the indirect access (v1):**
+  - every successful admin action (edit, approve, deny, recovery link, recovery email)
+    writes an **operator log line** with the admin's id, the target's id, the action and,
+    for edit, the names of the changed fields; never values, passwords, tokens or links (see
+    [api/endpoints/admin-users.md](../api/endpoints/admin-users.md#operator-log));
+  - an admin-driven email or password change **revokes every session** of the target user
+    (reason `admin_edit`) and invalidates their unused password-reset tokens (see
+    [api/endpoints/admin-users/edit.md](../api/endpoints/admin-users/edit.md)).
+- **Recovery link shown to the admin:** the admin recovery link is returned to the admin, who
+  passes it on by hand (kept for parity with the copied frontend). This is part of the trust
+  level above: an admin can take over any account this way, and the operator log records it
+  (see [api/endpoints/admin-users/recovery.md](../api/endpoints/admin-users/recovery.md)).
+- An admin cannot deny their own account, but can deny other admins.
 - The **direct** boundary still holds: no admin endpoint reads or edits other organizations'
   SMTP connections or API tokens. For their own organization, the admin has the same access
   as any other member.
@@ -57,7 +71,10 @@ Purpose: define organizations, users and admins, how they relate, and the user s
   route until an admin approves them.
 - `denied` users look like unknown users everywhere, except a login with the **correct**
   password, which is answered with a dedicated error (code defined by the endpoint specs).
-- An admin moves users between statuses (approve, deny; specified in #30).
+- An admin moves users between statuses: approve (`pending` → `approved` only) and deny (any
+  status → `denied`), see
+  [api/endpoints/admin-users/review.md](../api/endpoints/admin-users/review.md). `denied` is
+  final in v1 (reinstating is a pending decision below).
 - The gate mechanics (what is checked on each request, how a session is affected) are
   defined in [api/authentication.md](../api/authentication.md) (#27).
 
@@ -74,11 +91,11 @@ user's status.
   now they keep working. It must be settled **before** the send and API token endpoints
   ship. Leaning: refuse API tokens of an organization with no `approved` user, or revoke them
   (set `revoked_at`) on deny.
-- **Pending decision (#30):** whether and how to limit the admin's indirect access through
-  account recovery. Options under consideration (any combination):
-  - the recovery link is only sent to the user's **current** email and is never shown to the
-    admin;
-  - the admin cannot change a user's email and password in the same operation;
-  - an admin-driven email change revokes the target user's sessions and notifies the old
-    email address;
-  - an audit trail of admin actions.
+- **Pending decisions** on the admin's indirect access, beyond the v1 limits in
+  [Admin](#admin) (tracked in
+  [api/endpoints/admin-users.md](../api/endpoints/admin-users.md#pending-decisions)):
+  - notifying the old email address on an admin email change;
+  - a persisted audit table of admin actions;
+  - forbidding an email and password change in the same admin edit.
+- **Pending decision:** reinstating a denied user (see
+  [api/endpoints/admin-users.md](../api/endpoints/admin-users.md#pending-decisions)).

@@ -42,7 +42,9 @@ Side effects:
   collation-equivalent but byte-different address cannot redirect the reset link to an
   address the attacker controls.
 - The cooldown uses `password_reset_tokens.created_at` of the user's most recent token
-  (used or not); no extra table.
+  (used or not, including tokens issued by an admin); no extra table. The admin recovery
+  endpoints are not subject to it
+  ([admin-users/recovery.md](../admin-users/recovery.md#shared-rules)).
 - Sending is **inline**: Pidgey runs PHP synchronously and nothing runs after the response
   (as in [email/send-flow.md](../../../email/send-flow.md)).
 - Every send failure (no sender configured, connection, TLS, authentication, rejection,
@@ -123,7 +125,8 @@ Steps, in order:
 ## Password-reset tokens
 
 The same mechanism is used by recover and by the admin recovery link / send-recovery-email
-(#30).
+([admin-users/recovery.md](../admin-users/recovery.md)). The admin endpoints **bypass** the
+recover cooldown.
 
 - Token: **48 bytes from a CSPRNG, hex-encoded (96 characters)**.
 - **Stored only as a SHA-256 hex hash** in `password_reset_tokens.token_hash`; the plain value
@@ -163,7 +166,8 @@ organization.
 - **Not sent:** a logged no-op that reports "not sent" when there is no system organization,
   it has no active SMTP connection, or `FRONTEND_BASE_URL` is empty (the link would be
   broken). Recover still answers `200 { "sent": true }`; the "not sent" result only matters
-  to the admin send-recovery-email (#30).
+  to the admin send-recovery-email
+  ([admin-users/recovery.md](../admin-users/recovery.md#post-adminusersidsend-recovery-emailjson)).
 
 **Security consideration:** every member of the system organization can change its SMTP
 connection, and can therefore redirect or read the password-reset emails of the whole
@@ -199,6 +203,5 @@ The implementation must cover at least:
   yet; until it is decided there is no system organization and recovery emails are not sent.
 - **Pending decision:** an outbox table and a CLI worker (or cron) sending system emails
   asynchronously, which would close the recover timing leak. It also applies to the admin
-  send-recovery-email (#30).
-- **Pending decision (#30):** whether the admin send-recovery-email bypasses the
-  `PASSWORD_RESET_COOLDOWN` cooldown (leaning: yes).
+  send-recovery-email, whose response time includes the SMTP round trip
+  ([admin-users/recovery.md](../admin-users/recovery.md#post-adminusersidsend-recovery-emailjson)).

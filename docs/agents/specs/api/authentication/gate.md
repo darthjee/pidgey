@@ -62,7 +62,8 @@ Because step 4 reads the database on every request, these take effect on the **n
 request**, not when the access token expires:
 
 - logout (that session);
-- password reset, replay detection and admin deny (every session of the user);
+- password reset, replay detection, admin deny and an admin email or password change (every
+  session of the user);
 - admin approve (a pending user's existing session starts working);
 - admin demotion (`is_admin` set to false out of band: admin routes start answering `403`).
 
@@ -76,7 +77,8 @@ the gate**. An authenticated non-admin gets:
 ```
 
 An anonymous caller gets the gate's `401` first. The admin's powers are defined in
-[organizations/entities.md](../../organizations/entities.md#admin).
+[organizations/entities.md](../../organizations/entities.md#admin); the admin routes and their
+shared rules in [endpoints/admin-users.md](../endpoints/admin-users.md).
 
 ## User status at the gate
 
