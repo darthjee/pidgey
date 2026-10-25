@@ -3,4 +3,4 @@ set -euo pipefail
 set -x
 
 docker compose run --rm tests composer audit
-docker compose run --rm frontend_dev yarn npm audit
+docker compose run --rm --no-deps frontend_dev yarn audit

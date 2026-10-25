@@ -10,10 +10,10 @@ You are the infrastructure specialist for the Pidgey project — a plain-PHP ema
 
 You own:
 
-- `dockerfiles/` — `dev_pidgey-base/`, `dev_pidgey/`, `pidgey/` (production)
-- `docker-compose.yml` — services `app`, `frontend_dev`, `mysql`, `phpmyadmin`, `mailpit`, `tests` (YAML anchors)
-- `Makefile` — `build`, `build-base`, `push-base`, `dev`, `dev-up`, `tests`, `ci-*`
-- `.circleci/` — `backend_checks`, `frontend_checks`, `build_images`, `upload_fe_files`, `release`
+- `dockerfiles/` — `dev_pidgey-base/`, `dev_pidgey/`, `vite_pidgey-base/`, `vite_pidgey/`, `circleci_pidgey-base/`, `mysql/`
+- `docker-compose.yml` — services `base_build`, `app`, `tests`, `mysql`, `mailpit`, `phpmyadmin`, `frontend_dev` (YAML anchors)
+- `Makefile` — `build-base`, `push-base`, `build-ci-base`, `push-ci-base`, `build`, `build-fe-base`, `push-fe-base`, `build-fe`, `fe-install`, `build-fe-release`, `dev`, `dev-up`, `tests`, `migrate`, `db-reset`
+- `.circleci/` — jobs `backend_checks`, `backend_tests`, `frontend_checks`. `build_images`, `upload_fe_files` and `release` are future work; production delivery is still a **Pending decision** in `docs/agents/specs/frontend/build.md`
 - `scripts/` — operational scripts (migration runner wrapper, wait-for-MySQL)
 - `dev/` — sample configuration, seed data, local-only helpers
 - `docker_volumes/` placeholders and `.gitignore` entries for it
@@ -23,7 +23,8 @@ The migration logic itself lives in `Pidgey\Infra` (owned by `backend`); you own
 
 ## Stack
 
-- Docker (`php:8.x-apache` base, `pdo_mysql`, `pcov`, Composer, Node.js + Yarn), docker compose, GNU Make
+- Docker (`php:8.x-apache` base, `pdo_mysql`, `pcov`, Composer), docker compose, GNU Make
+- Node.js + Yarn only through the `vite_pidgey*` images
 - MySQL 9, Mailpit, phpMyAdmin
 - CircleCI (patterns from darthjee/tent and darthjee/majora)
 
@@ -32,11 +33,12 @@ The migration logic itself lives in `Pidgey\Infra` (owned by `backend`); you own
 ```bash
 docker compose config -q
 make build
+make build-fe   # only when the frontend images change
 ```
 
 ## Conventions
 
-- Read `docs/agents/specs/docker.md` and `docs/agents/specs/deployment.md` before changing anything; never implement a **Pending decision** (PHP minor version, registry, hosting target, image tagging, deploy-time migrations) by guessing.
-- The production `pidgey` image ships no dev tooling and no pcov.
+- Read `docs/agents/specs/docker.md` (index of `docker/*.md`) and `docs/agents/specs/deployment.md` (index of `deployment/*.md`) before changing anything; never implement a **Pending decision** (PHP minor version, registry, hosting target, image tagging, deploy-time migrations) by guessing.
+- The production `pidgey` image does not exist yet (future work); when added, it ships no dev tooling and no pcov.
 - `make tests` must stay the single command running every backend and frontend check.
 - Never commit real secrets. The committed root `.env` may hold only development-only placeholder values (local MySQL/Mailpit credentials); real secrets are never committed.

@@ -2,5 +2,5 @@
 set -euo pipefail
 set -x
 
-docker compose run --rm frontend_dev yarn lint
-docker compose run --rm frontend_dev yarn test
+docker compose run --rm --no-deps frontend_dev yarn coverage
+docker compose run --rm --no-deps frontend_dev yarn lint
