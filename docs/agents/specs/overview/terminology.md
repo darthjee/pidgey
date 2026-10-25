@@ -11,7 +11,7 @@ Purpose: define the domain terms used consistently across all specs and code.
 | **Session** | One login of a user in the admin UI, identified by a session id and carried by an access token and a refresh token. See [api/authentication.md](../api/authentication.md). |
 | **Access token** | Short-lived credential of a session, sent in the `access_token` cookie. See [api/authentication.md](../api/authentication.md). |
 | **Refresh token** | Long-lived credential of a session, stored hashed and rotated on each use to obtain a new access token. See [api/authentication.md](../api/authentication.md). |
-| **Authorization request** | Device authorization: a pending login on one device, approved from another, already logged-in session. See [api/authentication.md](../api/authentication.md). |
+| **Authorization request** | Device authorization: a pending login on one device, approved from another, already logged-in session. See [api/endpoints/auth/device-authorization.md](../api/endpoints/auth/device-authorization.md). |
 | **SMTP Connection** | The settings (host, port, encryption, credentials, from address) Pidgey uses to deliver email on behalf of an organization. Organization-scoped. |
 | **API Token** | A secret credential sent as `Authorization: Bearer <token>` by API clients. Belongs to an organization, carries a set of scopes, is stored hashed, and can be revoked. Distinct from the access and refresh tokens of an admin UI session. |
 | **Scope** | A permission carried by an API token (in v1 only `send`). See [api/authentication.md](../api/authentication.md). |

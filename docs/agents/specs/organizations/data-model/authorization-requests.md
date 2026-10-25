@@ -3,9 +3,12 @@
 Purpose: define the `authorization_requests` table backing device authorization.
 
 A device authorization request lets a user log in on one device by approving the request from
-another, already logged-in session. The flow, lifetimes and rate limits are defined in
-[api/authentication.md](../../api/authentication.md) (#27) and the device-authorization
-endpoint specs (#29). Conventions are in [conventions.md](conventions.md).
+another, already logged-in session. The flow, state machine, lifetimes, rate limits and the
+authorize lockout are defined in
+[api/endpoints/auth/device-authorization.md](../../api/endpoints/auth/device-authorization.md);
+the IP and user-agent columns are filled as in
+[api/conventions/client-ip.md](../../api/conventions/client-ip.md). Conventions are in
+[conventions.md](conventions.md).
 
 ## `authorization_requests`
 
