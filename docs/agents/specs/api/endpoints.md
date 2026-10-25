@@ -40,6 +40,7 @@ All operate on the caller's organization.
 
 Session endpoints are session-only (cannot be used with Bearer tokens).
 
-**Pending decisions:** final paths (working assumption above); user management
-endpoints (depends on [organizations/entities.md](../organizations/entities.md));
+**Pending decisions:** final paths (working assumption above); admin user management
+endpoints (`/admin/users/*`, see the admin model in
+[organizations/entities.md](../organizations/entities.md#admin); specified in #30);
 a "send test email" endpoint for a connection.
