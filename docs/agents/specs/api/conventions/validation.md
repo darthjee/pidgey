@@ -25,6 +25,8 @@ Purpose: define how request bodies are validated and how validation messages are
 | email | `<field> must be an email` |
 | min length N | `<field> must be longer than or equal to N characters` |
 | max length N | `<field> must be shorter than or equal to N characters` |
+| max byte length N (UTF-8) | `<field> must be shorter than or equal to N bytes` |
+| no NUL byte | `<field> must not contain a NUL byte` |
 | one of a set | `<field> must be one of the following values: a, b, c` |
 
 Endpoint specs list the rules for each field; the messages always follow these templates.

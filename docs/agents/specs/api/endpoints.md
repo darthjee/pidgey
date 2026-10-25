@@ -1,50 +1,18 @@
 # Endpoints
 
-Purpose: list the API v1 endpoints and their contracts.
+Purpose: index of the endpoint specs: the public sending API, the auth endpoints and the
+admin endpoints.
 
-## Sending
+Admin and auth endpoints follow the Citadel contract (root-relative `*.json` paths, no `/v1`
+prefix, cookie session); the public sending API keeps its `/v1` prefix and Bearer tokens (see
+[conventions.md](conventions.md) and [authentication.md](authentication.md)).
 
-### `POST /v1/messages`
-
-Auth: Bearer token with scope `send`.
-
-Request:
-```json
-{ "to": "user@example.com", "subject": "Hello", "text": "Hi!", "html": "<p>Hi!</p>" }
-```
-
-Success `200`:
-```json
-{ "status": "sent", "smtp": { "code": 250, "message": "OK: queued as ..." } }
-```
-
-Failure: error body as in [conventions/errors.md](conventions/errors.md), codes from
-[email/failures.md](../email/failures.md).
-
-## Admin endpoints (used by the admin UI)
-
-Auth: PHP session cookie, or Bearer token with scope `admin`.
-All operate on the caller's organization.
-
-> **Superseded:** the auth model above is replaced by [authentication.md](authentication.md):
-> these endpoints use the cookie session only (no Bearer token, no `admin` scope). #28 and #31
-> rewrite this section.
-
-| Method & path | Purpose |
+| File | Content |
 | --- | --- |
-| `POST /v1/registration` | Bootstrap: create organization + first user, start session (no auth). |
-| `POST /v1/session` | Log in (no auth). |
-| `DELETE /v1/session` | Log out. |
-| `GET /v1/session` | Current user and organization. |
-| `GET /v1/organization` / `PATCH /v1/organization` | Read / update organization. |
-| `GET /v1/smtp_connections` / `POST /v1/smtp_connections` | List / create SMTP connections. |
-| `GET/PATCH/DELETE /v1/smtp_connections/{id}` | Read / update / delete a connection. |
-| `GET /v1/api_tokens` / `POST /v1/api_tokens` | List / create tokens. Creation returns the plain token **once**. |
-| `DELETE /v1/api_tokens/{id}` | Revoke a token. |
+| [sending.md](endpoints/sending.md) | `POST /v1/messages`: the public sending API (Bearer token, scope `send`). |
+| [auth.md](endpoints/auth.md) | `/auth/*.json`: register, login, refresh, logoff, status, password recovery, account edit. |
+| [admin.md](endpoints/admin.md) | Organization, SMTP connection and API token endpoints (temporary, rewritten by #31). |
 
-Session endpoints are session-only (cannot be used with Bearer tokens).
+## Pending decisions
 
-**Pending decisions:** final paths (working assumption above); admin user management
-endpoints (`/admin/users/*`, see the admin model in
-[organizations/entities.md](../organizations/entities.md#admin); specified in #30);
-a "send test email" endpoint for a connection.
+Each detail file lists its own.

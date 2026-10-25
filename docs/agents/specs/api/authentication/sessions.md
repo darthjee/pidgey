@@ -39,7 +39,8 @@ Before rotating, the presented token is looked up by its `token_hash`. Rotation 
 when the row exists, is **unrevoked** (`revoked_at IS NULL`) and **unexpired**
 (`expires_at > now`), and its user is not `denied`. Every other outcome follows
 [Replay detection](#replay-detection) (and the `admin_denied` rule for a denied user); the
-endpoint's error payloads stay in the `/auth/*` endpoint specs (#28).
+endpoint's error payloads are in
+[endpoints/auth/session.md](../endpoints/auth/session.md#post-authrefreshjson).
 
 Refresh then rotates the presented token, in **one transaction**:
 
@@ -52,8 +53,8 @@ Refresh then rotates the presented token, in **one transaction**:
    token expired in between): roll back the transaction and answer a plain `401`, with **no
    side effect** (no replay revocation).
 
-Request and response payloads and the other refresh errors belong to the `/auth/*` endpoint
-specs (#28).
+Request and response payloads and the other refresh errors are in
+[endpoints/auth/session.md](../endpoints/auth/session.md#post-authrefreshjson).
 
 ## Revocation reasons
 

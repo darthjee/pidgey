@@ -84,11 +84,12 @@ An anonymous caller gets the gate's `401` first. The admin's powers are defined 
 [organizations/entities.md](../../organizations/entities.md#user-status-lifecycle)).
 
 - Only `approved` users pass the gate.
-- New registrations start `pending` when `USER_APPROVAL_REQUIRED` is exactly `true`,
-  otherwise `approved` (see [architecture/configuration.md](../../architecture/configuration.md)).
+- New registrations start `approved` only when `USER_APPROVAL_REQUIRED` is exactly `false`,
+  otherwise `pending` (the default; see
+  [architecture/configuration.md](../../architecture/configuration.md)).
 - `pending` users can log in and get a real session (tokens issued), but the gate blocks every
-  protected route until an admin approves them. The status endpoint tells the frontend they
-  are pending (#28).
+  protected route until an admin approves them. The [status endpoint](../endpoints/auth/session.md#post-authstatusjson)
+  tells the frontend they are pending.
 - `denied` users look like unknown users everywhere, except a login with the **correct**
   password, which answers `403 USER_DENIED` ([conventions/errors.md](../conventions/errors.md#specific-codes)).
 
@@ -105,8 +106,9 @@ Login, register, refresh and the winning device poll all return this body and se
 ```
 
 - `user.status`, the password digest and the access token are **never** included.
-- The endpoints that return it, and their errors, are specified in #28 (auth) and #29
-  (device authorization).
+- The endpoints that return it, and their errors, are specified in
+  [endpoints/auth/session.md](../endpoints/auth/session.md) and in the device authorization
+  spec (#29).
 
 ## Pending decisions
 

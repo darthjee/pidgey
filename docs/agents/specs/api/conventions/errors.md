@@ -146,6 +146,9 @@ Error responses must not reveal whether an account, user or resource exists when
 is not entitled to know it: unknown and unauthorized cases answer the same status, code and
 message (e.g. resources of other organizations answer `404`, as if they did not exist). The
 concrete rules (login, password recovery, device authorization…) live in the endpoint specs.
+**Register is the documented exception:** its `USERNAME_TAKEN` / `EMAIL_TAKEN` answers reveal
+that a username or email exists (see
+[endpoints/auth/session.md](../endpoints/auth/session.md#known-limitation-enumeration)).
 SMTP failures on endpoints reachable without login are not surfaced either (see
 [SMTP send failures](#smtp-send-failures)).
 

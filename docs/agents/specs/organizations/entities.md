@@ -50,8 +50,8 @@ Purpose: define organizations, users and admins, how they relate, and the user s
 
 `status` is one of `pending`, `approved`, `denied`.
 
-- New registrations start `pending` when `USER_APPROVAL_REQUIRED=true`, otherwise
-  `approved`.
+- New registrations start `approved` only when `USER_APPROVAL_REQUIRED` is exactly `false`;
+  otherwise (the default) they start `pending`.
 - Only `approved` users pass the gate and can reach protected routes.
 - `pending` users can log in (they get a real session) but are blocked from every protected
   route until an admin approves them.
