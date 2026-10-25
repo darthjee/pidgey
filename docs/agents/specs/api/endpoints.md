@@ -10,7 +10,7 @@ prefix, cookie session); the public sending API keeps its `/v1` prefix and Beare
 | File | Content |
 | --- | --- |
 | [sending.md](endpoints/sending.md) | `POST /v1/messages`: the public sending API (Bearer token, scope `send`). |
-| [auth.md](endpoints/auth.md) | `/auth/*.json`: register, login, refresh, logoff, status, password recovery, account edit. |
+| [auth.md](endpoints/auth.md) | `/auth/*.json`: register, login, refresh, logoff, status, password recovery, account edit, device authorization. |
 | [admin.md](endpoints/admin.md) | Organization, SMTP connection and API token endpoints (temporary, rewritten by #31). |
 
 ## Pending decisions

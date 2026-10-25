@@ -12,8 +12,10 @@ authentication model ([authentication.md](../authentication.md)). Settings are d
 | [session.md](auth/session.md) | `POST /auth/register.json`, `POST /auth/login.json`, `POST /auth/refresh.json`, `DELETE /auth/logoff.json`, `POST /auth/status.json`. |
 | [recovery.md](auth/recovery.md) | `POST /auth/recover.json`, `POST /auth/reset-password.json`, password-reset tokens, the recovery email. |
 | [account.md](auth/account.md) | `PATCH /auth/account.json` and its failed-attempt lockout. |
+| [device-authorization.md](auth/device-authorization.md) | `/auth/authorization-requests*.json`: device authorization (create, poll, mine, authorize, deny), its state machine and shared rules. |
 
-Device authorization (`/auth/authorization-requests*`) is specified separately (#29).
+Device authorization follows the guards and trimming rules below, with the additions
+described in [device-authorization.md](auth/device-authorization.md).
 
 ## Guards
 
@@ -21,17 +23,20 @@ Every endpoint goes through the guard order of
 [authentication/gate.md](../authentication/gate.md#guard-order): origin check (every
 `/auth/*.json` endpoint is `POST`, `PATCH` or `DELETE`), gate, body validation, handler.
 
-- **Public** (no gate): register, login, refresh, logoff, status, recover, reset-password.
-- **Gated:** `PATCH /auth/account.json` only. Only `approved` users pass the gate, so a
-  `pending` caller gets the gate's uniform `401`.
+- **Public** (no gate): register, login, refresh, logoff, status, recover, reset-password,
+  and the device-authorization create and poll.
+- **Gated:** `PATCH /auth/account.json` and the device-authorization `mine`, `authorize` and
+  `deny`. Only `approved` users pass the gate, so a `pending` caller gets the gate's uniform
+  `401`.
 
 ## Trimming
 
 - Surrounding whitespace is **trimmed** on `username`, `email` and `organizationName`
   **before validation**, on every endpoint that takes them (register, login, recover, account
-  edit). "Not empty" is checked after trimming, so a whitespace-only value is empty.
+  edit, device-authorization create). "Not empty" is checked after trimming, so a
+  whitespace-only value is empty.
 - Passwords (`password`, `currentPassword`, `newPassword`) are **never** trimmed.
-- Tokens (`refreshToken`, `token`) are taken as sent.
+- Tokens (`refreshToken`, `token`, `pollToken`) are taken as sent.
 
 ## Identifiers
 
@@ -59,13 +64,14 @@ Every endpoint goes through the guard order of
 - Every new password must **not contain a NUL byte** (`\0`): bcrypt rejects such a password
   (`password_hash()` throws), so it is a `400 VALIDATION_FAILED` with the message
   `<field> must not contain a NUL byte` instead of a server error.
-- Passwords that are only **checked** (login `password`, account `currentPassword`) are only
-  required to be non-empty strings: an over-long value simply fails verification.
+- Passwords that are only **checked** (login `password`, account `currentPassword`,
+  device-authorization authorize `password`) are only required to be non-empty strings: an
+  over-long value simply fails verification.
 - Passwords and tokens are never logged (see [authentication.md](../authentication.md)).
 
 ## Shared `user` payload
 
-Register, login and refresh return the
+Register, login, refresh and the winning device-authorization poll return the
 [shared `user` payload](../authentication/gate.md#shared-user-payload) and set the
 `access_token` cookie ([access-token.md](../authentication/access-token.md#cookie)).
 
