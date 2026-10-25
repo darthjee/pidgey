@@ -14,6 +14,6 @@ Purpose: define the domain terms used consistently across all specs and code.
 | **Authorization request** | Device authorization: a pending login on one device, approved from another, already logged-in session. See [api/authentication.md](../api/authentication.md). |
 | **SMTP Connection** | The settings (host, port, encryption, credentials, from address) Pidgey uses to deliver email on behalf of an organization. Organization-scoped. |
 | **API Token** | A secret credential sent as `Authorization: Bearer <token>` by API clients. Belongs to an organization, carries a set of scopes, is stored hashed, and can be revoked. Distinct from the access and refresh tokens of an admin UI session. |
-| **Scope** | A permission carried by an API token (e.g. `send`, `admin`). See [api/authentication.md](../api/authentication.md). |
+| **Scope** | A permission carried by an API token (in v1 only `send`). See [api/authentication.md](../api/authentication.md). |
 | **Send Request** | A single call to `POST /v1/messages` asking Pidgey to deliver one message synchronously through the organization's active SMTP connection. |
 | **Outcome** | The result of a send request returned in the API response: success, or a categorized failure (see [email/failures.md](../email/failures.md)). |

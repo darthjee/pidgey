@@ -8,3 +8,4 @@ Purpose: index of the specs describing repository layout, backend structure, dat
 | [backend.md](architecture/backend.md) | Plain PHP backend: namespace, front controller, layers. |
 | [database.md](architecture/database.md) | MySQL 9 via raw PDO; migrations strategy. |
 | [dependencies.md](architecture/dependencies.md) | Runtime vs dev dependency policy. |
+| [configuration.md](architecture/configuration.md) | Every environment variable, its default and effect. |

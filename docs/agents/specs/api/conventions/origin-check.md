@@ -41,6 +41,7 @@ not live in browsers. The trusted-origins list must not be widened to allow such
   the default: the admin UI is served from the same origin as the API.
 - An `ALLOWED_ORIGINS` entry matches the request `Origin` **exactly** (scheme, host and
   port). `*`, wildcards and suffix or pattern matching are not supported.
+- In production, every `ALLOWED_ORIGINS` entry must use the `https` scheme.
 - `Origin: null` is never trusted, whatever the configuration.
 - The API never reflects an arbitrary `Origin`: `Access-Control-Allow-Origin` is sent only
   when the request `Origin` matches a trusted origin, and it echoes that matched origin.
@@ -51,8 +52,12 @@ not live in browsers. The trusted-origins list must not be widened to allow such
 ## CSRF protection
 
 This check is Pidgey's CSRF protection for cookie-authenticated requests, together with the
-`SameSite` flag of the auth cookie (see [authentication.md](../authentication.md)). No CSRF
+`SameSite` flag of the auth cookie (see [authentication/access-token.md](../authentication/access-token.md#cookie)). No CSRF
 token header is used.
 
-**Pending decision:** final names of the configuration variables (`ALLOWED_ORIGINS`,
-`FRONTEND_BASE_URL` are the working names, without the Citadel prefix).
+The variables `ALLOWED_ORIGINS` and `FRONTEND_BASE_URL` are defined in
+[architecture/configuration.md](../../architecture/configuration.md#origins).
+
+## Pending decisions
+
+None.

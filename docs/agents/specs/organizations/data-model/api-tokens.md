@@ -13,7 +13,7 @@ Token format, scopes and revocation rules are defined in
 | `id` | BIGINT | no | auto | PK |
 | `organization_id` | BIGINT | no | | FK → `organizations.id`; indexed |
 | `name` | VARCHAR(255) | no | | Label shown in the UI |
-| `token_prefix` | VARCHAR(16) | no | | Non-secret prefix, for identification |
+| `token_prefix` | VARCHAR(16) | no | | Non-secret display prefix only (never part of the secret), for identification |
 | `token_hash` | CHAR(64) | no | | SHA-256 hex of the full token; **unique** |
 | `scopes` | JSON | no | | Array of scope names, e.g. `["send"]` |
 | `created_at` | DATETIME | no | now | |

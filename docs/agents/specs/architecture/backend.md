@@ -29,7 +29,7 @@ root-relative with no prefix; `POST /v1/messages` is the only prefixed route (se
 
 | Layer | Namespace (indicative) | Responsibility |
 | --- | --- | --- |
-| HTTP | `Pidgey\Http\` | Request/Response objects, router, controllers, JSON encoding, authentication middleware (session and Bearer token). No SQL, no SMTP. |
+| HTTP | `Pidgey\Http\` | Request/Response objects, router, controllers, JSON encoding, authentication guards (cookie-session gate and Bearer token, see [api/authentication.md](../api/authentication.md)). No SQL, no SMTP. |
 | Services | `Pidgey\Service\` | Business logic: registration, login, token issuing/revocation, sending a message. Orchestrates repositories and transport. |
 | Repositories | `Pidgey\Repository\` | All database access through raw PDO with prepared statements. Return plain entity/value objects. |
 | Entities / values | `Pidgey\Model\` | Organization, User, SmtpConnection, ApiToken, Message, SendOutcome. |
@@ -41,9 +41,8 @@ Wiring is done manually (a small container/factory class), no DI framework.
 
 ## Configuration
 
-Configuration is read from environment variables (database DSN/credentials,
-secret key, log level). Development values live in `docker_volumes/configuration`
-or `.env` files used by docker-compose.
+Configuration is read from environment variables. Every variable, its default and its effect
+are listed in [configuration.md](configuration.md).
 
 **Pending decision:** whether the SMTP transport is hand-written over sockets or
 uses a library (this would add a runtime dependency and requires changing

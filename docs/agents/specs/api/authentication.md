@@ -1,29 +1,40 @@
 # Authentication
 
-Purpose: define how API clients and the admin UI authenticate and are authorized.
+Purpose: index of the specs defining how the admin UI and API clients authenticate and are
+authorized (the Citadel contract, adapted to Pidgey).
 
-## API tokens
+Pidgey has two **disjoint** credentials:
 
-- Sent as `Authorization: Bearer <token>`.
-- Generated with a CSPRNG (`random_bytes`, ≥ 32 bytes), encoded, with a short
-  non-secret prefix (e.g. `pdg_`) to help identification.
-- **Hashed at rest** (SHA-256); the plain token is shown only once at creation.
-- Belong to an organization; created and revoked in the admin UI.
-- Each token carries a set of **scopes**:
+- a **cookie session** (a JWT access token in the `access_token` cookie plus a refresh token)
+  for the admin UI surface: `/auth/*.json`, `/admin/users/*.json` and Pidgey's organization,
+  SMTP connection, API token and test-email endpoints;
+- a **Bearer API token** with scopes for the public sending API (`POST /v1/messages`).
 
-| Scope | Grants |
+There is no PHP session. Endpoint payloads and error codes live in the endpoint specs
+([endpoints.md](endpoints.md)); the settings used here are in
+[architecture/configuration.md](../architecture/configuration.md).
+
+Request logging must never record the `Authorization` header, the `Cookie` header, or
+`refreshToken`/`password` body fields.
+
+| File | Content |
 | --- | --- |
-| `send` | `POST /v1/messages`. |
-| `admin` | Admin endpoints (organization, SMTP connections, tokens). |
+| [access-token.md](authentication/access-token.md) | JWT HS256 claims, strict verification rules, `access_token` cookie, key rotation, why hand-rolled. |
+| [sessions.md](authentication/sessions.md) | Refresh tokens, sessions, atomic rotation, revocation reasons, replay detection, clock rules. |
+| [gate.md](authentication/gate.md) | Guard order, the per-request gate, uniform `401`, admin check, user status at the gate, shared `user` payload. |
+| [api-tokens.md](authentication/api-tokens.md) | Bearer API tokens for `/v1`: format, the `send` scope, revocation, disjoint credentials. |
+| [local-development.md](authentication/local-development.md) | Using the `Secure` cookie in development without TLS; production HTTPS. |
 
-- **Revocation:** sets `revoked_at`; revoked tokens are rejected immediately (`401`).
-- `last_used_at` is updated on successful use.
-- Missing/invalid/revoked token → `401`; valid token lacking scope → `403`.
+## Pending decisions
 
-## Admin UI session
+Each detail file lists its own. Summary:
 
-- Classic PHP session cookie (see [organizations/bootstrap.md](../organizations/bootstrap.md)).
-- A logged-in user has full access to their organization (equal access policy).
-
-**Pending decisions:** final scope list (finer-grained scopes such as
-`smtp:write`, `tokens:write`); token expiration.
+- Finer-grained Bearer scopes and token expiration ([api-tokens.md](authentication/api-tokens.md)).
+- Cleanup of `refresh_tokens` ([sessions.md](authentication/sessions.md)).
+- Refresh-token storage in the browser (XSS exposure, revisited with #32)
+  ([sessions.md](authentication/sessions.md)).
+- An absolute session lifetime checked against `started_at` (e.g. `SESSION_MAX_AGE`)
+  ([sessions.md](authentication/sessions.md)).
+- Renaming the cookie to `__Host-access_token` ([access-token.md](authentication/access-token.md)).
+- Refusing to boot with the shipped development key outside development/test
+  ([architecture/configuration.md](../architecture/configuration.md)).
