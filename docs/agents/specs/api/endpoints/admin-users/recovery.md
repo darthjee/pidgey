@@ -53,6 +53,10 @@ Success: **`201`**:
 A successful call writes an [operator log line](../admin-users.md#operator-log) that never
 includes the link or the token.
 
+The `resetUrl` response body is a **live credential**: it is **never logged**, neither by the
+request/access log nor by any error or debug handler (no response-body logging on this
+route).
+
 ## `POST /admin/users/{id}/send-recovery-email.json`
 
 Creates a token and sends the recovery email to the target, reporting whether it was sent.
@@ -86,7 +90,13 @@ Steps (after the guards, `{id}` parsing and the user lookup):
   (see [conventions/errors.md](../../conventions/errors.md#smtp-send-failures)). A database
   error is still a `500`.
 - "Not sent" reasons and SMTP failures are written to the operator log, identifying the user
-  by `users.id` only, **never** with the token, the link or the email address.
+  by `users.id` only, **never** with the token, the link or the email address. An SMTP failure
+  line records only the **failure category** (e.g. `SMTP_REJECTED`, see
+  [email/failures.md](../../../email/failures.md)) and the **numeric reply code**, **never the
+  server reply text**, which often echoes the recipient address.
+- The recovery email does **not** go through the send-flow attempt log
+  ([email/send-flow.md](../../../email/send-flow.md) step 8, which logs the recipient); it is
+  logged only per the operator-log rule above.
 - Every `201` writes the action's [operator log line](../admin-users.md#operator-log).
 - **Known limitation:** the response time includes the SMTP round trip, bounded by the
   connect and command timeouts of the [send flow](../../../email/send-flow.md). An outbox
@@ -117,7 +127,10 @@ The implementation must cover at least:
   `users.email`; never an `SMTP_*` code, `error.smtp` or a `500` because of mail;
 - the target's other outstanding tokens left valid after issuing;
 - a token issued for a `denied` user refused at redemption;
-- operator log lines never contain the token, the link or the email address.
+- operator log lines never contain the token, the link or the email address; an SMTP failure
+  line holds only the failure category and the numeric reply code, never the reply text;
+- no send-flow attempt log line (with the recipient) is written for the recovery email;
+- the `resetUrl` is never written to any log.
 
 ## Pending decisions
 

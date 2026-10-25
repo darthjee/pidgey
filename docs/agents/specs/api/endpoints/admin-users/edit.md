@@ -58,7 +58,9 @@ Steps, in order (after the guards, `{id}` parsing and body validation):
       ([sessions.md](../../authentication/sessions.md#revocation-reasons)).
 
    A unique-index violation on update (a concurrent change took the value) rolls back,
-   applies **nothing**, and answers the same `409 USERNAME_TAKEN` / `EMAIL_TAKEN`.
+   applies **nothing**, and answers the same `409 USERNAME_TAKEN` / `EMAIL_TAKEN`. It is
+   caught and mapped **without logging the driver message**, which contains the duplicate
+   value (see [error logging](../admin-users.md#error-logging)).
 5. Reload the target and answer `201`.
 
 A **username-only** change neither invalidates reset tokens nor revokes sessions.
@@ -127,6 +129,12 @@ The implementation must cover at least:
   previously issued token then answers `400 Invalid or expired token`) and revokes every
   active session of the target with `admin_edit` (rejected by the gate on the next request);
 - a username-only change leaves reset tokens and sessions untouched;
+- a `newPassword` identical to the current password is still a password change: it revokes
+  the target's sessions with `admin_edit`, marks unused reset tokens as used, and the operator
+  log line lists `password`;
+- an admin's own email or password edit makes the session that made the request answer the
+  gate's `401` on its next request;
+- the unique-index race is not logged with the driver message;
 - `isAdmin`, `status` and `organizationId` are never changed;
 - the 72-byte boundary and the NUL-byte rejection (`400 VALIDATION_FAILED`) on
   `newPassword`;

@@ -106,8 +106,17 @@ writes **one line** to the application (operator) log, so admin power stays trac
 - for edit, the **names** of the changed fields (`username`, `email`, `password`).
 
 It **never** includes values (usernames, emails), passwords, tokens or links. Search is a
-read and is not logged as an action. Send-recovery-email's "not sent" and SMTP failure lines
-follow the same rule (see [recovery.md](admin-users/recovery.md)).
+read and writes **no** operator log line. Send-recovery-email's "not sent" and SMTP failure
+lines follow the same rule (see [recovery.md](admin-users/recovery.md)).
+
+### Error logging
+
+- A **unique-index violation** (edit's lost "taken" race) is caught and mapped to its `409`
+  **without logging the database driver message**: MySQL's message contains the duplicate
+  value (a username or an email).
+- The same applies to **every `500` path** of these endpoints: what is logged identifies the
+  route, the acting admin's and the target's `users.id` and the error class or code, never the
+  driver message, request body fields, usernames, emails, passwords, tokens or links.
 
 ## Known limitations
 

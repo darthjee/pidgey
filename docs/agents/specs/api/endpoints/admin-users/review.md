@@ -150,7 +150,7 @@ The implementation must cover at least:
 - the `{id}` `400`/`404` boundary;
 - search: `LIKE` escaping of `%`, `_` and `\`; the AND combination; ordering by `id`;
   `currentUserId`; the organization fields in each item; an empty body and no body returning
-  every user;
+  every user; no operator log line written;
 - approve: the conditional update, `422` on a non-pending user with nothing changed, the
   user's existing session passing the gate afterwards;
 - deny: self-deny `422`; idempotence; status and revocation in the same transaction; every

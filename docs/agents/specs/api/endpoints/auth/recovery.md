@@ -57,7 +57,10 @@ Side effects:
 - "Not sent" and send failures are **additionally** written to the application (operator)
   log; they never reach the response. Operator log lines identify the user by `users.id`
   only and **never include** the reset token, the reset link, or the submitted email (in
-  particular an unknown submitted email is never logged).
+  particular an unknown submitted email is never logged). A send-failure line records only
+  the **failure category** (e.g. `SMTP_REJECTED`, see
+  [email/failures.md](../../../email/failures.md)) and the **numeric reply code**, **never
+  the server reply text**, which often echoes the recipient address.
 - A `pending` user stays `pending`.
 
 **Known limitation (timing):** the response time is not equalised. A request for an
@@ -153,6 +156,11 @@ organization.
 - It goes through the **same SMTP client** as the [send flow](../../../email/send-flow.md)
   (timeouts, TLS policy, failure categories of [email/failures.md](../../../email/failures.md)),
   with `From:` and envelope sender set to the connection's `from_address`.
+- It does **not** go through the send-flow **attempt log** (step 8 of
+  [email/send-flow.md](../../../email/send-flow.md), which logs the recipient): system
+  recovery emails are logged only per the operator-log rule of
+  [`POST /auth/recover.json`](#post-authrecoverjson) (user id, failure category and numeric
+  reply code; never the token, link, address or reply text).
 - **Content:** plain text.
   - Subject: `Reset your Pidgey password`.
   - Body: a fixed greeting, the link `{FRONTEND_BASE_URL}/#/recover-password?token={token}`,
@@ -182,7 +190,9 @@ The implementation must cover at least:
 - identical responses (status, body, request/access log line) for unknown, denied, cooldown
   and sent cases;
 - operator log lines for "not sent" and send failures contain neither the token, the link,
-  nor the submitted email;
+  nor the submitted email, and a send-failure line holds only the failure category and the
+  numeric reply code, never the server reply text;
+- no send-flow attempt log line (with the recipient) is written for the recovery email;
 - a recover request whose email is collation-equivalent but byte-different from the stored
   one (e.g. `BOB@exämple.com` for stored `bob@example.com`) sends the email to the **stored**
   address;
