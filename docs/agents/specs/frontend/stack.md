@@ -11,7 +11,7 @@ Purpose: fix the libraries and tooling of the admin UI.
 | Language | Plain JavaScript (`.js`/`.jsx`), **no TypeScript** |
 | Package manager | Yarn |
 | Compiler | babel-plugin-react-compiler |
-| Tests | Jasmine + c8 |
+| Tests | Jasmine + nyc / c8 (coverage) |
 | Lint | ESLint 9 flat config, plugins: complexity, jsdoc, react, react-hooks, jasmine |
 
 Reference: https://github.com/darthjee/citadel `frontend/`.
