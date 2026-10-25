@@ -60,3 +60,21 @@ services:
       - "${PHPMYADMIN_PORT:-8040}:80"
     depends_on:
       - mysql
+
+  frontend_dev:
+    image: darthjee/vite_pidgey
+    build:
+      context: .
+      dockerfile: dockerfiles/vite_pidgey/Dockerfile
+      args:
+        BASE_VERSION: ${FE_BASE_VERSION:-0.0.1}
+        BASE_SUFFIX: ${BASE_SUFFIX:-}
+    working_dir: /home/node/app
+    volumes:
+      - ./frontend:/home/node/app
+      - ./docker_volumes/node_modules:/home/node/app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-8030}:8080"
+    depends_on:
+      - app
+    command: yarn server

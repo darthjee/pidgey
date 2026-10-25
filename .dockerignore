@@ -1,0 +1,8 @@
+.git
+docker_volumes/
+frontend/node_modules
+frontend/dist
+frontend/coverage
+frontend/.nyc_output
+source/vendor
+source/coverage

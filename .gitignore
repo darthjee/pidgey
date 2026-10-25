@@ -11,5 +11,4 @@ source/.phpdoc
 frontend/dist/
 frontend/.nyc_output/
 frontend/coverage/
-backend/coverage/
-backend/report/
+source/public/admin/
