@@ -31,7 +31,7 @@ Request:
 | --- | --- |
 | `username` | string, not empty (after trimming), max 255 characters |
 | `email` | valid email (after trimming), max 255 characters |
-| `password` | string, min 8 characters, max 72 bytes (never trimmed) |
+| `password` | string, min 8 characters, max 72 bytes, no NUL byte (never trimmed) |
 | `organizationName` | **required**; string, not empty (after trimming), max 255 characters |
 
 Every field error is reported at once (e.g.
@@ -159,11 +159,13 @@ Checks, in order (rotation, replay detection and the conditional revoke are defi
 | 1 | Hash not found, or `expires_at <= now` | `401 UNAUTHORIZED` — `Invalid or expired refresh token` |
 | 2 | Revoked with `rotated` | [Replay detection](../../authentication/sessions.md#replay-detection): revoke every active token of the user with `replay_detected`, then `401` — `Invalid or expired refresh token` |
 | 3 | Revoked with any other reason | `401` — `Invalid or expired refresh token` |
-| 4 | User row missing | `401` — `Invalid refresh token` |
+| 4 | User row missing | `401` — `Invalid or expired refresh token` |
 | 5 | User `denied` | Revoke the presented token with `admin_denied`, then `401` — `Invalid or expired refresh token` (no replay detection) |
 | 6 | User `pending` or `approved` | Rotate atomically; `201`. Losing a concurrent rotation (conditional revoke affects 0 rows) → `401` — `Invalid or expired refresh token`, no side effect |
 
-Every `401` here uses the code `UNAUTHORIZED`; the frontend then sends the user to log in.
+Every `401` here uses the code `UNAUTHORIZED` and the **same message**, `Invalid or expired
+refresh token`, so the answer does not reveal which check failed; the frontend then sends the
+user to log in.
 
 ## `DELETE /auth/logoff.json`
 

@@ -56,6 +56,9 @@ Every endpoint goes through the guard order of
 - Every new password has a **max length of 72 bytes** (UTF-8 byte length, message
   `<field> must be shorter than or equal to 72 bytes`), so bcrypt never silently truncates
   it, in addition to its min length of 8 characters.
+- Every new password must **not contain a NUL byte** (`\0`): bcrypt rejects such a password
+  (`password_hash()` throws), so it is a `400 VALIDATION_FAILED` with the message
+  `<field> must not contain a NUL byte` instead of a server error.
 - Passwords that are only **checked** (login `password`, account `currentPassword`) are only
   required to be non-empty strings: an over-long value simply fails verification.
 - Passwords and tokens are never logged (see [authentication.md](../authentication.md)).

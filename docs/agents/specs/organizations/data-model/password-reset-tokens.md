@@ -16,7 +16,7 @@ lifetime (`PASSWORD_RESET_TOKEN_TTL`) and the recover cooldown (`PASSWORD_RESET_
 | `user_id` | BIGINT | no | | FK → `users.id`; indexed. Account being recovered |
 | `created_at` | DATETIME | no | now | |
 | `expires_at` | DATETIME | no | | End of the token's lifetime (configurable) |
-| `used_at` | DATETIME | yes | null | Set on a successful reset; a used token is dead |
+| `used_at` | DATETIME | yes | null | Set on a successful reset (on the consumed token and on every other unused token of the user) and on an account edit that changes the email or password; a used token is dead |
 
 Indexes: unique `token_hash`, `user_id`.
 

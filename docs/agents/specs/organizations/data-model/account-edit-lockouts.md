@@ -22,6 +22,11 @@ Conventions are in [conventions.md](conventions.md).
 
 Indexes: unique `user_id`.
 
+Each account-edit attempt locks the user's row (`SELECT … FOR UPDATE`) for the whole attempt,
+so concurrent attempts of one user are serialized; the lock is set when `failed_attempts`
+is **greater than or equal to** `ACCOUNT_EDIT_MAX_ATTEMPTS` (see
+[account.md](../../api/endpoints/auth/account.md#lockout)).
+
 ## Pending decisions
 
 None.

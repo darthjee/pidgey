@@ -35,6 +35,12 @@ Side effects:
 | User `approved` or `pending`, with a token created less than `PASSWORD_RESET_COOLDOWN` seconds ago (**cooldown**) | Nothing: no new token, no email. |
 | User `approved` or `pending`, otherwise | Create a [password-reset token](#password-reset-tokens) and send the [recovery email](#recovery-email) **synchronously**, before answering. |
 
+- The user is looked up with the column collation (case- and accent-insensitive, see
+  [auth.md](../auth.md#identifiers)), so `bob@exämple.com` or `BOB@example.com` matches the
+  user stored as `bob@example.com`. The recovery email is therefore **always sent to the
+  stored `users.email` of the matched row, never to the submitted value**: a request with a
+  collation-equivalent but byte-different address cannot redirect the reset link to an
+  address the attacker controls.
 - The cooldown uses `password_reset_tokens.created_at` of the user's most recent token
   (used or not); no extra table.
 - Sending is **inline**: Pidgey runs PHP synchronously and nothing runs after the response
@@ -43,10 +49,14 @@ Side effects:
   timeout) is **logged and swallowed**: the answer is still `200 { "sent": true }`, never an
   `SMTP_*` code or `error.smtp` (see
   [conventions/errors.md](../../conventions/errors.md#smtp-send-failures)).
-- The **status, body and log line** are the same in every case (unknown, denied, cooldown,
-  sent, not sent, failed), so the endpoint cannot be used to learn which emails are
-  registered. Send failures are additionally logged server-side for operators; they never
-  reach the response. A `pending` user stays `pending`.
+- The **response status, body and request/access log line** are the same in every case
+  (unknown, denied, cooldown, sent, not sent, failed), so neither the client nor a reader of
+  the access log can learn which emails are registered.
+- "Not sent" and send failures are **additionally** written to the application (operator)
+  log; they never reach the response. Operator log lines identify the user by `users.id`
+  only and **never include** the reset token, the reset link, or the submitted email (in
+  particular an unknown submitted email is never logged).
+- A `pending` user stays `pending`.
 
 **Known limitation (timing):** the response time is not equalised. A request for an
 `approved` or `pending` user's email that is not in cooldown includes an SMTP round trip,
@@ -73,7 +83,7 @@ field):
 | Field | Rules |
 | --- | --- |
 | `token` | string, not empty |
-| `password` | string, min 8 characters, max 72 bytes (never trimmed) |
+| `password` | string, min 8 characters, max 72 bytes, no NUL byte (never trimmed) |
 
 Success: **`200`**, `{ "reset": true }`.
 
@@ -90,7 +100,10 @@ Steps, in order:
       (`now` bound from PHP). If it affects **0 rows** (a concurrent reset used the token, or
       it expired in between), roll back and answer the same `400`: nothing is changed;
    2. update the user's `password_digest`;
-   3. revoke every active refresh token of the user with reason `password_reset` (see
+   3. mark **every other unused reset token** of the user as used
+      (`UPDATE … SET used_at = ? WHERE user_id = ? AND used_at IS NULL`), so an older link
+      still sitting in the mailbox cannot reset the password again;
+   4. revoke every active refresh token of the user with reason `password_reset` (see
       [sessions.md](../../authentication/sessions.md#revocation-reasons)).
 5. Answer `200 { "reset": true }`.
 
@@ -104,7 +117,8 @@ Steps, in order:
 - A `pending` user stays `pending` after a reset.
 - A reset does **not** clear an account-edit lockout
   ([account.md](account.md#lockout)).
-- Other outstanding tokens of the user stay valid until they expire or are used.
+- A successful reset **invalidates every other outstanding token** of the user (step 4.3).
+  A failed reset (any `400`) leaves them untouched.
 
 ## Password-reset tokens
 
@@ -119,6 +133,10 @@ The same mechanism is used by recover and by the admin recovery link / send-reco
   [sessions.md](../../authentication/sessions.md#clock)).
 - **Single use:** a successful reset sets `used_at`; a used token is dead.
 - Issuing a new token does **not** invalidate the user's other outstanding tokens.
+- A successful reset marks **every** unused token of the user as used (the consumed one and
+  all others), in the same transaction as the password update. A successful account edit
+  that changes the `email` or the password does the same
+  ([account.md](account.md#other-rules)).
 - Link: `{FRONTEND_BASE_URL}/#/recover-password?token={token}`.
 
 ## Recovery email
@@ -134,9 +152,14 @@ organization.
   with `From:` and envelope sender set to the connection's `from_address`.
 - **Content:** plain text.
   - Subject: `Reset your Pidgey password`.
-  - Body: a greeting, the link `{FRONTEND_BASE_URL}/#/recover-password?token={token}`, and a
-    note that the link is single-use, expires after `PASSWORD_RESET_TOKEN_TTL`, and can be
-    ignored if the user did not ask for it.
+  - Body: a fixed greeting, the link `{FRONTEND_BASE_URL}/#/recover-password?token={token}`,
+    and a note that the link is single-use, expires after `PASSWORD_RESET_TOKEN_TTL`, and can
+    be ignored if the user did not ask for it.
+  - The greeting does **not** include the `username` or any other user-controlled value (a
+    username has no character restriction, see [auth.md](../auth.md#identifiers), so it
+    could inject content into the email).
+  - Recipient (`To:` and envelope recipient): the matched user's stored `users.email`, never
+    the submitted value (see [`POST /auth/recover.json`](#post-authrecoverjson)).
 - **Not sent:** a logged no-op that reports "not sent" when there is no system organization,
   it has no active SMTP connection, or `FRONTEND_BASE_URL` is empty (the link would be
   broken). Recover still answers `200 { "sent": true }`; the "not sent" result only matters
@@ -150,10 +173,22 @@ the setup flow.
 
 ## Testable rules
 
-The implementation must cover at least: identical responses (status, body, log line) for
-unknown, denied, cooldown and sent cases; the cooldown boundary; failures swallowed with
-`200`; the concurrent reset with the same token (one `200`, one `400`, a single password
-change); a denied user's token left unconsumed; the 72-byte boundary on `password`.
+The implementation must cover at least:
+
+- identical responses (status, body, request/access log line) for unknown, denied, cooldown
+  and sent cases;
+- operator log lines for "not sent" and send failures contain neither the token, the link,
+  nor the submitted email;
+- a recover request whose email is collation-equivalent but byte-different from the stored
+  one (e.g. `BOB@exämple.com` for stored `bob@example.com`) sends the email to the **stored**
+  address;
+- the cooldown boundary; failures swallowed with `200`;
+- the concurrent reset with the same token (one `200`, one `400`, a single password change);
+- a successful reset marks every other unused token of the user as used: a second,
+  previously issued token then answers `400 Invalid or expired token`; a failed reset leaves
+  them valid;
+- a denied user's token left unconsumed;
+- the 72-byte boundary and the NUL-byte rejection (`400 VALIDATION_FAILED`) on `password`.
 
 ## Pending decisions
 
