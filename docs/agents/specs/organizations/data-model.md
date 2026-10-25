@@ -1,48 +1,17 @@
-# Data Model Sketch
+# Data Model
 
-Purpose: sketch the initial database tables; the authoritative schema is the SQL migrations.
+Purpose: index of the database table specs; the authoritative schema is the SQL migrations (see [architecture/database.md](../architecture/database.md)).
 
-```
-organizations
-  id               BIGINT PK
-  name             VARCHAR
-  created_at, updated_at
+| File | Content |
+| --- | --- |
+| [conventions.md](data-model/conventions.md) | Keys, foreign keys, timestamps, token hashes, charset. |
+| [organizations-and-users.md](data-model/organizations-and-users.md) | `organizations`, `users`. |
+| [refresh-tokens.md](data-model/refresh-tokens.md) | `refresh_tokens` (admin UI sessions). |
+| [password-reset-tokens.md](data-model/password-reset-tokens.md) | `password_reset_tokens` (account recovery). |
+| [authorization-requests.md](data-model/authorization-requests.md) | `authorization_requests` (device authorization). |
+| [account-edit-lockouts.md](data-model/account-edit-lockouts.md) | `account_edit_lockouts` (account-edit attempt lockout). |
+| [api-tokens.md](data-model/api-tokens.md) | `api_tokens`. |
+| [smtp-connections.md](data-model/smtp-connections.md) | `smtp_connections`. |
 
-users
-  id               BIGINT PK
-  organization_id  BIGINT FK -> organizations.id
-  username         VARCHAR UNIQUE
-  password_hash    VARCHAR
-  created_at, updated_at
-
-api_tokens
-  id               BIGINT PK
-  organization_id  BIGINT FK -> organizations.id
-  name             VARCHAR          -- label shown in the UI
-  token_prefix     VARCHAR          -- non-secret prefix for identification
-  token_hash       CHAR(64) UNIQUE  -- SHA-256 of the full token
-  scopes           JSON             -- e.g. ["send"]
-  created_at
-  last_used_at     NULL
-  revoked_at       NULL
-
-smtp_connections
-  id               BIGINT PK
-  organization_id  BIGINT FK -> organizations.id
-  name             VARCHAR
-  host             VARCHAR
-  port             INT
-  encryption       ENUM('none','tls','ssl')
-  username         VARCHAR NULL
-  password         VARBINARY NULL   -- encrypted at rest (see email spec)
-  from_address     VARCHAR
-  active           BOOLEAN
-  created_at, updated_at
-
-schema_migrations
-  version          VARCHAR PK
-  applied_at
-```
-
-**Pending decisions:** whether `username` is an email address; storage format for
-`scopes` (JSON vs. join table).
+`schema_migrations` is owned by the migrations runner and specified in
+[architecture/database.md](../architecture/database.md).
