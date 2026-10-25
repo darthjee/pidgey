@@ -18,7 +18,7 @@ Success `200`:
 { "status": "sent", "smtp": { "code": 250, "message": "OK: queued as ..." } }
 ```
 
-Failure: error body as in [conventions.md](conventions.md), codes from
+Failure: error body as in [conventions/errors.md](conventions/errors.md), codes from
 [email/failures.md](../email/failures.md).
 
 ## Admin endpoints (used by the admin UI)

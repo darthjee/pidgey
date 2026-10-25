@@ -22,14 +22,18 @@ Definitions, tags and build targets: [docker/images.md](../docker/images.md) and
 
 ## API access
 
-Vite proxies `/v1` to `http://app:80` with `changeOrigin: false`. No Tent (or other separate
-proxy) is used.
+Vite proxies `/v1` **and** every `*.json` path to `http://app:80` with `changeOrigin: false`.
+The `*.json` rule uses a regex key (such as `'^/.*\\.json$'`), which takes precedence over
+Vite's own `/admin/` base, so API paths under `/admin/` (e.g. `/admin/users/search.json`)
+reach the backend (see [api/conventions/format.md](../api/conventions/format.md#paths)). No
+Tent (or other separate proxy) is used. The `frontend/vite.config.js` change is done by a
+later implementation issue.
 
-Why: the browser stays on `localhost:8030` for both the UI and the API, so the PHP session cookie
-is same-origin and the client layer can use `credentials: 'same-origin'`
+Why: the browser stays on `localhost:8030` for both the UI and the API, so the `access_token`
+cookie is same-origin and the client layer can use `credentials: 'same-origin'`
 ([layout.md](layout.md)), exactly as in production where the UI and API share an origin.
 
-**Security note:** keep `changeOrigin: false`, and the PHP session cookie must not pin a
+**Security note:** keep `changeOrigin: false`, and the `access_token` cookie must not pin a
 `Domain` or port; otherwise the cookie set through the proxy is rejected and login breaks.
 
 ## Ports
