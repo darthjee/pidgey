@@ -10,3 +10,4 @@ except for its `/v1` path prefix and its Bearer-token authentication.
 | File | Content |
 | --- | --- |
 | [format.md](conventions/format.md) | JSON content type, `camelCase`, dates, bodies on `DELETE`, the path rule, success codes, guard order. |
+| [validation.md](conventions/validation.md) | Validation order, unknown fields dropped, all errors at once, message templates. |
