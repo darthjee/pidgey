@@ -33,9 +33,13 @@ Purpose: define the column, key and constraint conventions every Pidgey table fo
 - SMTP passwords must be recoverable, so they are encrypted at rest instead (see
   [email/smtp-connections.md](../../email/smtp-connections.md)).
 
-## Charset
+## Charset and collation
 
-- Tables use `utf8mb4`.
+- Tables use `utf8mb4` with the default `utf8mb4_0900_ai_ci` collation.
+- Text comparisons, and therefore unique constraints, are **case-insensitive** (and
+  accent-insensitive). In particular `users.username` and `users.email` are unique regardless
+  of case: `Admin` and `admin` cannot both exist.
+- Lookups by `username` or `email` use the same collation, so they match regardless of case.
 
 ## Migrations table
 
