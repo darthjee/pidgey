@@ -8,3 +8,6 @@ exclude_paths:
   - "docs/**"
   - "docker_volumes/**"
   - ".claude/**"
+  - "frontend/coverage/**"
+  - "frontend/node_modules/**"
+  - "**/yarn.lock"

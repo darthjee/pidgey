@@ -13,7 +13,7 @@ Backend jobs run in the CI image `circleci_pidgey-base` (see
 | --- | --- |
 | `backend_checks` | `composer lint` (phpcs + slevomat, phpmd). |
 | `backend_tests` | Service containers `mysql:9` (named `mysql`) and `axllent/mailpit` (named `mailpit`); `composer db:prepare` (wait for the database, create `pidgey_test`, run migrations); `composer coverage` (PHPUnit unit + integration); upload `coverage/clover.xml` to Codacy with a single plain `report` command (no `--partial`/`final`) using `CODACY_PROJECT_TOKEN`. |
-| `frontend_checks` | Moves `frontend/` into the working directory, then `yarn install`, `npm run lint`, `npm run coverage` (see [frontend/testing.md](../frontend/testing.md)). |
+| `frontend_checks` | Moves `frontend/` into the working directory, then `yarn install --frozen-lockfile`, `npm run lint`, `npm run coverage` (see [frontend/testing.md](../frontend/testing.md)). |
 | `build_images` | Future work. Build `dev_pidgey` (and `dev_pidgey-base` when changed). |
 | `upload_fe_files` | Future work. `yarn install` → `vite build` → upload `dist/` to the web root's `admin/` (majora pattern). Only needed if the production delivery decision in [frontend/build.md](../frontend/build.md#pending-decisions) picks option C. |
 | `release` | Future work. Build and push the production `pidgey` image. |

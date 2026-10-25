@@ -65,6 +65,24 @@ jobs:
           name: Upload coverage to Codacy
           command: bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r coverage/clover.xml
 
+  frontend_checks:
+    docker:
+      - image: darthjee/circleci_node:0.2.1
+    steps:
+      - checkout
+      - run:
+          name: Set folder
+          command: mv frontend /tmp/frontend; rm -rf ./*; cp -R /tmp/frontend/. ./
+      - run:
+          name: Yarn install
+          command: yarn install --frozen-lockfile
+      - run:
+          name: Lint
+          command: npm run lint
+      - run:
+          name: Tests
+          command: npm run coverage
+
 all_tags: &all_tags
   tags:
     only: /.*/
@@ -75,4 +93,6 @@ workflows:
       - backend_checks:
           filters: *all_tags
       - backend_tests:
+          filters: *all_tags
+      - frontend_checks:
           filters: *all_tags
