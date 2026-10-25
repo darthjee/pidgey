@@ -8,7 +8,7 @@ volumes, env files and `depends_on` between services, following the tent reposit
 | Service | Image | Port (host) | Role |
 | --- | --- | --- | --- |
 | `base_build` | `dev_pidgey` | — | Builds the `dev_pidgey` image on a fresh clone; the other `dev_pidgey` services depend on its image. |
-| `app` | `dev_pidgey` | 8080 → 80 | Apache + PHP serving the API, session endpoints and the built frontend at `/admin/`. Runs with `PHP_ENV=development`. |
+| `app` | `dev_pidgey` | 8080 → 80 | Apache + PHP serving the API, auth endpoints and the built frontend at `/admin/`. Runs with `PHP_ENV=development`. |
 | `frontend_dev` | `vite_pidgey` | `${FRONTEND_PORT:-8030}` → 8080 | Vite dev server (`yarn server`) with hot reload; proxies `/v1` to `app:80`; depends on `app`. See [frontend/development.md](../frontend/development.md). |
 | `mysql` | `mysql:9` | 3306 | Database (development and test databases). Mounts `./dockerfiles/mysql/initdb.d` read-only at `/docker-entrypoint-initdb.d`. |
 | `phpmyadmin` | `phpmyadmin` | 8040 | DB inspection during development. |

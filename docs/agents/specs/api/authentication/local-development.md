@@ -22,8 +22,9 @@ TLS, and what production requires.
 - **Safari** may reject the `Secure` cookie over plain HTTP, even on `localhost`; use Chrome
   or Firefox in dev.
 - The Vite dev proxy must forward the cookie-authenticated paths (`/auth/*.json`,
-  `/admin/users/*.json` and Pidgey's admin endpoints), and the origin check must accept the
-  proxied dev origin (follow-up in #32).
+  `/admin/users/*.json` and Pidgey's admin endpoints; the `*.json` rule in
+  [frontend/development.md](../../frontend/development.md#api-access)), and the origin check
+  must accept the proxied dev origin. Implementing and checking this is a follow-up in #32.
 
 ## Production
 

@@ -51,7 +51,7 @@ not live in browsers. The trusted-origins list must not be widened to allow such
 ## CSRF protection
 
 This check is Pidgey's CSRF protection for cookie-authenticated requests, together with the
-`SameSite` flag of the auth cookie (see [authentication.md](../authentication.md)). No CSRF
+`SameSite` flag of the auth cookie (see [authentication/access-token.md](../authentication/access-token.md#cookie)). No CSRF
 token header is used.
 
 The variables `ALLOWED_ORIGINS` and `FRONTEND_BASE_URL` are defined in

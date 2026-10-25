@@ -35,6 +35,9 @@ cookie is same-origin and the client layer can use `credentials: 'same-origin'`
 
 **Security note:** keep `changeOrigin: false`, and the `access_token` cookie must not pin a
 `Domain` or port; otherwise the cookie set through the proxy is rejected and login breaks.
+The cookie is `Secure` even over plain HTTP in dev; see
+[api/authentication/local-development.md](../api/authentication/local-development.md) for why
+this works on `localhost` and its caveats.
 
 ## Ports
 

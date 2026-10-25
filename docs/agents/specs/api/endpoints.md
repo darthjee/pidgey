@@ -26,6 +26,10 @@ Failure: error body as in [conventions/errors.md](conventions/errors.md), codes 
 Auth: PHP session cookie, or Bearer token with scope `admin`.
 All operate on the caller's organization.
 
+> **Superseded:** the auth model above is replaced by [authentication.md](authentication.md):
+> these endpoints use the cookie session only (no Bearer token, no `admin` scope). #28 and #31
+> rewrite this section.
+
 | Method & path | Purpose |
 | --- | --- |
 | `POST /v1/registration` | Bootstrap: create organization + first user, start session (no auth). |
