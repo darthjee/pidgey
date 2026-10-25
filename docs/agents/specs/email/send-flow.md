@@ -7,8 +7,8 @@ and the response carries the outcome. There is no queue and no retry in v1.
 
 1. `POST /v1/messages` arrives with a Bearer token (see [api](../api.md)).
 2. Authenticate the token; require scope `send`; resolve the token's organization.
-3. Validate the payload (see [message-scope.md](message-scope.md)); invalid → `422`.
-4. Resolve the organization's **active** SMTP connection; none → error `no_smtp_connection`.
+3. Validate the payload (see [message-scope.md](message-scope.md)); invalid → `400 VALIDATION_FAILED`.
+4. Resolve the organization's **active** SMTP connection; none → `409 NO_SMTP_CONNECTION`.
 5. Open the connection (with `ssl` implicit TLS, or plain then `STARTTLS` for `tls`),
    `EHLO`, authenticate if credentials exist.
 6. `MAIL FROM` (connection `from_address`), `RCPT TO`, `DATA` with the built MIME message,
