@@ -11,8 +11,8 @@ Pidgey is a single PHP application served by Apache, backed by MySQL 9:
 - **Backend:** plain PHP 8.4 with **no application framework**. A single front controller
   (`source/public/index.php`) handles every dynamic request: the JSON API (Bearer-token
   authenticated) and the admin session endpoints.
-- **Frontend:** a React 19 admin UI built with Vite. Its `dist/` output is served by Apache
-  as static files under `static/`.
+- **Frontend:** a React 19 admin UI built with Vite. Its `dist/` output is released into
+  `source/public/admin` (`make build-fe-release`) and served by Apache at `/admin/`.
 - **Database:** MySQL 9 accessed only through raw PDO with prepared statements (no ORM),
   using forward-only plain SQL migrations.
 - **Email:** synchronous delivery. Each send request opens a connection to the
@@ -45,7 +45,7 @@ dependencies are limited to `php` and `monolog/monolog`
 
 ### `source/public/`
 
-The Apache document root: `index.php` front controller plus built frontend assets under `static/`.
+The Apache document root: `index.php` front controller plus built frontend assets under `admin/` (served at `/admin/`, git-ignored for now).
 
 ### `source/migrations/`
 

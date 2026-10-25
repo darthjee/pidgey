@@ -10,7 +10,9 @@ https://github.com/darthjee/tent `dockerfiles/`.
 | `dev_pidgey-base` | `dockerfiles/dev_pidgey-base/Dockerfile` | Published base image: `php:8.4-apache`, extensions `zip`, `pdo`, `pdo_mysql`, `pcov` (coverage), Composer, Apache `mod_rewrite`, a non-root `app` user (uid 1000). Multi-arch tags: `<version>` (amd64) and `<version>-arm64`. Rebuilt rarely; built and pushed manually to the registry. |
 | `dev_pidgey` | `dockerfiles/dev_pidgey/Dockerfile` | `FROM dev_pidgey-base:<version><BASE_SUFFIX>` (`ARG BASE_SUFFIX` selects the amd64 or `-arm64` tag); copies `composer.json`/`composer.lock` and runs `composer install` (with dev dependencies); installs the pinned, sha256-verified phpDocumentor phar at `/usr/local/bin/phpdoc` (see [dependencies](../architecture/dependencies.md)). Used for local development and the compose services (not CI). |
 | `circleci_pidgey-base` | `dockerfiles/circleci_pidgey-base/Dockerfile` | CI image: `cimg/php:8.4` + extensions `zip`, `pdo_mysql`, `pcov`, Composer, project dependencies pre-installed at `/home/circleci/vendor`. amd64 only (single `<version>` tag, no `-arm64`). Built from the `source/` context and pushed manually with `make build-ci-base` / `make push-ci-base`. Used by every CircleCI job. |
-| `pidgey` | `dockerfiles/pidgey/Dockerfile` | Production image (future work — not part of the initial setup): `php:8.4-apache` with `pdo_mysql`, `composer install --no-dev`, application source and the built frontend `dist/` in the web root. Runs `apache2-foreground`. No dev tooling, no pcov. |
+| `vite_pidgey-base` | `dockerfiles/vite_pidgey-base/Dockerfile` | Published frontend base image: `darthjee/node` with the yarn cache pre-warmed by `darthjee/scripts` `yarn_builder.sh`; `CMD ["npm", "run", "server"]`. Built from the **repository root** context, since it copies `frontend/package.json`/`frontend/yarn.lock`. Multi-arch tags: `<version>` (amd64) and `<version>-arm64`. Rebuilt rarely; built and pushed manually with `make build-fe-base` / `make push-fe-base`. |
+| `vite_pidgey` | `dockerfiles/vite_pidgey/Dockerfile` | `FROM vite_pidgey-base:<version><BASE_SUFFIX>` (`ARG BASE_SUFFIX` selects the amd64 or `-arm64` tag); repository-root context. Used by the `frontend_dev` compose service (see [frontend/development.md](../frontend/development.md)). |
+| `pidgey` | `dockerfiles/pidgey/Dockerfile` | Production image (future work — not part of the initial setup): `php:8.4-apache` with `pdo_mysql`, `composer install --no-dev`, application source, and the built frontend in the web root's `admin/` folder (served at `/admin/`). How the built frontend gets there is a pending decision recorded in [frontend/build.md](../frontend/build.md#pending-decisions). Runs `apache2-foreground`. No dev tooling, no pcov. |
 
 Apache serves PHP directly (`apache2-foreground`); there is no Tent or reverse proxy layer.
 
@@ -19,6 +21,5 @@ Registry: Docker Hub `darthjee/`.
 No image-processing extension is installed: Pidgey does no image processing; one is added only
 if a feature needs it.
 
-**Pending decisions:**
-- Node.js/Yarn are deferred to the frontend setup and not installed yet. Whether they then live
-  in `dev_pidgey-base` or in a separate frontend image is open (working assumption: same base).
+Node.js/Yarn live in the separate frontend images (`vite_pidgey-base` / `vite_pidgey`), not in
+`dev_pidgey-base`, so the PHP and Node toolchains are built and versioned independently.

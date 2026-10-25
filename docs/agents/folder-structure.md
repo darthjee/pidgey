@@ -9,12 +9,12 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 | Directory / File | Description |
 |-----------------|-------------|
 | `source/` | PHP backend: `composer.json`, PSR-4 code under `lib/` (namespace `Pidgey\`), public web root with the front controller, SQL migrations and PHPUnit tests. |
-| `frontend/` | *(planned)* React admin UI (Vite project); its built `dist/` is served by Apache as static files. |
-| `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/` (CI image, built and pushed manually with `make build-ci-base && make push-ci-base`) (present); `pidgey/` *(planned)*. |
+| `frontend/` | React admin UI (Vite project); its built `dist/` is released into `source/public/admin` (`make build-fe-release`) and served by Apache at `/admin/`. |
+| `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/` (CI image, built and pushed manually with `make build-ci-base && make push-ci-base`), `vite_pidgey-base/`, `vite_pidgey/` (frontend Node images); `pidgey/` *(planned)*. |
 | `docker_volumes/` | Host-side persistent data mounted into containers. Git-ignored except placeholders. |
 | `dev/` | *(planned)* Development helpers: sample configuration, seed data, local-only scripts. |
 | `scripts/` | *(planned)* Host-side / CI-only operational scripts. DB scripts live in `source/bin/`, since only `source/` ships in the image. |
-| `.circleci/` | CircleCI configuration (`config.yml`): `backend_checks` and `backend_tests` on every branch and tag. |
+| `.circleci/` | CircleCI configuration (`config.yml`): `backend_checks`, `backend_tests` and `frontend_checks` on every branch and tag. |
 | `.codacy.yml` | Codacy analysis configuration (`exclude_paths`). |
 | `docker-compose.yml`, `Makefile` | Local orchestration and `make` targets (including `build-ci-base`/`push-ci-base` for the CI image). CI does not call `make`; its jobs run `composer` directly. |
 | `.env` | Committed, development-only values (local MySQL credentials, DB/SMTP hosts) loaded by the compose services. Never holds real secrets. |
@@ -30,7 +30,7 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 | Subdirectory | Description |
 |--------------|-------------|
 | `lib/` | PSR-4 root for namespace `Pidgey\` (e.g. `Infra/Env.php`). |
-| `public/` | Apache document root: `index.php` (currently a placeholder stub returning `{"status":"ok"}`, replaced by the front controller later); built frontend assets go under `static/`. |
+| `public/` | Apache document root: `index.php` (currently a placeholder stub returning `{"status":"ok"}`, replaced by the front controller later); built frontend assets go under `admin/` (git-ignored for now). |
 | `bin/` | Thin PHP CLI entry points (`wait-for-db`, `create-db`, `drop-db`, `migrate`), exposed as `composer db:*` scripts; logic lives in `Pidgey\Infra`. |
 | `migrations/` | Plain SQL migrations named `NNNN_description.sql`, exactly one statement per file. |
 | `tests/unit/` | PHPUnit unit suite (no database, no network). |
@@ -44,7 +44,7 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 |--------------|-------------|
 | `mysql_data/` | MySQL persistence. |
 | `vendor/` | Composer vendor directory, kept out of the source tree. |
-| `node_modules/` | *(planned)* Frontend Yarn dependencies. |
+| `node_modules/` | Frontend Yarn dependencies, mounted into `frontend_dev`. |
 | `configuration/` | *(planned)* Local env/config files. |
 | `cache/` | *(planned)* Composer/Yarn caches. |
 

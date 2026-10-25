@@ -5,16 +5,17 @@ Purpose: define the CircleCI jobs and how releases happen.
 CI uses CircleCI (`.circleci/config.yml`) following the patterns of
 https://github.com/darthjee/tent and https://github.com/darthjee/majora.
 
-Every job runs in the CI image `circleci_pidgey-base` (see
-[images](../docker/images.md)), not in `dev_pidgey`.
+Backend jobs run in the CI image `circleci_pidgey-base` (see
+[images](../docker/images.md)), not in `dev_pidgey`. `frontend_checks` runs in
+`darthjee/circleci_node:0.2.1`.
 
 | Job | Steps |
 | --- | --- |
 | `backend_checks` | `composer lint` (phpcs + slevomat, phpmd). |
 | `backend_tests` | Service containers `mysql:9` (named `mysql`) and `axllent/mailpit` (named `mailpit`); `composer db:prepare` (wait for the database, create `pidgey_test`, run migrations); `composer coverage` (PHPUnit unit + integration); upload `coverage/clover.xml` to Codacy with a single plain `report` command (no `--partial`/`final`) using `CODACY_PROJECT_TOKEN`. |
-| `frontend_checks` | Future work. `yarn install`, `yarn lint`, `yarn test`, `yarn coverage`. |
+| `frontend_checks` | Moves `frontend/` into the working directory, then `yarn install`, `npm run lint`, `npm run coverage` (see [frontend/testing.md](../frontend/testing.md)). |
 | `build_images` | Future work. Build `dev_pidgey` (and `dev_pidgey-base` when changed). |
-| `upload_fe_files` | Future work. `yarn install` → `vite build` → upload `dist/` to the web root `static/` (majora pattern). |
+| `upload_fe_files` | Future work. `yarn install` → `vite build` → upload `dist/` to the web root's `admin/` (majora pattern). Only needed if the production delivery decision in [frontend/build.md](../frontend/build.md#pending-decisions) picks option C. |
 | `release` | Future work. Build and push the production `pidgey` image. |
 
 For now images (`dev_pidgey-base`, `circleci_pidgey-base`) are built and pushed manually
@@ -32,14 +33,20 @@ throwaway, so root carries no risk.
 
 ## Workflow
 
-`backend_checks` and `backend_tests` run in parallel on every branch **and every tag**.
+`backend_checks`, `backend_tests` and `frontend_checks` run in parallel on every branch **and every tag**.
 `upload_fe_files` and `release` (future work) run only on `main` after all checks pass.
 
 ## Codacy
 
 - Coverage is uploaded by `backend_tests` with `CODACY_PROJECT_TOKEN`, which is set only in
   the CircleCI project settings (never committed).
-- Static-analysis exclusions live in `.codacy.yml` at the repository root (`exclude_paths`).
+- Static-analysis exclusions live in `.codacy.yml` at the repository root (`exclude_paths`),
+  including `frontend/coverage/**`, `frontend/node_modules/**` and `**/yarn.lock`.
 
-**Pending decisions:** production hosting target and upload mechanism for `dist/`;
-image tagging scheme; how migrations are triggered on deploy.
+**Pending decisions:**
+- Whether `frontend_checks` also uploads frontend coverage to Codacy (which would turn the
+  backend upload into a partial report plus a final step), or frontend coverage stays out of
+  Codacy.
+- How the built frontend reaches production — recorded once in
+  [frontend/build.md](../frontend/build.md#pending-decisions).
+- Production hosting target; image tagging scheme; how migrations are triggered on deploy.

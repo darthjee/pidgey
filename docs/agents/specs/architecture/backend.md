@@ -13,10 +13,12 @@ Purpose: define how the plain PHP backend is structured.
 ## Entry point
 
 A single **front controller** (`source/public/index.php`) receives every dynamic
-request (Apache rewrites non-file requests to it). It bootstraps configuration,
+request (Apache rewrites requests that are not existing files or directories to it). It bootstraps configuration,
 the PDO connection and the logger, then dispatches to the router.
 
-Static files (the built frontend under `static/`) are served directly by Apache.
+Static files are served directly by Apache. The built frontend lives under `admin/` in the web
+root and is served at `/admin/` (see [frontend/build.md](../frontend/build.md)); `/admin/` is
+reserved for the UI and the API router never claims it.
 
 ## Layers
 
