@@ -4,7 +4,7 @@ Purpose: index of the specs describing organizations, users, the bootstrap flow 
 
 | File | Content |
 | --- | --- |
-| [entities.md](organizations/entities.md) | Organization, User, relationships, equal-access policy. |
-| [bootstrap.md](organizations/bootstrap.md) | Registration, organization creation, session login. |
+| [entities.md](organizations/entities.md) | Organization, User, Admin, relationships, equal-access policy, user status lifecycle. |
+| [bootstrap.md](organizations/bootstrap.md) | Registration, organization creation, first admin. |
 | [scope.md](organizations/scope.md) | What lives at organization scope. |
-| [data-model.md](organizations/data-model.md) | Table sketch. |
+| [data-model.md](organizations/data-model.md) | Index of the table specs in `organizations/data-model/`. |

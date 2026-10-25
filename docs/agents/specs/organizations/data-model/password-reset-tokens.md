@@ -1,0 +1,24 @@
+# Password Reset Tokens Table
+
+Purpose: define the `password_reset_tokens` table used for account recovery.
+
+Each row is one recovery token (from a recovery link or email). The recovery flow is
+defined in [api/authentication.md](../../api/authentication.md) (#27) and the endpoint
+specs. Conventions are in [conventions.md](conventions.md).
+
+## `password_reset_tokens`
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `id` | BIGINT | no | auto | PK |
+| `token_hash` | CHAR(64) | no | | SHA-256 hex of the reset token; **unique** |
+| `user_id` | BIGINT | no | | FK → `users.id`; indexed. Account being recovered |
+| `created_at` | DATETIME | no | now | |
+| `expires_at` | DATETIME | no | | End of the token's lifetime (configurable) |
+| `used_at` | DATETIME | yes | null | Set on a successful reset; a used token is dead |
+
+Indexes: unique `token_hash`, `user_id`.
+
+## Pending decisions
+
+None.

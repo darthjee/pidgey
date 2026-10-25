@@ -113,4 +113,4 @@ Runs against the same database are serialized with a MySQL named lock:
 - The app user is granted ``ALL ON `pidgey\_%`.*`` by a mysql init script, so it can create
   and drop `pidgey_*` databases without root credentials in application containers.
 
-The data model is sketched in [organizations/data-model.md](../organizations/data-model.md).
+The tables are specified in [organizations/data-model.md](../organizations/data-model.md).

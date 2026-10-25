@@ -19,4 +19,5 @@ Hash-based routing (`#/...`), so Apache only needs to serve `index.html`.
 | `#/tokens` | API tokens: list, create (choose name and scopes; show the token once), revoke. |
 
 **Pending decisions:** routing library vs. a small hand-written hash router;
-user management screen (depends on [organizations/entities.md](../organizations/entities.md)).
+admin user management screen (see the admin model in
+[organizations/entities.md](../organizations/entities.md#admin)).
