@@ -12,7 +12,8 @@ Purpose: list every environment variable the application reads, with its default
 - Durations are integers in **seconds**. A duration must be a **positive integer**; any other
   value (zero, negative, non-numeric) refuses boot (or the command exits non-zero).
 - Counts (e.g. `ACCOUNT_EDIT_MAX_ATTEMPTS`) must be **positive integers**; any other value
-  refuses boot (or the command exits non-zero).
+  refuses boot (or the command exits non-zero). **Exception:** `TRUSTED_PROXY_HOPS` must be a
+  **non-negative** integer (`0` is allowed); any other value refuses boot.
 - Booleans are enabled only by the exact value `true`; anything else is `false`.
   **Exception:** `USER_APPROVAL_REQUIRED` is disabled only by the exact value `false`; anything
   else (unset, empty, a typo) keeps approval required, so a typo never silently opens
@@ -44,7 +45,8 @@ Purpose: list every environment variable the application reads, with its default
 
 ### Authentication
 
-Used by [api/authentication.md](../api/authentication.md).
+Used by [api/authentication.md](../api/authentication.md) and, for the `AUTHORIZATION_REQUEST_*`
+settings, by [api/endpoints/auth/device-authorization.md](../api/endpoints/auth/device-authorization.md).
 
 | Setting | Default | Effect |
 | --- | --- | --- |
@@ -53,7 +55,13 @@ Used by [api/authentication.md](../api/authentication.md).
 | `ACCESS_TOKEN_TTL` | `900` | JWT `exp` and the `access_token` cookie `Max-Age`, in seconds. Must be less than `REFRESH_TOKEN_TTL`, otherwise boot is refused. |
 | `REFRESH_TOKEN_TTL` | `604800` (7 days) | Refresh-token lifetime, in seconds (see [sessions.md](../api/authentication/sessions.md)). |
 | `USER_APPROVAL_REQUIRED` | `true` | New registrations start `pending` unless the value is exactly `false` (the exception to the boolean rule, see [Rules](#rules)); then they start `approved` (see [gate.md](../api/authentication/gate.md#user-status-at-the-gate)). Defaults to `true` because open registration lets a stranger store SMTP connections and make the server open TCP connections to arbitrary hosts and ports (test email, `POST /v1/messages`): an SSRF-style probe of the internal network. Openness is opt-in; the development `.env` may set `false`. |
-| `TRUSTED_PROXY_HOPS` | `1` | How many `X-Forwarded-For` hops to trust when resolving the client IP. Set it to `0` when no reverse proxy sits in front of the app; otherwise clients can spoof their IP through `X-Forwarded-For`. |
+| `TRUSTED_PROXY_HOPS` | `1` | How many `X-Forwarded-For` hops to trust when resolving the client IP (a non-negative count, see [Rules](#rules); resolution in [client-ip.md](../api/conventions/client-ip.md)). Set it to `0` when no reverse proxy sits in front of the app; otherwise clients can spoof their IP through `X-Forwarded-For`. |
+| `AUTHORIZATION_REQUEST_TTL` | `3600` (1 h) | Lifetime of a device request, in seconds: `expires_at = now + TTL` (see [requester.md](../api/endpoints/auth/device-authorization/requester.md#post-authauthorization-requestsjson)). |
+| `AUTHORIZATION_REQUEST_CREATE_LIMIT` | `5` | Creates allowed per client IP and, separately, per username within the window (a count, see [Rules](#rules)). |
+| `AUTHORIZATION_REQUEST_CREATE_WINDOW` | `60` | Rate-limit window of the create endpoint, in seconds. |
+| `AUTHORIZATION_REQUEST_MAX_OPEN_PER_USER` | `5` | Open requests per user; the oldest is expired to make room (a count). |
+| `AUTHORIZATION_REQUEST_AUTHORIZE_MAX_ATTEMPTS` | `5` | Wrong passwords before the per-request authorize lockout (a count, see [approver.md](../api/endpoints/auth/device-authorization/approver.md#lockout)). |
+| `AUTHORIZATION_REQUEST_AUTHORIZE_LOCK_TTL` | `300` (5 min) | Per-request lockout duration, in seconds: `authorize_locked_until = now + TTL`. |
 
 ### Origins
 
@@ -79,8 +87,6 @@ Used by [api/endpoints/auth/recovery.md](../api/endpoints/auth/recovery.md) and
 There is no mail-enabled flag and there are no `SYSTEM_SMTP_*` settings: system emails are
 sent through the system organization's active SMTP connection (see
 [recovery.md](../api/endpoints/auth/recovery.md#recovery-email)).
-
-Settings for device authorization (#29) are added by that spec.
 
 ## Secret keys
 

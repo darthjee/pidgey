@@ -11,11 +11,13 @@ Pidgey has two **disjoint** credentials:
 - a **Bearer API token** with scopes for the public sending API (`POST /v1/messages`).
 
 There is no PHP session. Endpoint payloads and error codes live in the endpoint specs
-([endpoints/auth.md](endpoints/auth.md)); the settings used here are in
+([endpoints/auth.md](endpoints/auth.md)); device authorization, a second way to start a
+session, is in [endpoints/auth/device-authorization.md](endpoints/auth/device-authorization.md);
+the settings used here are in
 [architecture/configuration.md](../architecture/configuration.md).
 
 Request logging must never record the `Authorization` header, the `Cookie` header, or
-`refreshToken`/`password` body fields.
+`refreshToken`/`password`/`pollToken` body fields.
 
 | File | Content |
 | --- | --- |

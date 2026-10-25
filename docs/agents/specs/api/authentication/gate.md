@@ -107,8 +107,9 @@ Login, register, refresh and the winning device poll all return this body and se
 
 - `user.status`, the password digest and the access token are **never** included.
 - The endpoints that return it, and their errors, are specified in
-  [endpoints/auth/session.md](../endpoints/auth/session.md) and in the device authorization
-  spec (#29).
+  [endpoints/auth/session.md](../endpoints/auth/session.md) and, for the winning device poll
+  (which adds `"status": "approved"`), in
+  [endpoints/auth/device-authorization/requester.md](../endpoints/auth/device-authorization/requester.md#claim).
 
 ## Pending decisions
 
