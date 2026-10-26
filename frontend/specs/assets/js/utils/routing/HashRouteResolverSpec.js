@@ -49,6 +49,18 @@ describe('HashRouteResolver', () => {
     expect(resolver.getPage()).toBe('authorization-requests');
   });
 
+  it('resolves the smtp-connections route', () => {
+    expect(new HashRouteResolver(() => '#/smtp-connections').getPage()).toBe('smtp-connections');
+  });
+
+  it('resolves the smtp-connection-new route before the list', () => {
+    expect(new HashRouteResolver(() => '#/smtp-connections/new').getPage()).toBe('smtp-connection-new');
+  });
+
+  it('resolves the smtp-connection-edit route with an id', () => {
+    expect(new HashRouteResolver(() => '#/smtp-connections/12/edit').getPage()).toBe('smtp-connection-edit');
+  });
+
   it('resolves the organization route', () => {
     const resolver = new HashRouteResolver(() => '#/organization');
 

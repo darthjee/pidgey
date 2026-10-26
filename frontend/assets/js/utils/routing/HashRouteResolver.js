@@ -13,6 +13,9 @@ const ROUTES = [
   ['/admin/users', 'admin-users'],
   ['/account/authorization-requests', 'authorization-requests'],
   ['/account/my-account', 'my-account'],
+  ['/smtp-connections/new', 'smtp-connection-new'],
+  ['/smtp-connections/:id/edit', 'smtp-connection-edit'],
+  ['/smtp-connections', 'smtp-connections'],
   ['/organization', 'organization'],
   ['/', 'home'],
 ];

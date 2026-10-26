@@ -8,6 +8,9 @@ import AdminUserEdit from '../resources/admin/pages/AdminUserEdit.jsx';
 import AuthorizationRequests from '../resources/accounts/pages/AuthorizationRequests.jsx';
 import MyAccount from '../resources/accounts/pages/MyAccount.jsx';
 import Organization from '../resources/organization/pages/Organization.jsx';
+import SmtpConnections from '../resources/smtpConnections/pages/SmtpConnections.jsx';
+import SmtpConnectionNew from '../resources/smtpConnections/pages/SmtpConnectionNew.jsx';
+import SmtpConnectionEdit from '../resources/smtpConnections/pages/SmtpConnectionEdit.jsx';
 
 const PAGES = new Map([
   ['register', <ModalRedirect mode="register" />],
@@ -18,6 +21,9 @@ const PAGES = new Map([
   ['authorization-requests', <AuthorizationRequests />],
   ['my-account', <MyAccount />],
   ['organization', <Organization />],
+  ['smtp-connections', <SmtpConnections />],
+  ['smtp-connection-new', <SmtpConnectionNew />],
+  ['smtp-connection-edit', <SmtpConnectionEdit />],
   ['home', <Home />],
 ]);
 
