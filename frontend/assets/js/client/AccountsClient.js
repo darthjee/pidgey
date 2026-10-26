@@ -3,7 +3,8 @@ import AuthSession from './AuthSession.js';
 import pickDefined from './pickDefined.js';
 
 /**
- * HTTP client for auth-related requests (registration, login, refresh, logout). Every method
+ * HTTP client for auth-related requests (registration, login, logout). Refreshing the session
+ * is not done here: {@link ApiClient} owns the only (single-flight) refresh path. Every method
  * that receives a fresh refresh token persists it via {@link AuthSession} before resolving,
  * and `logout` clears it regardless of whether the request itself succeeds — the client-side
  * session should still end.
@@ -50,21 +51,6 @@ const AccountsClient = {
   },
 
   /**
-   * Rotate a refresh token for a fresh access token.
-   *
-   * @param {string} refreshToken - The current refresh token.
-   * @returns {Promise<{user: object, refreshToken: string}>} The user and the renewed
-   *   refresh token.
-   */
-  async refresh(refreshToken) {
-    const result = await ApiClient.postJson('/auth/refresh.json', { refreshToken });
-
-    AuthSession.set(result.refreshToken);
-
-    return result;
-  },
-
-  /**
    * Log out, invalidating the given refresh token server-side. The stored refresh token is
    * cleared even when the request fails, so the client-side session always ends.
    *
@@ -81,7 +67,7 @@ const AccountsClient = {
 
   /**
    * Check whether a refresh token is still active, without consuming or rotating it. Unlike
-   * {@link AccountsClient.login}/{@link AccountsClient.refresh}, this does not touch
+   * {@link AccountsClient.register}/{@link AccountsClient.login}, this does not touch
    * `AuthSession` itself — a `false` result means clearing a now-known-stale token, not setting
    * a new one, which is the caller's responsibility.
    *

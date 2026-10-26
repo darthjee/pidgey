@@ -2,7 +2,7 @@ import AuthSession from '../../assets/js/client/AuthSession.js';
 import LoginModalEvents from '../../assets/js/client/LoginModalEvents.js';
 import { installFakeWindow, uninstallFakeWindow } from './fakeWindow.js';
 import {
-  expectSessionExpired, fakeResponse, fetchSequence, stubRefreshFlow,
+  expectSessionExpired, fakeResponse, fetchByPath, fetchSequence, stubRefreshFlow,
 } from './fetchSequence.js';
 
 describe('fetchSequence support', () => {
@@ -53,6 +53,29 @@ describe('fetchSequence support', () => {
       const second = await (await fetch()).json();
 
       expect([first, second]).toEqual([{ n: 1 }, { n: 2 }]);
+    });
+  });
+
+  describe('fetchByPath', () => {
+    it('serves each path its own responses in order', async () => {
+      const fetch = fetchByPath({
+        '/a.json': [{ ok: true, status: 200, json: { n: 'a1' } }, { ok: true, status: 200, json: { n: 'a2' } }],
+        '/b.json': [{ ok: true, status: 200, json: { n: 'b1' } }],
+      });
+
+      const a1 = await (await fetch('/a.json')).json();
+      const b1 = await (await fetch('/b.json')).json();
+      const a2 = await (await fetch('/a.json')).json();
+
+      expect([a1, b1, a2]).toEqual([{ n: 'a1' }, { n: 'b1' }, { n: 'a2' }]);
+    });
+
+    it('waits for a response given as a promise', async () => {
+      const fetch = fetchByPath({ '/a.json': [Promise.resolve({ ok: false, status: 401 })] });
+
+      const response = await fetch('/a.json');
+
+      expect(response).toEqual(jasmine.objectContaining({ ok: false, status: 401 }));
     });
   });
 

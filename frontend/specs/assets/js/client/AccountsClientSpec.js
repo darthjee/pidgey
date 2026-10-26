@@ -34,13 +34,6 @@ describe('AccountsClient', () => {
       payload: { username: 'foo', password: 'secret' },
       refreshToken: 'refresh-token',
     },
-    {
-      name: '.refresh',
-      call: () => AccountsClient.refresh('old-refresh-token'),
-      endpoint: '/auth/refresh.json',
-      payload: { refreshToken: 'old-refresh-token' },
-      refreshToken: 'new-refresh-token',
-    },
   ];
 
   tokenPairRows.forEach(({

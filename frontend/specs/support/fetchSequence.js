@@ -37,6 +37,27 @@ export function fetchSequence(responses) {
 }
 
 /**
+ * Build a `fetch` spy keyed by request path, so specs of concurrent requests do not depend on
+ * the order in which interleaved `fetch` calls happen.
+ *
+ * @description Each path has its own ordered list of responses, served one per call to that
+ * path. An entry may be a response descriptor or a promise of one (e.g. to hold a response
+ * until the spec releases it).
+ * @param {object} responsesByPath - Path → ordered list of response descriptors (or promises).
+ * @returns {jasmine.Spy} The `fetch` spy.
+ */
+export function fetchByPath(responsesByPath) {
+  const routes = new Map(Object.entries(responsesByPath));
+  const calls = new Map();
+
+  return jasmine.createSpy('fetch').and.callFake((path) => {
+    const call = calls.get(path) ?? 0;
+    calls.set(path, call + 1);
+    return Promise.resolve(routes.get(path).at(call)).then(fakeResponse);
+  });
+}
+
+/**
  * Stubs the token-refresh flow: spies on `AuthSession` and replaces `globalThis.fetch`.
  *
  * @description Spies `AuthSession.get` (returning the given refresh token), `AuthSession.set`
