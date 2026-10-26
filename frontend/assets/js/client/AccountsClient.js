@@ -13,18 +13,20 @@ const AccountsClient = {
    * Register a new account.
    *
    * @param {{username: string, email: string, password: string,
-   *   passwordConfirmation: string}} fields - Registration form fields.
+   *   passwordConfirmation: string, organizationName: string}} fields - Registration form
+   *   fields; `organizationName` is sent as typed (the API trims it).
    * @returns {Promise<{user: object, refreshToken: string}>} The created account and its
    *   refresh token.
    */
   async register({
-    username, email, password, passwordConfirmation,
+    username, email, password, passwordConfirmation, organizationName,
   }) {
     const result = await ApiClient.postJson('/auth/register.json', {
       username,
       email,
       password,
       password_confirmation: passwordConfirmation,
+      organizationName,
     });
 
     AuthSession.set(result.refreshToken);

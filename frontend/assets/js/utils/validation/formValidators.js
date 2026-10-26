@@ -1,4 +1,8 @@
-import { validateEmail, validatePasswordConfirmation } from './fieldValidators.js';
+import {
+  validateEmail,
+  validateOrganizationName,
+  validatePasswordConfirmation,
+} from './fieldValidators.js';
 
 /**
  * Validate a required username.
@@ -65,19 +69,22 @@ export function validateResetPassword({ password, passwordConfirmation }) {
 }
 
 /**
- * Validate the registration form: username, email and password are required, the email must be
- * well-formed, and the password confirmation must be present and match.
+ * Validate the registration form: username, email, password and organization name are
+ * required, the email must be well-formed, the password confirmation must be present and
+ * match, and the organization name must be at most 255 characters after trimming.
  *
  * @param {{username: string, email: string, password: string,
- *   passwordConfirmation: string}} fields - Current form field values.
+ *   passwordConfirmation: string, organizationName: string}} fields - Current form field
+ *   values.
  * @returns {object} A map of field name to error message, empty when the form is valid.
  */
 export function validateRegistration({
-  username, email, password, passwordConfirmation,
+  username, email, password, passwordConfirmation, organizationName,
 }) {
   return {
     ...validateRequiredUsername(username),
     ...validateRequiredEmail(email),
     ...validateResetPassword({ password, passwordConfirmation }),
+    ...validateOrganizationName(organizationName),
   };
 }

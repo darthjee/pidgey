@@ -11,7 +11,11 @@ describe('AccountsClient', () => {
     {
       name: '.register',
       call: () => AccountsClient.register({
-        username: 'foo', email: 'foo@example.com', password: 'secret', passwordConfirmation: 'secret',
+        username: 'foo',
+        email: 'foo@example.com',
+        password: 'secret',
+        passwordConfirmation: 'secret',
+        organizationName: 'Acme',
       }),
       endpoint: '/auth/register.json',
       payload: {
@@ -19,6 +23,7 @@ describe('AccountsClient', () => {
         email: 'foo@example.com',
         password: 'secret',
         password_confirmation: 'secret',
+        organizationName: 'Acme',
       },
       refreshToken: 'refresh-token',
     },
