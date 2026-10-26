@@ -41,9 +41,10 @@ make, and its status against the API spec, is in [api-compatibility.md](api-comp
 
 | Module | Role |
 | --- | --- |
-| `ApiClient` | Base JSON client with `postJson`, `patchJson` and `deleteJson`. Sends `credentials: 'same-origin'` (so the `access_token` cookie goes along) and JSON `Content-Type`/`Accept` headers. Parses the error body (`error.code`, `error.message`, `error.details`, see [api/conventions/errors.md](../api/conventions/errors.md)) into an `ApiError`. Parses `204`, empty and non-JSON bodies as `{}`. On a `401`, refreshes through `POST /auth/refresh.json` with the stored refresh token and retries once; otherwise ends the session (see [screens.md](screens.md#on-401-and-403)). |
+| `ApiClient` | Base JSON client with `getJson`, `postJson`, `patchJson` and `deleteJson`. Sends `credentials: 'same-origin'` (so the `access_token` cookie goes along) and an `Accept: application/json` header; a JSON body and its `Content-Type` header are sent only when the method takes a body, so `getJson` sends neither (also on its `401` retry). Parses the error body (`error.code`, `error.message`, `error.details`, see [api/conventions/errors.md](../api/conventions/errors.md)) into an `ApiError`. Parses `204`, empty and non-JSON bodies as `{}`. On a `401`, refreshes through `POST /auth/refresh.json` with the stored refresh token and retries once; otherwise ends the session (see [screens.md](screens.md#on-401-and-403)). The refresh is single flight within a tab and, when `navigator.locks` is available, across tabs (rule in [screens.md](screens.md#refresh-single-flight)). |
 | `AccountsClient` | Auth, account, recovery and device-authorization calls (`register`, `login`, `refresh`, `logout`, `status`, `recover`, `resetPassword`, `updateAccount`, and the five authorization-request methods). Persists the refresh token through `AuthSession` when a call returns one; `logout` always clears it. |
 | `AdminClient` | Admin user calls (`searchUsers`, `editUser`, `approveUser`, `denyUser`, `generateRecoveryLink`, `sendRecoveryEmail`). A `403` means a non-admin session. |
+| `OrganizationClient` | The caller's own organization (#42): `get` (`GET /organization.json`) and `update({ name })` (`PATCH /organization.json`, only `name` sent). Both answer `{ organization }`. |
 | `AuthSession` | The stored refresh token: `localStorage` key `pidgey_refresh_token` (in-memory fallback in Node specs). |
 | `AuthStatus` | Runs `POST /auth/status.json` for the stored token and announces the result (logged in, admin, pending) on `AuthEvents`; clears a stale token. |
 | `AuthEvents` | `window` event bus for auth-state changes (`loggedIn`, `isAdmin`, `pending`). |
@@ -56,14 +57,9 @@ make, and its status against the API spec, is in [api-compatibility.md](api-comp
 Come with the follow-ups; none exists yet (see
 [api-compatibility.md](api-compatibility.md#pidgey-admin)).
 
-- `ApiClient.getJson(path)`: same behaviour as the other methods (credentials, error parsing,
-  `401` handling), with no request body (#42).
-- `OrganizationClient` (#42): `GET` and `PATCH /organization.json`.
 - `SmtpConnectionsClient` (#43): list, create, read, update, delete, activate and test email
   on `/smtp-connections*.json`.
 - `ApiTokensClient` (#44): list, create and revoke on `/api-tokens*.json`.
-- `ApiClient`'s refresh becomes single flight within a tab and across tabs (#41, rule in
-  [screens.md](screens.md#refresh-single-flight)).
 
 Each new client has one method per endpoint and composes `ApiClient`, the same as the
 existing clients.

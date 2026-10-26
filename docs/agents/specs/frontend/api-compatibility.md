@@ -6,7 +6,7 @@ whether the call matches the API spec.
 ## How it was checked
 
 - **Frontend side:** the clients in `frontend/assets/js/client/` (`ApiClient`,
-  `AccountsClient`, `AdminClient`, `AuthStatus`) and the routes in
+  `AccountsClient`, `AdminClient`, `OrganizationClient`, `AuthStatus`) and the routes in
   `frontend/assets/js/utils/routing/HashRouteResolver.js`. Components never call `fetch`
   directly (see [layout.md](layout.md#client-layer)), so the clients are the full list of calls.
 - **API side:** the endpoint specs in [api/endpoints](../api/endpoints.md) and the shared rules
@@ -65,15 +65,16 @@ optional follow-up #45. This is cosmetic and does not change the status below.
 
 ## Pidgey admin
 
-None of these endpoints is called yet (**M6**): there is no screen or client for them, and
-`ApiClient` has no `GET` method. The target clients are described in
-[layout.md](layout.md#target-additions) and the target screens in
-[screens.md](screens.md#pidgey-screens-to-come).
+The organization endpoints are called by `OrganizationClient` from the Organization screen
+(#42), with `GET` requests going through `ApiClient.getJson`. The SMTP connection and API token
+endpoints are not called yet (**M6**, #43 and #44): there is no screen or client for them. The
+target clients are described in [layout.md](layout.md#target-additions) and the target screens
+in [screens.md](screens.md#pidgey-screens-to-come).
 
 | Method & path | Client method | Spec | Success | Status |
 | --- | --- | --- | --- | --- |
-| `GET /organization.json` | none yet | [organization.md](../api/endpoints/pidgey-admin/organization.md#get-organizationjson) | `200` | **M6**, #42 (`OrganizationClient`, `ApiClient.getJson`) |
-| `PATCH /organization.json` | none yet | [organization.md](../api/endpoints/pidgey-admin/organization.md#patch-organizationjson) | `200` | **M6**, #42 |
+| `GET /organization.json` | `OrganizationClient.get` | [organization.md](../api/endpoints/pidgey-admin/organization.md#get-organizationjson) | `200` | ✅ (`GET` with no body, through `ApiClient.getJson`; `organization.name` read) |
+| `PATCH /organization.json` | `OrganizationClient.update` | [organization.md](../api/endpoints/pidgey-admin/organization.md#patch-organizationjson) | `200` | ✅ (only `name` sent; `VALIDATION_FAILED` details shown on the name field) |
 | `GET /smtp-connections.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsjson) | `200` | **M6**, #43 (`SmtpConnectionsClient`) |
 | `POST /smtp-connections.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsjson) | `201` | **M6**, #43 |
 | `GET /smtp-connections/{id}.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsidjson) | `200` | **M6**, #43 |
