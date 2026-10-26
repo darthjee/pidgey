@@ -39,17 +39,16 @@ function buildApiError(response, data) {
  *
  * @param {string} method - HTTP method.
  * @param {string} path - Request path.
- * @param {object} body - Fields to serialize as the JSON request body.
+ * @param {object} [body] - Fields to serialize as the JSON request body; when omitted, no
+ *   body and no `Content-Type` header are sent.
  * @returns {Promise<{response: Response, data: object}>} The raw response and its parsed
  *   JSON body.
  */
 async function request(method, path, body) {
-  const response = await fetch(path, {
-    method,
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const bodyOptions = body === undefined
+    ? { headers: { Accept: 'application/json' } }
+    : { headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) };
+  const response = await fetch(path, { method, credentials: 'same-origin', ...bodyOptions });
 
   const data = await parseBody(response);
 
@@ -82,7 +81,7 @@ function sessionExpired() {
  *
  * @param {string} method - HTTP method.
  * @param {string} path - Request path.
- * @param {object} body - Fields to serialize as the JSON request body.
+ * @param {object} [body] - Fields to serialize as the JSON request body; omitted for a GET.
  * @param {boolean} [isRetry] - Whether this call is already a post-refresh retry.
  * @returns {Promise<object>} The parsed JSON response body, on success; `undefined` when the
  *   session turned out to be expired.
@@ -113,7 +112,7 @@ async function sendJson(method, path, body, isRetry = false) {
  *
  * @param {string} method - Original request's HTTP method.
  * @param {string} path - Original request's path.
- * @param {object} body - Original request's JSON body.
+ * @param {object} [body] - Original request's JSON body; `undefined` for a GET.
  * @returns {Promise<object>} The retried request's parsed JSON body, on success; `undefined`
  *   when the session turned out to be expired.
  */
@@ -235,9 +234,21 @@ function expireSession() {
  * fails, the session is ended once and every waiting request resolves to `undefined`. When
  * `navigator.locks` is available, the refresh also runs under a cross-tab
  * `'pidgey-refresh'` lock and skips the refresh call when another tab already rotated the
- * stored token.
+ * stored token. Methods: `getJson` (no body), `postJson`, `patchJson` and `deleteJson`.
  */
 const ApiClient = {
+  /**
+   * Submit a GET request, with no request body and no `Content-Type` header. Same
+   * credentials/error-handling/`401`-recovery shape as {@link ApiClient.postJson}.
+   *
+   * @param {string} path - Request path.
+   * @returns {Promise<object>} The parsed JSON response body, on success; `undefined` when the
+   *   session turned out to be expired.
+   */
+  async getJson(path) {
+    return sendJson('GET', path);
+  },
+
   /**
    * Submit a POST request with a JSON body. Always sends same-origin credentials so the
    * session cookie set by the backend (via `Set-Cookie`) is stored/sent automatically.
