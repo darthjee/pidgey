@@ -9,7 +9,9 @@ Purpose: track API concerns that are explicitly not decided yet.
   application-level throttle in v1: the recover cooldown (`PASSWORD_RESET_COOLDOWN`) is the
   only v1 protection. Leaning towards a **per-IP throttle** (failures per window →
   `429 TOO_MANY_REQUESTS`, client IP resolved as in
-  [conventions/client-ip.md](conventions/client-ip.md)). A per-username
+  [conventions/client-ip.md](conventions/client-ip.md)). It also includes the SMTP
+  connection **test email** ([endpoints/pidgey-admin/smtp-connections.md](endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson)),
+  which has no rate limit in v1 and opens an outbound SMTP connection per call. A per-username
   login lockout is rejected (it lets anyone lock a victim out and reveals that the username
   exists). Until then, proxy-level rate limiting is recommended (see
   [deployment/production.md](../deployment/production.md)).
@@ -18,7 +20,16 @@ Purpose: track API concerns that are explicitly not decided yet.
 - **Pending decision — idempotency:** whether `POST /v1/messages` accepts an
   `Idempotency-Key` header to avoid duplicate sends on client retries (relevant since
   sending is synchronous and not persisted).
-- **Pending decision — pagination** for list endpoints.
+- **Pending decision — pagination** for list endpoints. In v1 the list endpoints (SMTP
+  connections, API tokens, see [endpoints/pidgey-admin.md](endpoints/pidgey-admin.md#shared-rules))
+  are **unpaginated**, ordered by `id` ascending; admin user search returns every match. This
+  item stays open for future growth.
+- **Pending decision — SMTP host deny-list / allow-list (SSRF):** users choose the SMTP
+  `host` and `port`, so the server can be made to open TCP connections to internal addresses,
+  and the test email's error categories act as a reachability oracle (known limitation in
+  [endpoints/pidgey-admin/smtp-connections.md](endpoints/pidgey-admin/smtp-connections.md#known-limitations)).
+  Any host is allowed in v1, since self-hosted setups need internal relays and Mailpit. A
+  configurable deny-list / allow-list is pending.
 - **Pending decision — CORS for third-party browser clients:** the origin check and the
   CORS rules (trusted origins from `ALLOWED_ORIGINS` / `FRONTEND_BASE_URL`, off by default)
   are defined in [conventions/origin-check.md](conventions/origin-check.md). The admin UI is

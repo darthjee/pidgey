@@ -40,7 +40,7 @@ Every field error is reported at once (e.g.
 
 Success: **`201`**, the [shared `user` payload](../../authentication/gate.md#shared-user-payload),
 and the `access_token` cookie is set. The response does not include the organization; it is
-read through `GET /organization.json` (#31).
+read through [`GET /organization.json`](../pidgey-admin/organization.md#get-organizationjson).
 
 Side effects, in order:
 

@@ -5,7 +5,8 @@ scopes and revocation.
 
 Tokens are stored in the `api_tokens` table
 ([organizations/data-model/api-tokens.md](../../organizations/data-model/api-tokens.md)).
-They are created, listed and revoked from the admin UI (endpoints specified in #31).
+They are created, listed and revoked from the admin UI, through the cookie-authenticated
+endpoints of [endpoints/pidgey-admin/api-tokens.md](../endpoints/pidgey-admin/api-tokens.md).
 
 ## Format
 
@@ -32,12 +33,18 @@ session. The column stays a JSON array so scopes can be added later.
 ## Checks
 
 - Missing, malformed, unknown or revoked token → `401` (`UNAUTHORIZED`).
+- Token of an organization with **no `approved` user** (every user `pending` or `denied`) →
+  the **same** `401` as a revoked token. No data changes (`revoked_at` stays unset): the
+  token works again as soon as a user of the organization is approved (see
+  [endpoints/sending.md](../endpoints/sending.md#token-authentication)).
 - Valid token lacking the route's scope → `403` (`FORBIDDEN`).
 - Only the scope check applies on `/v1`: there is no gate and no admin check. The
   [origin check](../conventions/origin-check.md) still runs on state-changing methods; server
   callers send no `Origin` and pass it.
 - **Revocation** sets `revoked_at`; a revoked token is rejected immediately.
-- `last_used_at` is updated on successful use.
+- `last_used_at` is updated on successful use only.
+- Revoking an already revoked token is idempotent (see
+  [endpoints/pidgey-admin/api-tokens.md](../endpoints/pidgey-admin/api-tokens.md#delete-api-tokensidjson)).
 
 Errors use the envelope of [conventions/errors.md](../conventions/errors.md).
 

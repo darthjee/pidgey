@@ -4,14 +4,22 @@ Purpose: list what belongs to an organization and how isolation is enforced.
 
 Organization-scoped resources:
 - Users
-- SMTP connections (see [email/smtp-connections.md](../email/smtp-connections.md))
-- API tokens (see [api/authentication.md](../api/authentication.md))
+- SMTP connections (see [email/smtp-connections.md](../email/smtp-connections.md); endpoints
+  in [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md))
+- API tokens (see [api/authentication.md](../api/authentication.md); endpoints in
+  [api/endpoints/pidgey-admin/api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md))
+
+The organization itself is read and renamed through
+[api/endpoints/pidgey-admin/organization.md](../api/endpoints/pidgey-admin/organization.md).
+Every user of the organization has the same access to these endpoints (see
+[api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#access)).
 
 Isolation rules:
 - The current organization is derived from the authenticated principal (authenticated user
   or API token), never from request input.
 - Every repository query on these resources filters by `organization_id`.
-- Accessing another organization's resource returns `404`, not `403`.
+- Accessing another organization's resource returns `404`, not `403`, with the same body as
+  an unknown id.
 
 Admin exception:
 - The admin's user-management endpoints (`/admin/users/*.json`, see

@@ -7,6 +7,7 @@ every API endpoint, including the public sending API.
 
 Every error, whatever produced it and on whichever endpoint (admin, auth, operational or
 `POST /v1/messages`), has the same shape; the backend has a single error formatter.
+The readiness probe's `503` is not an error in this sense: it answers its own probe body (see [endpoints/operational.md](../endpoints/operational.md#get-readyjson)).
 
 ```json
 {
@@ -103,7 +104,7 @@ here.
 | `USER_DENIED` | 403 | `This account has been denied access` | login |
 | `USER_NOT_PENDING` | 422 | `Only pending users can be approved` | admin approve |
 | `CANNOT_DENY_SELF` | 422 | `You cannot deny your own account` | admin deny |
-| `NO_SMTP_CONNECTION`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED`, `SMTP_TEMPORARY_FAILURE`, `SMTP_TIMEOUT` | 409 / 502 / 503 / 504 | See [email/failures.md](../../email/failures.md). | `POST /v1/messages` and authenticated endpoints that send email; never endpoints reachable without login (see [SMTP send failures](#smtp-send-failures)) |
+| `NO_SMTP_CONNECTION`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED`, `SMTP_TEMPORARY_FAILURE`, `SMTP_TIMEOUT` | 409 / 502 / 503 / 504 | See [email/failures.md](../../email/failures.md). | `POST /v1/messages` and authenticated endpoints that send email (the SMTP connection test email, which never answers `NO_SMTP_CONNECTION`); never endpoints reachable without login (see [SMTP send failures](#smtp-send-failures)) |
 
 ## Generic errors
 
