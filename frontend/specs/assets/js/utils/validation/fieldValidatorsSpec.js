@@ -1,8 +1,12 @@
 import {
   EMAIL_PATTERN,
   MAX_ORGANIZATION_NAME_LENGTH,
+  MAX_PORT,
   MIN_PASSWORD_LENGTH,
+  MIN_PORT,
   validateEmail,
+  validateMaxLength,
+  validatePort,
   validateOrganizationName,
   validatePasswordLength,
   validatePasswordConfirmation,
@@ -121,6 +125,48 @@ describe('fieldValidators', () => {
 
     it('keys the error under a custom field name', () => {
       expect(validateOrganizationName('', 'org')).toEqual({ org: 'Organization name is required' });
+    });
+  });
+
+  describe('validateMaxLength', () => {
+    it('accepts a value at the maximum length', () => {
+      expect(validateMaxLength('a'.repeat(255), 255, 'name', 'Name')).toEqual({});
+    });
+
+    it('flags a value over the maximum length', () => {
+      expect(validateMaxLength('a'.repeat(256), 255, 'name', 'Name'))
+        .toEqual({ name: 'Name must be at most 255 characters' });
+    });
+  });
+
+  describe('validatePort', () => {
+    it('exposes the port range', () => {
+      expect([MIN_PORT, MAX_PORT]).toEqual([1, 65535]);
+    });
+
+    it('accepts the bounds, ignoring surrounding spaces', () => {
+      expect(validatePort('1')).toEqual({});
+      expect(validatePort(' 65535 ')).toEqual({});
+    });
+
+    it('flags a blank port', () => {
+      expect(validatePort('  ')).toEqual({ port: 'Port is required' });
+      expect(validatePort(undefined)).toEqual({ port: 'Port is required' });
+    });
+
+    it('flags a non-integer port', () => {
+      expect(validatePort('587.5')).toEqual({ port: 'port must be an integer' });
+      expect(validatePort('abc')).toEqual({ port: 'port must be an integer' });
+    });
+
+    it('flags an out-of-range port', () => {
+      expect(validatePort('0')).toEqual({ port: 'port must be between 1 and 65535' });
+      expect(validatePort('65536')).toEqual({ port: 'port must be between 1 and 65535' });
+      expect(validatePort('-1')).toEqual({ port: 'port must be between 1 and 65535' });
+    });
+
+    it('keys the error under a custom field name', () => {
+      expect(validatePort('', 'smtpPort')).toEqual({ smtpPort: 'Port is required' });
     });
   });
 });

@@ -13,6 +13,21 @@ export const redirectHome = () => {
 };
 
 /**
+ * Sends the browser to a hash route.
+ *
+ * @description Sets `window.location.hash` to `path`. A no-op when `window` is undefined
+ * (server-side rendering or Node-based specs). The global `window` is read at call time.
+ * @param {string} path - The route path (e.g. `'/smtp-connections'`).
+ * @returns {void}
+ */
+export const redirectTo = (path) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.location.hash = path;
+};
+
+/**
  * Redirects home when the given error is a 403 Forbidden response.
  *
  * @description Checks the error status and, for 403, delegates to `redirectHome()`.

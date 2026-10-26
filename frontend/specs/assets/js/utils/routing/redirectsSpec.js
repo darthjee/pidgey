@@ -1,6 +1,7 @@
 import {
   redirectHome,
   redirectIfForbidden,
+  redirectTo,
 } from '../../../../../assets/js/utils/routing/redirects.js';
 import { installFakeWindow, uninstallFakeWindow } from '../../../../support/fakeWindow.js';
 
@@ -20,6 +21,20 @@ describe('redirects', () => {
 
     it('does nothing when window is undefined', () => {
       expect(() => redirectHome()).not.toThrow();
+    });
+  });
+
+  describe('redirectTo', () => {
+    it('sets the hash to the given path when a window exists', () => {
+      const fake = installFakeWindow({ location: { hash: '#/other' } });
+
+      redirectTo('/smtp-connections');
+
+      expect(fake.location.hash).toBe('/smtp-connections');
+    });
+
+    it('does nothing when window is undefined', () => {
+      expect(() => redirectTo('/smtp-connections')).not.toThrow();
     });
   });
 

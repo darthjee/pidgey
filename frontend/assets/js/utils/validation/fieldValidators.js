@@ -76,3 +76,54 @@ export function validateOrganizationName(name, field = 'organizationName') {
 
   return {};
 }
+
+/** Lowest valid TCP port. */
+export const MIN_PORT = 1;
+
+/** Highest valid TCP port. */
+export const MAX_PORT = 65535;
+
+/**
+ * Check that a value is at most `max` characters long. The value is checked as given; callers
+ * trim it first when the backend trims it too.
+ *
+ * @description Returns an error map so the result can be spread into a controller's errors.
+ * @param {string} value - The value to check.
+ * @param {number} max - The maximum length.
+ * @param {string} field - The field name the error is keyed under.
+ * @param {string} label - The field label used in the message.
+ * @returns {object} `{ [field]: message }` when longer than `max`, otherwise `{}`.
+ */
+export function validateMaxLength(value, max, field, label) {
+  return value.length > max ? { [field]: `${label} must be at most ${max} characters` } : {};
+}
+
+/**
+ * Check that a TCP port, as typed in a form, is present and an integer between
+ * {@link MIN_PORT} and {@link MAX_PORT}. The value is trimmed before checking.
+ *
+ * @description Returns an error map so the result can be spread into a controller's errors.
+ * @param {string} value - The port input value.
+ * @param {string} [field] - The field name the error is keyed under.
+ * @returns {object} `{ [field]: message }` when blank, not an integer or out of range,
+ *   otherwise `{}`.
+ */
+export function validatePort(value, field = 'port') {
+  const trimmed = (value || '').trim();
+
+  if (!trimmed) {
+    return { [field]: 'Port is required' };
+  }
+
+  if (!/^-?\d+$/.test(trimmed)) {
+    return { [field]: 'port must be an integer' };
+  }
+
+  const port = Number(trimmed);
+
+  if (port < MIN_PORT || port > MAX_PORT) {
+    return { [field]: `port must be between ${MIN_PORT} and ${MAX_PORT}` };
+  }
+
+  return {};
+}
