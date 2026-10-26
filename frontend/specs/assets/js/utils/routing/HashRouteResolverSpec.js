@@ -49,6 +49,12 @@ describe('HashRouteResolver', () => {
     expect(resolver.getPage()).toBe('authorization-requests');
   });
 
+  it('resolves the organization route', () => {
+    const resolver = new HashRouteResolver(() => '#/organization');
+
+    expect(resolver.getPage()).toBe('organization');
+  });
+
   it('resolves the home route', () => {
     const resolver = new HashRouteResolver(() => '#/');
 

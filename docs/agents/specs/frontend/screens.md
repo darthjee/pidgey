@@ -92,12 +92,33 @@ so the web server only needs to serve `index.html`.
 | `#/admin/users/:id/edit` | Admin user edit: username, email, new password (admins only). |
 | `#/account/my-account` | My account: edit username, email or password, confirmed with the current password. |
 | `#/account/authorization-requests` | Authorization requests: list the caller's open device-login requests, authorize (with the password) or deny. |
+| `#/organization` | Organization: show and rename the caller's organization (every logged-in, approved user; see [Organization screen](#organization-screen)). |
 
 - Unknown routes fall back to home.
-- The header shows links according to the auth state: Login, Register and Recover (opening
-  the modal) when logged out; none while `pending` (the "awaiting approval" view owns logout);
-  the account menu (my account, authorizations) and Logout when logged in; and the admin link
-  only for admins.
+- The header shows links according to the auth state:
+  - logged out: Login, Register and Recover (opening the modal);
+  - `pending`: none (the "awaiting approval" view owns logout);
+  - logged in and approved, in this order: the **Admin Users** link (admins only), the
+    **Organization** dropdown, the **My account** dropdown (authorizations, account) and
+    Logout.
+- The **Organization** dropdown is shown to every logged-in, approved user, not only admins.
+  Today it has one item, **Settings** → `#/organization`. The SMTP connections (#43) and API
+  tokens (#44) screens add their items to this same dropdown.
+
+### Organization screen
+
+Uses `OrganizationClient` (`GET` and `PATCH /organization.json`,
+[api/endpoints/pidgey-admin/organization.md](../api/endpoints/pidgey-admin/organization.md)).
+
+- **Load:** fetches the organization and fills the **Organization name** field, with a loading
+  state while the call runs and an error message when it fails. A `401` goes through the usual
+  refresh / login-modal flow (see [On `401` and `403`](#on-401-and-403)); when the session
+  ended, the screen stays idle.
+- **Save:** the name, after trimming, must be 1–255 characters; otherwise an inline error is
+  shown and no call is made. On success a confirmation is shown and the stored (trimmed) name
+  returned by the API is put back into the field. A `400 VALIDATION_FAILED` shows its details
+  on the name field; any other error is shown as a submit error.
+- `createdAt` and `updatedAt` are not shown.
 
 ## Login modal
 
@@ -119,11 +140,11 @@ modal has these modes:
 
 Targets that come with the follow-ups; none exists yet (see
 [api-compatibility.md](api-compatibility.md#pidgey-admin)). Every user of an organization has
-the same access to them.
+the same access to them, as for the [Organization screen](#organization-screen), and they are
+reached from the header's **Organization** dropdown.
 
 | Route | Screen |
 | --- | --- |
-| `#/organization` | Organization: show and rename the caller's organization (#42). |
 | `#/smtp-connections` | SMTP connections: list, create and edit (the password is write-only, shown only as "set"/"not set"), activate, send a test email, delete (#43). |
 | `#/api-tokens` | API tokens: list including revoked tokens, create with a name and scopes, show the plain token **once** and never store it, revoke (#44). |
 

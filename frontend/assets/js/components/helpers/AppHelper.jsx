@@ -7,6 +7,7 @@ import AdminUsers from '../resources/admin/pages/AdminUsers.jsx';
 import AdminUserEdit from '../resources/admin/pages/AdminUserEdit.jsx';
 import AuthorizationRequests from '../resources/accounts/pages/AuthorizationRequests.jsx';
 import MyAccount from '../resources/accounts/pages/MyAccount.jsx';
+import Organization from '../resources/organization/pages/Organization.jsx';
 
 const PAGES = new Map([
   ['register', <ModalRedirect mode="register" />],
@@ -16,6 +17,7 @@ const PAGES = new Map([
   ['admin-user-edit', <AdminUserEdit />],
   ['authorization-requests', <AuthorizationRequests />],
   ['my-account', <MyAccount />],
+  ['organization', <Organization />],
   ['home', <Home />],
 ]);
 

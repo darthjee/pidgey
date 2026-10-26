@@ -26,6 +26,56 @@ describe('ApiClient', () => {
     uninstallFakeNavigator();
   });
 
+  describe('.getJson', () => {
+    it('sends a GET with same-origin credentials, no body and no Content-Type', async () => {
+      globalThis.fetch = fetchSequence([{ ok: true, status: 200, json: { organization: { id: 1 } } }]);
+
+      await ApiClient.getJson('/organization.json');
+
+      expect(globalThis.fetch).toHaveBeenCalledWith('/organization.json', {
+        method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' },
+      });
+    });
+
+    it('resolves with the parsed JSON body on success', async () => {
+      globalThis.fetch = fetchSequence([{ ok: true, status: 200, json: { organization: { id: 1, name: 'Acme' } } }]);
+
+      const data = await ApiClient.getJson('/organization.json');
+
+      expect(data).toEqual({ organization: { id: 1, name: 'Acme' } });
+    });
+
+    it('throws an ApiError with the status, message, code and details on a non-401 failure', async () => {
+      const details = ['something is wrong'];
+
+      globalThis.fetch = fetchSequence([{
+        ok: false, status: 403, json: errorBody(403, 'FORBIDDEN', 'Forbidden', details),
+      }]);
+
+      await expectAsync(ApiClient.getJson('/organization.json'))
+        .toBeRejectedWith(jasmine.objectContaining(
+          { status: 403, message: 'Forbidden', code: 'FORBIDDEN', details },
+        ));
+    });
+
+    it('on a 401, refreshes and retries once with a bodyless GET', async () => {
+      stubRefreshFlow([
+        { ok: false, status: 401, json: errorBody(401, 'UNAUTHORIZED', 'Unauthorized') },
+        { ok: true, status: 200, json: { user: { id: 1 }, refreshToken: 'new-refresh-token' } },
+        { ok: true, status: 200, json: { organization: { id: 1 } } },
+      ]);
+
+      const data = await ApiClient.getJson('/organization.json');
+
+      expect(data).toEqual({ organization: { id: 1 } });
+      expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+      expect(globalThis.fetch.calls.argsFor(1)[0]).toBe('/auth/refresh.json');
+      expect(globalThis.fetch.calls.argsFor(2)).toEqual(['/organization.json', {
+        method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' },
+      }]);
+    });
+  });
+
   describe('.postJson', () => {
     it('posts a JSON body with same-origin credentials', async () => {
       globalThis.fetch = fetchSequence([{ ok: true, status: 200, json: { id: 1 } }]);
