@@ -6,6 +6,14 @@ const REFRESH_PATH = '/auth/refresh.json';
 const FALLBACK_ERROR_MESSAGE = 'Request failed';
 
 /**
+ * The refresh currently in flight in this tab, shared by every request that got a `401`
+ * while it runs; `null` when no refresh is running.
+ *
+ * @type {Promise<boolean>|null}
+ */
+let refreshInFlight = null;
+
+/**
  * Parse a response's JSON body, without attempting to parse an empty body (e.g. a
  * `204 No Content` response, as returned by `DELETE /auth/logoff.json`) — `response.json()`
  * throws a `SyntaxError` on an empty string, since it is not valid JSON. A non-JSON body
@@ -128,9 +136,12 @@ async function sendJson(method, path, body, isRetry = false) {
 }
 
 /**
- * Recover from a `401` on the original request: refresh the access token using the stored
- * refresh token and retry the original request once. Falls back to session-expired handling
- * when there is no stored refresh token, or when the refresh call itself fails.
+ * Recover from a `401` on the original request: join the tab's single-flight refresh (see
+ * {@link sharedRefresh}) and retry the original request once when it succeeds. Every request
+ * that got a `401` while a refresh is in flight waits for that same refresh instead of
+ * starting its own, so the stored refresh token is never presented twice. When the shared
+ * refresh fails, the session has already been ended once by the refresh itself, so this
+ * resolves to `undefined` without ending it again.
  *
  * @param {string} method - Original request's HTTP method.
  * @param {string} path - Original request's path.
@@ -139,28 +150,78 @@ async function sendJson(method, path, body, isRetry = false) {
  *   when the session turned out to be expired.
  */
 async function handleUnauthorized(method, path, body) {
-  const refreshToken = AuthSession.get();
+  const staleToken = AuthSession.get();
+  const refreshed = await sharedRefresh(staleToken);
 
-  if (!refreshToken) {
-    return sessionExpired();
+  return refreshed ? sendJson(method, path, body, true) : undefined;
+}
+
+/**
+ * Join the refresh in flight in this tab, or start one.
+ *
+ * @description Single flight: while a refresh runs, every caller gets the same promise, so
+ * only one `POST /auth/refresh.json` is made. The promise is cleared once it settles, so a
+ * later `401` starts a new refresh.
+ * @param {string|null} staleToken - The stored refresh token read when the `401` happened.
+ * @returns {Promise<boolean>} `true` when the original requests should be retried, `false`
+ *   when the session was ended.
+ */
+function sharedRefresh(staleToken) {
+  if (!refreshInFlight) {
+    refreshInFlight = refreshSession(staleToken).finally(() => {
+      refreshInFlight = null;
+    });
   }
 
-  const refreshResponse = await request('POST', REFRESH_PATH, { refreshToken });
+  return refreshInFlight;
+}
 
-  if (!refreshResponse.response.ok) {
-    return sessionExpired();
+/**
+ * Rotate the refresh token and store the new one.
+ *
+ * @description Ends the session (once, via {@link sessionExpired}) when there is no refresh
+ * token to present, when the API rejects the refresh, or when the refresh request itself
+ * fails (e.g. a network error) — a rejected `fetch` is treated as a failed refresh rather
+ * than rethrown, so every waiting request resolves the same way.
+ * @param {string|null} staleToken - The refresh token to present.
+ * @returns {Promise<boolean>} `true` when the token was rotated and the requests should be
+ *   retried, `false` when the session was ended.
+ */
+async function refreshSession(staleToken) {
+  if (!staleToken) {
+    return expireSession();
   }
 
-  AuthSession.set(refreshResponse.data.refreshToken);
+  try {
+    const { response, data } = await request('POST', REFRESH_PATH, { refreshToken: staleToken });
 
-  return sendJson(method, path, body, true);
+    if (!response.ok) {
+      return expireSession();
+    }
+
+    AuthSession.set(data.refreshToken);
+    return true;
+  } catch {
+    return expireSession();
+  }
+}
+
+/**
+ * End the session on behalf of the shared refresh.
+ *
+ * @returns {boolean} Always `false`, the "session ended" refresh outcome.
+ */
+function expireSession() {
+  sessionExpired();
+  return false;
 }
 
 /**
  * Generic JSON HTTP client used by resource-specific clients. Transparently recovers from an
- * expired access token: on a `401`, it refreshes the session once (via the stored refresh
- * token) and retries the original request; if there is no refresh token to use, or the
- * refresh itself fails, the session is treated as expired.
+ * expired access token: on a `401`, it joins a single-flight refresh (one
+ * `POST /auth/refresh.json` shared by every request of the tab that got a `401`) and retries
+ * the original request once; if there is no refresh token to use, or the shared refresh
+ * fails, the session is ended once and every waiting request resolves to `undefined`.
  */
 const ApiClient = {
   /**
