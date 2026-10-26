@@ -2,6 +2,7 @@ import ApiClient from '../../../../assets/js/client/ApiClient.js';
 import ApiError from '../../../../assets/js/client/ApiError.js';
 import AuthSession from '../../../../assets/js/client/AuthSession.js';
 import LoginModalEvents from '../../../../assets/js/client/LoginModalEvents.js';
+import { installFakeNavigator, uninstallFakeNavigator } from '../../../support/fakeNavigator.js';
 import { installFakeWindow, uninstallFakeWindow } from '../../../support/fakeWindow.js';
 import { expectSessionExpired, fetchSequence, stubRefreshFlow } from '../../../support/fetchSequence.js';
 
@@ -15,12 +16,14 @@ describe('ApiClient', () => {
   beforeEach(() => {
     originalFetch = globalThis.fetch;
     installFakeWindow({ location: { hash: '' } });
+    installFakeNavigator({});
     spyOn(LoginModalEvents, 'open');
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     uninstallFakeWindow();
+    uninstallFakeNavigator();
   });
 
   describe('.postJson', () => {

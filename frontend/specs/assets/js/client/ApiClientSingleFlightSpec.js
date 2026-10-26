@@ -1,6 +1,7 @@
 import ApiClient from '../../../../assets/js/client/ApiClient.js';
 import AuthSession from '../../../../assets/js/client/AuthSession.js';
 import LoginModalEvents from '../../../../assets/js/client/LoginModalEvents.js';
+import { fakeLocks, installFakeNavigator, uninstallFakeNavigator } from '../../../support/fakeNavigator.js';
 import { installFakeWindow, uninstallFakeWindow } from '../../../support/fakeWindow.js';
 import { expectSessionExpired, fetchByPath } from '../../../support/fetchSequence.js';
 
@@ -37,6 +38,7 @@ describe('ApiClient single-flight refresh', () => {
   beforeEach(() => {
     originalFetch = globalThis.fetch;
     installFakeWindow({ location: { hash: '' } });
+    installFakeNavigator({});
     spyOn(LoginModalEvents, 'open');
     spyOn(AuthSession, 'get').and.returnValue('old-refresh-token');
     spyOn(AuthSession, 'set');
@@ -46,6 +48,7 @@ describe('ApiClient single-flight refresh', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     uninstallFakeWindow();
+    uninstallFakeNavigator();
   });
 
   async function runConcurrently(refreshResponse) {
@@ -108,5 +111,60 @@ describe('ApiClient single-flight refresh', () => {
     expect(data).toBeUndefined();
     expect(AuthSession.clear).toHaveBeenCalledTimes(1);
     expectSessionExpired();
+  });
+
+  describe('with navigator.locks', () => {
+    let locks;
+
+    beforeEach(() => {
+      locks = fakeLocks();
+      installFakeNavigator({ locks });
+      globalThis.fetch = fetchByPath({
+        '/a.json': [UNAUTHORIZED, ok({ name: 'a' })],
+        '/b.json': [UNAUTHORIZED, ok({ name: 'b' })],
+        '/auth/refresh.json': [REFRESHED],
+      });
+    });
+
+    it('runs the refresh inside the pidgey-refresh lock', async () => {
+      const data = await ApiClient.postJson('/a.json', {});
+
+      expect(data).toEqual({ name: 'a' });
+      expect(locks.request).toHaveBeenCalledOnceWith('pidgey-refresh', jasmine.any(Function));
+      expect(refreshCalls()).toEqual([['/auth/refresh.json', jasmine.objectContaining({
+        body: JSON.stringify({ refreshToken: 'old-refresh-token' }),
+      })]]);
+    });
+
+    it('takes the lock once for concurrent 401s', async () => {
+      const results = await runConcurrently(REFRESHED);
+
+      expect(results).toEqual([{ name: 'a' }, { name: 'b' }]);
+      expect(locks.request).toHaveBeenCalledTimes(1);
+      expect(refreshCalls().length).toBe(1);
+    });
+
+    it('skips the refresh and retries when another tab already rotated the token', async () => {
+      AuthSession.get.and.returnValues('old-refresh-token', 'rotated-by-other-tab');
+
+      const data = await ApiClient.postJson('/a.json', {});
+
+      expect(data).toEqual({ name: 'a' });
+      expect(refreshCalls().length).toBe(0);
+      expect(AuthSession.set).not.toHaveBeenCalled();
+      expect(AuthSession.clear).not.toHaveBeenCalled();
+    });
+
+    it('ends the session once without a refresh call when the token was cleared meanwhile', async () => {
+      AuthSession.get.and.returnValues('old-refresh-token', null);
+
+      const data = await ApiClient.postJson('/a.json', {});
+
+      expect(data).toBeUndefined();
+      expect(refreshCalls().length).toBe(0);
+      expect(AuthSession.clear).toHaveBeenCalledTimes(1);
+      expect(LoginModalEvents.open).toHaveBeenCalledTimes(1);
+      expectSessionExpired();
+    });
   });
 });
