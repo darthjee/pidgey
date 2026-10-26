@@ -4,6 +4,7 @@ import AppHelper from '../../../../../assets/js/components/helpers/AppHelper.jsx
 import LoginModal from '../../../../../assets/js/components/common/loginModal/LoginModal.jsx';
 import ModalRedirect from '../../../../../assets/js/components/common/ModalRedirect.jsx';
 import ResetPasswordLanding from '../../../../../assets/js/components/resources/accounts/pages/ResetPasswordLanding.jsx';
+import Organization from '../../../../../assets/js/components/resources/organization/pages/Organization.jsx';
 
 describe('AppHelper', () => {
   const markupFor = (page) => renderToStaticMarkup(
@@ -48,6 +49,10 @@ describe('AppHelper', () => {
 
   it('renders the authorization requests page for the authorization-requests key', () => {
     expect(markupFor('authorization-requests')).toContain('Authorization Requests');
+  });
+
+  it('renders the organization page for the organization key', () => {
+    expect(partsOf('organization').page.type).toBe(Organization);
   });
 
   it('renders the home page for the home key', () => {

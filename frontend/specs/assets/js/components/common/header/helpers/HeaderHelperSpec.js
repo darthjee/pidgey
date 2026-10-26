@@ -82,6 +82,13 @@ describe('HeaderHelper', () => {
     it('does not render the My account dropdown', () => {
       expect(markupOf(false, false)).not.toContain('My account');
     });
+
+    it('does not render the Organization dropdown', () => {
+      const markup = markupOf(false, false);
+
+      expect(markup).not.toContain('organization-dropdown');
+      expect(markup).not.toContain('href="#/organization"');
+    });
   });
 
   describe('when logged in', () => {
@@ -106,6 +113,32 @@ describe('HeaderHelper', () => {
 
       expect(markup).toContain('href="#/admin/users"');
       expect(markup).toContain('Admin Users');
+    });
+
+    it('renders the Organization dropdown with a Settings item for a non-admin', () => {
+      const markup = markupOf(true, false);
+
+      expect(markup).toContain('id="organization-dropdown"');
+      expect(markup).toContain('>Organization<');
+      expect(markup).toContain('href="#/organization"');
+      expect(markup).toContain('>Settings<');
+    });
+
+    it('renders the Organization dropdown with a Settings item for an admin', () => {
+      const markup = markupOf(true, true);
+
+      expect(markup).toContain('id="organization-dropdown"');
+      expect(markup).toContain('href="#/organization"');
+    });
+
+    it('places the Organization dropdown after Admin Users and before My account', () => {
+      const markup = markupOf(true, true);
+      const admin = markup.indexOf('Admin Users');
+      const organization = markup.indexOf('organization-dropdown');
+      const myAccount = markup.indexOf('my-account-dropdown');
+
+      expect(admin).toBeLessThan(organization);
+      expect(organization).toBeLessThan(myAccount);
     });
 
     it('renders the My account dropdown with an Authorizations item', () => {
@@ -139,6 +172,8 @@ describe('HeaderHelper', () => {
 
       expect(markup).not.toContain('Logout');
       expect(markup).not.toContain('My account');
+      expect(markup).not.toContain('organization-dropdown');
+      expect(markup).not.toContain('href="#/organization"');
     });
   });
 });

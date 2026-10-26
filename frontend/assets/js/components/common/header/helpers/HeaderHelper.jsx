@@ -36,6 +36,21 @@ function renderAdminLink(isAdmin) {
 }
 
 /**
+ * Render the "Organization" dropdown, shown to every logged-in user — like
+ * {@link renderMyAccountDropdown}, it takes no `isAdmin`-style gate. Holds the Settings item for
+ * now; the SMTP connections (#43) and API tokens (#44) screens will add their items here.
+ *
+ * @returns {React.ReactElement} The rendered "Organization" dropdown.
+ */
+function renderOrganizationDropdown() {
+  return (
+    <NavDropdown title="Organization" id="organization-dropdown" renderMenuOnMount>
+      <NavDropdown.Item href="#/organization">Settings</NavDropdown.Item>
+    </NavDropdown>
+  );
+}
+
+/**
  * Render the "My account" dropdown, unconditionally shown once logged in — unlike
  * {@link renderAdminLink}, it takes no `isAdmin`-style gate. Holds one item per
  * account page; anticipates further account pages nesting under it later.
@@ -52,8 +67,9 @@ function renderMyAccountDropdown() {
 }
 
 /**
- * Render the Login/Register/Recover links when logged out, or the Logout action (plus, for an
- * admin, the Admin Users link, and the "My account" dropdown) when logged in. Renders nothing
+ * Render the Login/Register/Recover links when logged out, or, when logged in: the Admin Users
+ * link (admins only), the "Organization" dropdown, the "My account" dropdown and the Logout
+ * action. Renders nothing
  * while the session is pending admin approval (the Awaiting-approval view owns Log out then).
  *
  * @param {boolean} isLoggedIn - Whether a session is currently active.
@@ -73,6 +89,7 @@ function renderAuthLinks(isLoggedIn, isAdmin, onLogout, onOpenLogin, pending) {
     return (
       <>
         {renderAdminLink(isAdmin)}
+        {renderOrganizationDropdown()}
         {renderMyAccountDropdown()}
         <Nav.Link href="#" onClick={onLogout}>Logout</Nav.Link>
       </>
@@ -93,7 +110,8 @@ function renderAuthLinks(isLoggedIn, isAdmin, onLogout, onOpenLogin, pending) {
  */
 const HeaderHelper = {
   /**
-   * Render the application navigation bar.
+   * Render the application navigation bar. When logged in (and not pending), it shows the
+   * Admin Users link (admins only), the "Organization" and "My account" dropdowns and Logout.
    *
    * @param {boolean} isLoggedIn - Whether a session is currently active.
    * @param {boolean} isAdmin - Whether the current session belongs to an admin user.
