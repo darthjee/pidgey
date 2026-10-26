@@ -23,8 +23,11 @@ TLS, and what production requires.
   or Firefox in dev.
 - The Vite dev proxy must forward the cookie-authenticated paths (`/auth/*.json`,
   `/admin/users/*.json` and Pidgey's admin endpoints; the `*.json` rule in
-  [frontend/development.md](../../frontend/development.md#api-access)), and the origin check
-  must accept the proxied dev origin. Implementing and checking this is a follow-up in #32.
+  [frontend/development.md](../../frontend/development.md#api-access)). Today it proxies only
+  `/v1`; adding the `*.json` rule is follow-up #46.
+- The origin check accepts the proxied dev origin: the browser sees UI and API on the same
+  origin and sends `Sec-Fetch-Site: same-origin`, which rule 2 of
+  [conventions/origin-check.md](../conventions/origin-check.md#rules) allows.
 
 ## Production
 

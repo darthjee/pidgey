@@ -26,8 +26,9 @@ Vite proxies `/v1` **and** every `*.json` path to `http://app:80` with `changeOr
 The `*.json` rule uses a regex key (such as `'^/.*\\.json$'`), which takes precedence over
 Vite's own `/admin/` base, so API paths under `/admin/` (e.g. `/admin/users/search.json`)
 reach the backend (see [api/conventions/format.md](../api/conventions/format.md#paths)). No
-Tent (or other separate proxy) is used. The `frontend/vite.config.js` change is done by a
-later implementation issue.
+Tent (or other separate proxy) is used. Today `frontend/vite.config.js` proxies only `/v1`;
+adding the `*.json` rule is follow-up #46 (see
+[api-compatibility.md](api-compatibility.md#cross-cutting-behaviour)).
 
 Why: the browser stays on `localhost:8030` for both the UI and the API, so the `access_token`
 cookie is same-origin and the client layer can use `credentials: 'same-origin'`
