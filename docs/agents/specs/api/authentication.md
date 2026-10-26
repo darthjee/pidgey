@@ -33,8 +33,9 @@ Each detail file lists its own. Summary:
 
 - Finer-grained Bearer scopes and token expiration ([api-tokens.md](authentication/api-tokens.md)).
 - Cleanup of `refresh_tokens` ([sessions.md](authentication/sessions.md)).
-- Refresh-token storage in the browser (XSS exposure, revisited with #32)
-  ([sessions.md](authentication/sessions.md)).
+- Refresh-token storage in the browser: `localStorage` kept for v1 as a known limitation
+  (reviewed in #32), an `HttpOnly` refresh cookie still pending
+  ([sessions.md](authentication/sessions.md#pending-decisions)).
 - An absolute session lifetime checked against `started_at` (e.g. `SESSION_MAX_AGE`)
   ([sessions.md](authentication/sessions.md)).
 - Renaming the cookie to `__Host-access_token` ([access-token.md](authentication/access-token.md)).

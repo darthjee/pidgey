@@ -28,23 +28,46 @@ The layout follows citadel's conventions (the code was copied from citadel's `fr
 
 ## Client layer
 
-Target clients in `assets/js/client/`: `ApiClient`, `SessionClient`, `OrganizationsClient`,
-`SmtpConnectionsClient`, `ApiTokensClient`.
+The clients in `assets/js/client/` came from Citadel and speak its contract: the `/auth/*`
+and `/admin/users/*` routes are the API contract, not something to replace. Every call they
+make, and its status against the API spec, is in [api-compatibility.md](api-compatibility.md).
 
-- `ApiClient` is the base class: builds URLs, sends JSON with `fetch`
-  (`credentials: 'same-origin'` so the session cookie is sent), parses JSON,
-  normalizes errors into the API error envelope
-  ([api/conventions/errors.md](../api/conventions/errors.md)).
-- Domain clients extend/compose `ApiClient` and expose one method per endpoint
-  (e.g. `ApiTokensClient#list`, `#create`, `#revoke`).
-- Components never call `fetch` directly; they use the clients.
+- Components never call `fetch` directly; they use the clients (usually through a page
+  controller).
+- Domain clients are plain object modules that compose `ApiClient` and expose one method per
+  endpoint.
 
-`SessionClient` (login/logout/register/current session) is an addition to the three
-domain clients named in the project brief.
+### Clients as they are
 
-## Current state
+| Module | Role |
+| --- | --- |
+| `ApiClient` | Base JSON client with `postJson`, `patchJson` and `deleteJson`. Sends `credentials: 'same-origin'` (so the `access_token` cookie goes along) and JSON `Content-Type`/`Accept` headers. Parses the error body (`error.code`, `error.message`, `error.details`, see [api/conventions/errors.md](../api/conventions/errors.md)) into an `ApiError`. Parses `204`, empty and non-JSON bodies as `{}`. On a `401`, refreshes through `POST /auth/refresh.json` with the stored refresh token and retries once; otherwise ends the session (see [screens.md](screens.md#on-401-and-403)). |
+| `AccountsClient` | Auth, account, recovery and device-authorization calls (`register`, `login`, `refresh`, `logout`, `status`, `recover`, `resetPassword`, `updateAccount`, and the five authorization-request methods). Persists the refresh token through `AuthSession` when a call returns one; `logout` always clears it. |
+| `AdminClient` | Admin user calls (`searchUsers`, `editUser`, `approveUser`, `denyUser`, `generateRecoveryLink`, `sendRecoveryEmail`). A `403` means a non-admin session. |
+| `AuthSession` | The stored refresh token: `localStorage` key `pidgey_refresh_token` (in-memory fallback in Node specs). |
+| `AuthStatus` | Runs `POST /auth/status.json` for the stored token and announces the result (logged in, admin, pending) on `AuthEvents`; clears a stale token. |
+| `AuthEvents` | `window` event bus for auth-state changes (`loggedIn`, `isAdmin`, `pending`). |
+| `LoginModalEvents` | `window` event bus to open the login modal in a given mode, or close it. |
+| `ApiError` | Error carrying `status`, `message`, `code` and `details`. |
+| `pickDefined` | Drops `undefined` entries, so optional fields are sent only when given. |
 
-`client/` still holds citadel's clients (`ApiClient` with JWT refresh via `/auth/refresh.json`,
-`AccountsClient`, `AdminClient`, `AuthSession`, `AuthStatus`, `AuthEvents`, …). They are to be
-replaced by the target clients above in follow-up issues; new code must not build on citadel's
-`/auth/*` and `/users*` routes.
+### Target additions
+
+Come with the follow-ups; none exists yet (see
+[api-compatibility.md](api-compatibility.md#pidgey-admin)).
+
+- `ApiClient.getJson(path)`: same behaviour as the other methods (credentials, error parsing,
+  `401` handling), with no request body (#42).
+- `OrganizationClient` (#42): `GET` and `PATCH /organization.json`.
+- `SmtpConnectionsClient` (#43): list, create, read, update, delete, activate and test email
+  on `/smtp-connections*.json`.
+- `ApiTokensClient` (#44): list, create and revoke on `/api-tokens*.json`.
+- `ApiClient`'s refresh becomes single flight within a tab and across tabs (#41, rule in
+  [screens.md](screens.md#refresh-single-flight)).
+
+Each new client has one method per endpoint and composes `ApiClient`, the same as the
+existing clients.
+
+## Pending decisions
+
+None.

@@ -88,8 +88,10 @@ their original reason.
     conditional revoke affects 0 rows (see [Rotation](#rotation)), so it rolls back and gets a
     plain `401` **without** replay revocation. This gap is accepted.
 
-  This strict rule is kept on purpose; the frontend must run a single refresh at a time
-  across tabs (single-flight, checked in #32).
+  This strict rule is kept on purpose; the frontend must run a single refresh at a time,
+  within a tab and across tabs (see the single-flight rule in
+  [frontend/screens.md](../../frontend/screens.md#refresh-single-flight); the frontend change
+  is follow-up #41).
 
 ## Clock
 
@@ -112,7 +114,9 @@ not when the access token expires.
   for replay detection.
 - **Pending decision:** refresh-token storage in the browser. Following the Citadel contract,
   the frontend keeps the refresh token and sends it in request bodies, which makes it readable
-  by XSS; the frontend XSS posture therefore matters. To be revisited with #32 (e.g. an
-  `HttpOnly` refresh cookie scoped to the refresh path).
+  by XSS. #32 reviewed it and kept `localStorage` for v1 (Citadel parity) as a known
+  limitation, with the XSS mitigations listed in
+  [frontend/screens.md](../../frontend/screens.md#refresh-token-storage). An `HttpOnly`
+  refresh cookie scoped to the refresh path stays pending.
 - **Pending decision:** an absolute session lifetime: a cap (e.g. a `SESSION_MAX_AGE` setting)
   checked against `started_at` on refresh, after which the session must log in again.
