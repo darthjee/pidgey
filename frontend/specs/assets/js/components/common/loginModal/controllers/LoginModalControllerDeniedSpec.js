@@ -12,7 +12,11 @@ describe('LoginModalController denied login', () => {
 
   const passwordFields = { username: 'foo', password: 'secret' };
   const registerFields = {
-    username: 'foo', email: 'foo@example.com', password: 'secret', passwordConfirmation: 'secret',
+    username: 'foo',
+    email: 'foo@example.com',
+    password: 'secret',
+    passwordConfirmation: 'secret',
+    organizationName: 'Acme',
   };
 
   const build = () => {

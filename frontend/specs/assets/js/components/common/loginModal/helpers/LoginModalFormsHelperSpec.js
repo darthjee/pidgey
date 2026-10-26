@@ -1,5 +1,6 @@
 import React from 'react';
 import LoginModalFormsHelper from '../../../../../../../assets/js/components/common/loginModal/helpers/LoginModalFormsHelper.jsx';
+import FormFieldsHelper from '../../../../../../../assets/js/components/common/forms/helpers/FormFieldsHelper.jsx';
 import { renderedOutput } from '../../../../../../support/renderedOutput.js';
 
 describe('LoginModalFormsHelper', () => {
@@ -10,6 +11,7 @@ describe('LoginModalFormsHelper', () => {
     onEmailChange: jasmine.createSpy('onEmailChange'),
     onPasswordChange: jasmine.createSpy('onPasswordChange'),
     onPasswordConfirmationChange: jasmine.createSpy('onPasswordConfirmationChange'),
+    onOrganizationNameChange: jasmine.createSpy('onOrganizationNameChange'),
   });
 
   const buildState = (overrides = {}) => ({
@@ -18,6 +20,7 @@ describe('LoginModalFormsHelper', () => {
     email: '',
     password: '',
     passwordConfirmation: '',
+    organizationName: '',
     fieldErrors: {},
     submitError: null,
     resultPanel: null,
@@ -82,6 +85,29 @@ describe('LoginModalFormsHelper', () => {
       expect(forms.contains('id="login-modal-email"')).withContext('email field').toBeTrue();
       expect(forms.contains('id="login-modal-passwordConfirmation"'))
         .withContext('password confirmation field').toBeTrue();
+      expect(forms.contains('id="login-modal-organizationName"'))
+        .withContext('organization name field').toBeTrue();
+      expect(forms.contains('Organization name')).withContext('organization name label').toBeTrue();
+    });
+
+    it('wires the organization name field to its change handler in register mode', () => {
+      spyOn(FormFieldsHelper, 'renderField').and.callThrough();
+      const handlers = buildHandlers();
+
+      renderForms(buildState({ mode: 'register' }), handlers);
+
+      expect(FormFieldsHelper.renderField).toHaveBeenCalledWith(
+        'organizationName', 'text', 'Organization name', jasmine.any(Object),
+        handlers.onOrganizationNameChange, 'login-modal-',
+      );
+    });
+
+    ['password', 'recover', 'resetPassword', 'device'].forEach((mode) => {
+      it(`does not render the organization name field in ${mode} mode`, () => {
+        const forms = renderForms(buildState({ mode }));
+
+        expect(forms.contains('id="login-modal-organizationName"')).toBeFalse();
+      });
     });
 
     it('renders only the email field in recover mode', () => {

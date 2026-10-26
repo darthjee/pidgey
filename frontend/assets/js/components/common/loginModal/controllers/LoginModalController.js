@@ -8,7 +8,7 @@ import { redirectHome } from '../../../../utils/routing/redirects.js';
 
 /** Every field any mode can hold; switching modes resets to exactly this. */
 const INITIAL_FIELDS = {
-  username: '', email: '', password: '', passwordConfirmation: '',
+  username: '', email: '', password: '', passwordConfirmation: '', organizationName: '',
 };
 
 /** The modes the modal can be in. */
@@ -142,11 +142,11 @@ export default class LoginModalController {
   /**
    * Register-mode submit: run the shared registration validation and skip the API call when it
    * fails; on a clean form, register (which also logs in) and converge on the shared success
-   * handler, or set a submit-error message on failure — same shape as today's
-   * `RegisterController`.
+   * handler, or set the API error's message as the submit error on failure.
    *
    * @param {{username: string, email: string, password: string,
-   *   passwordConfirmation: string}} fields - Current form field values.
+   *   passwordConfirmation: string, organizationName: string}} fields - Current form field
+   *   values.
    * @returns {Promise<void>} Resolves once submission handling finishes.
    */
   async #submitRegister(fields) {

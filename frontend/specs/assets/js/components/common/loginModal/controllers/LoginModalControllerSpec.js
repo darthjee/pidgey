@@ -15,9 +15,6 @@ describe('LoginModalController', () => {
   let client;
 
   const passwordFields = { username: 'foo', password: 'secret' };
-  const registerFields = {
-    username: 'foo', email: 'foo@example.com', password: 'secret', passwordConfirmation: 'secret',
-  };
   const recoverFields = { email: 'foo@example.com' };
   const resetFields = { password: 'secret', passwordConfirmation: 'secret' };
   const resetToken = 'reset-token';
@@ -34,7 +31,7 @@ describe('LoginModalController', () => {
     setResultPanel = jasmine.createSpy('setResultPanel');
     setDeviceExpiresAt = jasmine.createSpy('setDeviceExpiresAt');
     client = jasmine.createSpyObj('client', [
-      'login', 'register', 'recover', 'resetPassword',
+      'login', 'recover', 'resetPassword',
       'createAuthorizationRequest', 'pollAuthorizationRequest',
     ]);
     spyOn(AuthStatus, 'refresh').and.resolveTo();
@@ -52,7 +49,7 @@ describe('LoginModalController', () => {
 
       expect(setMode).toHaveBeenCalledWith('register');
       expect(setFields).toHaveBeenCalledWith({
-        username: '', email: '', password: '', passwordConfirmation: '',
+        username: '', email: '', password: '', passwordConfirmation: '', organizationName: '',
       });
       expect(setFieldErrors).toHaveBeenCalledWith({});
       expect(setSubmitError).toHaveBeenCalledWith(null);
@@ -122,36 +119,6 @@ describe('LoginModalController', () => {
       expect(client.login).toHaveBeenCalledWith(passwordFields);
       expect(AuthStatus.refresh).toHaveBeenCalledOnceWith(client);
       expect(LoginModalEvents.close).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('#handleSubmit register mode', () => {
-    it('sets field errors and skips the API call when the form is invalid', async () => {
-      await build().handleSubmit('register', { ...registerFields, email: 'nope' });
-
-      expect(setFieldErrors).toHaveBeenCalledWith(jasmine.objectContaining({ email: jasmine.any(String) }));
-      expect(client.register).not.toHaveBeenCalled();
-    });
-
-    it('registers and runs the shared success path once on a clean form', async () => {
-      client.register.and.resolveTo({ user: { id: 1, username: 'foo', isAdmin: false }, refreshToken: 't' });
-
-      await build().handleSubmit('register', registerFields);
-
-      expect(setFieldErrors).toHaveBeenCalledWith({});
-      expect(client.register).toHaveBeenCalledWith(registerFields);
-      expect(AuthStatus.refresh).toHaveBeenCalledOnceWith(client);
-      expect(LoginModalEvents.close).toHaveBeenCalledTimes(1);
-      expect(globalThis.window.location.hash).toBe('/');
-    });
-
-    it('sets a submit error when the register request fails', async () => {
-      client.register.and.rejectWith(new Error('username is not available'));
-
-      await build().handleSubmit('register', registerFields);
-
-      expect(setSubmitError).toHaveBeenCalledWith('username is not available');
-      expect(AuthStatus.refresh).not.toHaveBeenCalled();
     });
   });
 
