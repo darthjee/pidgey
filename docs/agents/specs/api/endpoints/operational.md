@@ -34,7 +34,8 @@ Readiness: the application can serve requests. It runs `SELECT 1` against the da
 
 - The `503` body is this probe body, **not** the error envelope of
   [conventions/errors.md](../conventions/errors.md).
-- The failure reason is **logged**, never returned.
+- The failure reason (exception class and message) is **logged**, never returned. The log
+  line never includes DSN credentials or stack-trace arguments.
 
 ## Scope
 
@@ -56,7 +57,7 @@ The implementation must cover at least:
 - `/health.json` answers `200 { "status": "ok" }` without touching the database (also with the
   database down);
 - `/ready.json` answers `200` with the database up and `503` with it down, with the bodies
-  above and no failure detail in the response;
+  above and no failure detail in the response; the logged reason contains no DSN credentials;
 - neither route requires authentication.
 
 ## Pending decisions

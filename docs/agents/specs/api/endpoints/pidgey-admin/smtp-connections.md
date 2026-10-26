@@ -65,7 +65,7 @@ Used by create and update. Strings are trimmed before validation, except `passwo
 | Field | Rules |
 | --- | --- |
 | `name` | **required**; string, not empty, max 255 characters |
-| `host` | **required**; string, not empty, max 255 characters; a hostname or an IP literal (IPv4, or IPv6 in brackets or bare); no whitespace or control characters |
+| `host` | **required**; string, not empty, max 255 characters; a hostname or an IP literal (IPv4, or IPv6 in brackets or bare); no whitespace or control characters. A bare IPv6 literal is stored as given and bracketed when the connect target is built |
 | `port` | **required**; integer (JSON number, no fraction, not a string), 1–65535 |
 | `encryption` | **required**; one of `none`, `tls`, `ssl` |
 | `username` | optional; string, max 255 characters, no control characters |
@@ -199,7 +199,7 @@ Request:
 
 | Field | Rules |
 | --- | --- |
-| `to` | optional; valid email address (after trimming), max 255 characters. Absent, `null` → the caller's own `users.email` |
+| `to` | optional; valid email address (after trimming), at most 255 characters, no CR or LF. Absent, `null` → the caller's own `users.email` |
 
 Content (fixed, no caller-supplied content):
 
@@ -260,6 +260,12 @@ address beyond what the send flow already logs.
   reachability oracle for internal hosts and ports. Any host stays allowed in v1, since
   self-hosted setups need internal relays and Mailpit. A host deny-list / allow-list is
   pending in [api/pending.md](../../pending.md).
+- **Credential redirection:** a `PATCH` may change `host`, `port` or `encryption` while
+  keeping the stored password, so a hijacked session can make the server send the stored
+  password to another server (or in cleartext with `encryption: none`) by then calling the
+  test email. Accepted in v1: every user of the organization has equal access, and the
+  password belongs to the organization. Requiring the password to be re-sent is pending (see
+  [Pending decisions](#pending-decisions) and [api/pending.md](../../pending.md)).
 - **Slow servers:** the test email is synchronous; a slow SMTP server holds the request up to
   the configured send-flow timeouts.
 - **No rate limit** on the test email endpoint (tracked in [api/pending.md](../../pending.md)).
@@ -281,6 +287,7 @@ address beyond what the send flow already logs.
 - Deleting the active connection → no active connection; `POST /v1/messages` answers `409`.
 - Test email on an inactive connection → allowed; on another organization's → `404`.
 - Test email with no body → sent to the caller's own email.
+- Test email with `to` containing CR/LF → `400 VALIDATION_FAILED`.
 
 ## Testable rules
 
@@ -308,6 +315,10 @@ The implementation must cover at least:
   connection per organization (v1 relies on the locked transaction of activate).
 - **Pending decision:** a configurable SMTP host deny-list / allow-list against server-side
   request forgery ([api/pending.md](../../pending.md)).
+- **Pending decision:** require `password` to be re-sent (or cleared) in the same `PATCH`
+  when `host`, `port` or `encryption` changes on a connection that has credentials, against
+  credential redirection (see [Known limitations](#known-limitations) and
+  [api/pending.md](../../pending.md)).
 - **Pending decision:** a rate limit on the test email endpoint
   ([api/pending.md](../../pending.md)).
 - **Pending decision:** adopting the messages above for numeric ranges, hostnames and control

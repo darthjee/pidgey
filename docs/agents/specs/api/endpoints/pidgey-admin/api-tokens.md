@@ -159,5 +159,10 @@ The implementation must cover at least:
 
 ## Pending decisions
 
-None here. Token expiration and finer-grained scopes are pending in
+- **Pending decision:** send the create response (the only one carrying the plain token)
+  with `Cache-Control: no-store`, as defense in depth. v1 sends no cache headers, as
+  everywhere else ([conventions/format.md](../../conventions/format.md#cache-headers); see
+  the cache headers item in [api/pending.md](../../pending.md)).
+
+Token expiration and finer-grained scopes are pending in
 [authentication/api-tokens.md](../../authentication/api-tokens.md#pending-decisions).
