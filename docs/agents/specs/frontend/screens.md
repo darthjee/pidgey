@@ -93,6 +93,9 @@ so the web server only needs to serve `index.html`.
 | `#/account/my-account` | My account: edit username, email or password, confirmed with the current password. |
 | `#/account/authorization-requests` | Authorization requests: list the caller's open device-login requests, authorize (with the password) or deny. |
 | `#/organization` | Organization: show and rename the caller's organization (every logged-in, approved user; see [Organization screen](#organization-screen)). |
+| `#/smtp-connections` | SMTP connections: list the organization's connections, activate, send a test email and delete (every logged-in, approved user; see [SMTP connections screens](#smtp-connections-screens)). |
+| `#/smtp-connections/new` | New SMTP connection: create form (see [SMTP connection form](#smtp-connection-form)). |
+| `#/smtp-connections/:id/edit` | Edit SMTP connection: edit form; the password is write-only (see [SMTP connection form](#smtp-connection-form)). |
 
 - Unknown routes fall back to home.
 - The header shows links according to the auth state:
@@ -102,8 +105,8 @@ so the web server only needs to serve `index.html`.
     **Organization** dropdown, the **My account** dropdown (authorizations, account) and
     Logout.
 - The **Organization** dropdown is shown to every logged-in, approved user, not only admins.
-  Today it has one item, **Settings** → `#/organization`. The SMTP connections (#43) and API
-  tokens (#44) screens add their items to this same dropdown.
+  It lists, in this order, **Settings** → `#/organization` and **SMTP connections** →
+  `#/smtp-connections`. The API tokens screen (#44) adds its item to this same dropdown.
 
 ### Organization screen
 
@@ -119,6 +122,80 @@ Uses `OrganizationClient` (`GET` and `PATCH /organization.json`,
   returned by the API is put back into the field. A `400 VALIDATION_FAILED` shows its details
   on the name field; any other error is shown as a submit error.
 - `createdAt` and `updatedAt` are not shown.
+
+### SMTP connections screens
+
+Use `SmtpConnectionsClient` (the seven `/smtp-connections*.json` endpoints,
+[api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md)).
+Every user of the organization has the same access; there is no admin check. In every load, a
+`401` goes through the usual refresh / login-modal flow (see [On `401` and `403`](#on-401-and-403));
+when the session ended, the screen stays idle.
+
+#### SMTP connections list
+
+- **Load:** lists the connections, with a loading state while the call runs and an error
+  message when it fails. An empty list shows an empty-state message.
+- **Rows:** name (link to `#/smtp-connections/{id}/edit`), `host:port`, encryption,
+  `fromAddress`, credentials ("set" when a username is stored or `hasPassword` is true,
+  otherwise "none"), and an **Active** badge on the active connection. A **New connection**
+  button links to `#/smtp-connections/new`.
+- **No active connection notice:** shown when no connection is active (including an empty
+  list): sending is disabled until one is activated.
+- **Row actions:**
+  - **Activate** (hidden on the active row): activates the connection; on success the returned
+    item becomes the only active row. Errors are shown as a list error.
+  - **Delete:** asks for confirmation first. For the active connection, the message warns that
+    sending stops (`POST /v1/messages` answers `409 NO_SMTP_CONNECTION`) until another
+    connection is activated. On success the row is removed; errors are shown as a list error.
+  - **Send test email:** opens the test-email modal for that row.
+
+#### Test-email modal
+
+- One optional **Recipient** field; when it is left empty, the email goes to the caller's own
+  email. A blank value is not sent (`to` is omitted).
+- The test is synchronous and can take up to the send-flow timeouts: while it runs, the submit
+  button is disabled and a "sending…" state is shown.
+- Results:
+  - success (`201`): a success message with the SMTP server reply (`smtp.code`,
+    `smtp.message`);
+  - an `SMTP_*` failure (`502` / `503` / `504`): the error message, plus the SMTP server reply
+    (`error.smtp` code and message) when present;
+  - `400 VALIDATION_FAILED`: its details on the recipient field;
+  - any other error: a generic error in the modal.
+- Closing the modal resets its state.
+
+#### SMTP connection form
+
+One form serves `#/smtp-connections/new` and `#/smtp-connections/:id/edit`, with the fields
+**Name**, **Host**, **Port**, **Encryption** (`none`, `tls`, `ssl`), **Username**, **Password**
+and **From address**.
+
+- **Edit load:** fills every field except the password and shows "Password: set" / "not set"
+  from `hasPassword`. A `404` shows "SMTP connection not found" with a link back to the list;
+  any other failure shows a load error.
+- **Write-only password:** the password is never shown, never put back into the form and is
+  cleared from the input after a successful save. It is sent only when typed.
+- **Client-side rules** (the API stays authoritative; a failing rule shows an inline error and
+  no call is made):
+  - `name`, `host`, `encryption` and `fromAddress` are required after trimming; `port` is
+    required;
+  - `port` is an integer from 1 to 65535, sent as a JSON number;
+  - `name`, `host`, `username` and `fromAddress` are at most 255 characters after trimming;
+    `password` is at most 255 characters and is never trimmed;
+  - `fromAddress` is a valid email;
+  - username and password must be both set or both empty on the merged state: on create both
+    are filled or both empty; on edit a typed username without a password is accepted only when
+    a password is stored, and a typed password without a username only when a username is
+    stored. The message is shown on the password field.
+- **Payload:** on create, the trimmed fields and the numeric port, with `username` and
+  `password` only when filled. On edit, every non-credential field, `username` when changed and
+  `password` only when typed. **Remove credentials** (shown on edit when credentials are
+  stored) sends `username: ""` and `password: ""`. `active` is never sent.
+- **Errors:** `400 VALIDATION_FAILED` details are shown on the field they name; anything
+  unmatched and any other error is shown as a submit error.
+- **Success:** create goes back to `#/smtp-connections`; edit shows a confirmation, refills
+  the fields from the returned item and refreshes "set" / "not set".
+- The create form states that new connections start inactive and are activated from the list.
 
 ## Login modal
 
@@ -140,12 +217,12 @@ modal has these modes:
 
 Targets that come with the follow-ups; none exists yet (see
 [api-compatibility.md](api-compatibility.md#pidgey-admin)). Every user of an organization has
-the same access to them, as for the [Organization screen](#organization-screen), and they are
-reached from the header's **Organization** dropdown.
+the same access to them, as for the [Organization screen](#organization-screen) and the
+[SMTP connections screens](#smtp-connections-screens), and they are reached from the header's
+**Organization** dropdown.
 
 | Route | Screen |
 | --- | --- |
-| `#/smtp-connections` | SMTP connections: list, create and edit (the password is write-only, shown only as "set"/"not set"), activate, send a test email, delete (#43). |
 | `#/api-tokens` | API tokens: list including revoked tokens, create with a name and scopes, show the plain token **once** and never store it, revoke (#44). |
 
 ## Pending decisions

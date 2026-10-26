@@ -15,7 +15,8 @@ frontend/
     client/                 # domain API clients
     components/             # React components (screens and shared UI)
       AppController.js
-      common/ helpers/ resources/
+      common/ helpers/
+      resources/            # one folder per screen area (e.g. organization/, smtpConnections/)
     utils/                  # pure helpers
       polling/ routing/ validation/
   specs/
@@ -41,15 +42,16 @@ make, and its status against the API spec, is in [api-compatibility.md](api-comp
 
 | Module | Role |
 | --- | --- |
-| `ApiClient` | Base JSON client with `getJson`, `postJson`, `patchJson` and `deleteJson`. Sends `credentials: 'same-origin'` (so the `access_token` cookie goes along) and an `Accept: application/json` header; a JSON body and its `Content-Type` header are sent only when the method takes a body, so `getJson` sends neither (also on its `401` retry). Parses the error body (`error.code`, `error.message`, `error.details`, see [api/conventions/errors.md](../api/conventions/errors.md)) into an `ApiError`. Parses `204`, empty and non-JSON bodies as `{}`. On a `401`, refreshes through `POST /auth/refresh.json` with the stored refresh token and retries once; otherwise ends the session (see [screens.md](screens.md#on-401-and-403)). The refresh is single flight within a tab and, when `navigator.locks` is available, across tabs (rule in [screens.md](screens.md#refresh-single-flight)). |
+| `ApiClient` | Base JSON client with `getJson`, `postJson`, `patchJson` and `deleteJson`. Sends `credentials: 'same-origin'` (so the `access_token` cookie goes along) and an `Accept: application/json` header; a JSON body and its `Content-Type` header are sent only when the method takes a body, so `getJson` sends neither (also on its `401` retry). Parses the error body (`error.code`, `error.message`, `error.details` and, when present, `error.smtp`, see [api/conventions/errors.md](../api/conventions/errors.md)) into an `ApiError`. Parses `204`, empty and non-JSON bodies as `{}`. On a `401`, refreshes through `POST /auth/refresh.json` with the stored refresh token and retries once; otherwise ends the session (see [screens.md](screens.md#on-401-and-403)). The refresh is single flight within a tab and, when `navigator.locks` is available, across tabs (rule in [screens.md](screens.md#refresh-single-flight)). |
 | `AccountsClient` | Auth, account, recovery and device-authorization calls (`register`, `login`, `refresh`, `logout`, `status`, `recover`, `resetPassword`, `updateAccount`, and the five authorization-request methods). Persists the refresh token through `AuthSession` when a call returns one; `logout` always clears it. |
 | `AdminClient` | Admin user calls (`searchUsers`, `editUser`, `approveUser`, `denyUser`, `generateRecoveryLink`, `sendRecoveryEmail`). A `403` means a non-admin session. |
 | `OrganizationClient` | The caller's own organization (#42): `get` (`GET /organization.json`) and `update({ name })` (`PATCH /organization.json`, only `name` sent). Both answer `{ organization }`. |
+| `SmtpConnectionsClient` | The organization's SMTP connections (#43): `list`, `create(attributes)`, `get(id)`, `update(id, attributes)`, `remove(id)`, `activate(id)` (no request body) and `test(id, { to })` on `/smtp-connections*.json`. `create` and `update` send only the accepted fields that are defined (`name`, `host`, `port`, `encryption`, `username`, `password`, `fromAddress`); `active` and unknown keys are never sent. `test` sends `{ to }` only when `to` is a non-empty string, otherwise `{}`. |
 | `AuthSession` | The stored refresh token: `localStorage` key `pidgey_refresh_token` (in-memory fallback in Node specs). |
 | `AuthStatus` | Runs `POST /auth/status.json` for the stored token and announces the result (logged in, admin, pending) on `AuthEvents`; clears a stale token. |
 | `AuthEvents` | `window` event bus for auth-state changes (`loggedIn`, `isAdmin`, `pending`). |
 | `LoginModalEvents` | `window` event bus to open the login modal in a given mode, or close it. |
-| `ApiError` | Error carrying `status`, `message`, `code` and `details`. |
+| `ApiError` | Error carrying `status`, `message`, `code`, `details` and, optionally, `smtp` (the SMTP server reply `{ code, message }` from `error.smtp` on `SMTP_*` failures; `undefined` when absent). |
 | `pickDefined` | Drops `undefined` entries, so optional fields are sent only when given. |
 
 ### Target additions
@@ -57,8 +59,6 @@ make, and its status against the API spec, is in [api-compatibility.md](api-comp
 Come with the follow-ups; none exists yet (see
 [api-compatibility.md](api-compatibility.md#pidgey-admin)).
 
-- `SmtpConnectionsClient` (#43): list, create, read, update, delete, activate and test email
-  on `/smtp-connections*.json`.
 - `ApiTokensClient` (#44): list, create and revoke on `/api-tokens*.json`.
 
 Each new client has one method per endpoint and composes `ApiClient`, the same as the

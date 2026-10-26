@@ -6,7 +6,7 @@ whether the call matches the API spec.
 ## How it was checked
 
 - **Frontend side:** the clients in `frontend/assets/js/client/` (`ApiClient`,
-  `AccountsClient`, `AdminClient`, `OrganizationClient`, `AuthStatus`) and the routes in
+  `AccountsClient`, `AdminClient`, `OrganizationClient`, `SmtpConnectionsClient`, `AuthStatus`) and the routes in
   `frontend/assets/js/utils/routing/HashRouteResolver.js`. Components never call `fetch`
   directly (see [layout.md](layout.md#client-layer)), so the clients are the full list of calls.
 - **API side:** the endpoint specs in [api/endpoints](../api/endpoints.md) and the shared rules
@@ -66,22 +66,23 @@ optional follow-up #45. This is cosmetic and does not change the status below.
 ## Pidgey admin
 
 The organization endpoints are called by `OrganizationClient` from the Organization screen
-(#42), with `GET` requests going through `ApiClient.getJson`. The SMTP connection and API token
-endpoints are not called yet (**M6**, #43 and #44): there is no screen or client for them. The
-target clients are described in [layout.md](layout.md#target-additions) and the target screens
-in [screens.md](screens.md#pidgey-screens-to-come).
+(#42), and the SMTP connection endpoints by `SmtpConnectionsClient` from the SMTP connections
+screens (#43); `GET` requests go through `ApiClient.getJson`. The API token endpoints are not
+called yet (**M6**, #44): there is no screen or client for them. The target client is described
+in [layout.md](layout.md#target-additions) and the target screen in
+[screens.md](screens.md#pidgey-screens-to-come).
 
 | Method & path | Client method | Spec | Success | Status |
 | --- | --- | --- | --- | --- |
 | `GET /organization.json` | `OrganizationClient.get` | [organization.md](../api/endpoints/pidgey-admin/organization.md#get-organizationjson) | `200` | ✅ (`GET` with no body, through `ApiClient.getJson`; `organization.name` read) |
 | `PATCH /organization.json` | `OrganizationClient.update` | [organization.md](../api/endpoints/pidgey-admin/organization.md#patch-organizationjson) | `200` | ✅ (only `name` sent; `VALIDATION_FAILED` details shown on the name field) |
-| `GET /smtp-connections.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsjson) | `200` | **M6**, #43 (`SmtpConnectionsClient`) |
-| `POST /smtp-connections.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsjson) | `201` | **M6**, #43 |
-| `GET /smtp-connections/{id}.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsidjson) | `200` | **M6**, #43 |
-| `PATCH /smtp-connections/{id}.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#patch-smtp-connectionsidjson) | `200` | **M6**, #43 |
-| `DELETE /smtp-connections/{id}.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#delete-smtp-connectionsidjson) | `204` | **M6**, #43 |
-| `POST /smtp-connections/{id}/activate.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson) | `200` | **M6**, #43 |
-| `POST /smtp-connections/{id}/test.json` | none yet | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson) | `201` | **M6**, #43 |
+| `GET /smtp-connections.json` | `SmtpConnectionsClient.list` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsjson) | `200` | ✅ (`GET` with no body; `smtpConnections` read, the active one flagged by `active`) |
+| `POST /smtp-connections.json` | `SmtpConnectionsClient.create` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsjson) | `201` | ✅ (only the accepted fields that are defined; `active` never sent; numeric `port`; `username` / `password` only when filled) |
+| `GET /smtp-connections/{id}.json` | `SmtpConnectionsClient.get` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsidjson) | `200` | ✅ (`GET` with no body; `404` shown as "not found"; `hasPassword` read, no password returned) |
+| `PATCH /smtp-connections/{id}.json` | `SmtpConnectionsClient.update` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#patch-smtp-connectionsidjson) | `200` | ✅ (only the accepted fields that are defined; `active` never sent; `password` only when typed; `""` for both credentials to remove them; `VALIDATION_FAILED` details mapped to fields) |
+| `DELETE /smtp-connections/{id}.json` | `SmtpConnectionsClient.remove` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#delete-smtp-connectionsidjson) | `204` | ✅ (empty body parsed as `{}`) |
+| `POST /smtp-connections/{id}/activate.json` | `SmtpConnectionsClient.activate` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson) | `200` | ✅ (no request body; the returned item marks the active row) |
+| `POST /smtp-connections/{id}/test.json` | `SmtpConnectionsClient.test` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson) | `201` | ✅ (`{ to }` only when a recipient is typed, otherwise `{}`; `smtp.code` / `smtp.message` shown on success; `SMTP_*` failures show `error.smtp` when present) |
 | `GET /api-tokens.json` | none yet | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#get-api-tokensjson) | `200` | **M6**, #44 (`ApiTokensClient`) |
 | `POST /api-tokens.json` | none yet | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#post-api-tokensjson) | `201` | **M6**, #44 |
 | `DELETE /api-tokens/{id}.json` | none yet | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#delete-api-tokensidjson) | `204` | **M6**, #44 |
@@ -106,7 +107,7 @@ in [screens.md](screens.md#pidgey-screens-to-come).
 | `401` → refresh once (`POST /auth/refresh.json` with the stored token), retry the original request once; a `401` on the retry, a failed refresh or no stored token ends the session (token cleared, login modal opened) | ✅ |
 | Single-flight refresh, within a tab and across tabs (rule in [screens.md](screens.md#refresh-single-flight)) | **M2**, #41 |
 | `403` on admin screens → redirect home | ✅ |
-| Error body parsing: `error.code`, `error.message`, `error.details` into `ApiError` (see [api/conventions/errors.md](../api/conventions/errors.md)); falls back to `statusText`, then a generic message | ✅ |
+| Error body parsing: `error.code`, `error.message`, `error.details` and, on `SMTP_*` failures, `error.smtp` (`{ code, message }`) into `ApiError` (see [api/conventions/errors.md](../api/conventions/errors.md)); falls back to `statusText`, then a generic message | ✅ |
 | `204` and empty or non-JSON bodies parsed as `{}` | ✅ |
 | camelCase field names (`refreshToken`, `pollToken`, `currentPassword`, `newPassword`, `isAdmin`, `currentUserId`, …) | ✅ (the snake_case `password_confirmation` is dropped by the API as an unknown field) |
 | `access_token` cookie sent with `credentials: 'same-origin'`; root-relative `*.json` paths with no `/v1` prefix | ✅ |
