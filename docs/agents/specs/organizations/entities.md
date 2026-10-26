@@ -25,7 +25,9 @@ Purpose: define organizations, users and admins, how they relate, and the user s
 
 - All users of an organization have the same permissions over that organization's data.
   There are no roles and no owner.
-- A user can see and manage only their own organization's data (see [scope.md](scope.md)).
+- A user can see and manage only their own organization's data (see [scope.md](scope.md)):
+  the organization, its SMTP connections and its API tokens, through the
+  [Pidgey admin endpoints](../api/endpoints/pidgey-admin.md), with no admin check.
 
 ## Admin
 
@@ -79,18 +81,19 @@ Purpose: define organizations, users and admins, how they relate, and the user s
   defined in [api/authentication.md](../api/authentication.md) (#27).
 
 A denied or pending user's organization is kept: it is never removed, and it stays unused
-while its user cannot pass the gate. The organization's API tokens are not affected by the
-user's status.
+while its user cannot pass the gate.
+
+**API tokens and user status:** while an organization has **no `approved` user** (every user
+`pending` or `denied`), its API tokens are **refused** on `/v1` with the same `401` as a
+revoked token. No data changes (`revoked_at` stays unset), so the tokens work again as soon
+as a user of the organization is approved (or a future reinstatement happens). See
+[api/endpoints/sending.md](../api/endpoints/sending.md#token-authentication).
 
 ## Pending decisions
 
 - **Pending decision:** how additional users join an existing organization (invitation flow,
   creation by an existing member, or another mechanism). Registration always creates a new
   organization, so until this is decided an organization effectively has one user.
-- **Pending decision:** whether denying a user revokes their organization's API tokens. For
-  now they keep working. It must be settled **before** the send and API token endpoints
-  ship. Leaning: refuse API tokens of an organization with no `approved` user, or revoke them
-  (set `revoked_at`) on deny.
 - **Pending decisions** on the admin's indirect access, beyond the v1 limits in
   [Admin](#admin) (tracked in
   [api/endpoints/admin-users.md](../api/endpoints/admin-users.md#pending-decisions)):

@@ -126,4 +126,4 @@ endpoints answers `401` for a business rule
   the approver (in the style of the RFC 8628 `user_code`), against approval phishing.
 - **Pending decision:** **retention** of `authorization_requests` rows, which keep the IP
   and user agent forever (e.g. a purge command for resolved or expired rows older than N
-  days). To be decided with the operational endpoints and commands (#31).
+  days).
