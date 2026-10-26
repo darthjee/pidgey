@@ -28,6 +28,7 @@ describe('LoginModal', () => {
       email: '',
       password: '',
       passwordConfirmation: '',
+      organizationName: '',
       open: false,
       mode: 'password',
       fieldErrors: {},
@@ -49,6 +50,7 @@ describe('LoginModal', () => {
       onEmailChange: jasmine.any(Function),
       onPasswordChange: jasmine.any(Function),
       onPasswordConfirmationChange: jasmine.any(Function),
+      onOrganizationNameChange: jasmine.any(Function),
     }));
   });
 
@@ -61,7 +63,7 @@ describe('LoginModal', () => {
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(LoginModalController.prototype.handleSubmit).toHaveBeenCalledWith('password', {
-      username: '', email: '', password: '', passwordConfirmation: '',
+      username: '', email: '', password: '', passwordConfirmation: '', organizationName: '',
     }, '');
   });
 

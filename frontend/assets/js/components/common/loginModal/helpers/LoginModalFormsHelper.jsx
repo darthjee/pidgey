@@ -8,6 +8,7 @@ const FIELDS_BY_MODE = new Map([
   ['register', [
     ['username', 'text', 'Username'],
     ['email', 'email', 'Email'],
+    ['organizationName', 'text', 'Organization name'],
     ['password', 'password', 'Password'],
     ['passwordConfirmation', 'password', 'Confirm password'],
   ]],
@@ -173,6 +174,7 @@ function renderForm(state, handlers) {
     ['email', handlers.onEmailChange],
     ['password', handlers.onPasswordChange],
     ['passwordConfirmation', handlers.onPasswordConfirmationChange],
+    ['organizationName', handlers.onOrganizationNameChange],
   ]);
 
   return (
@@ -202,12 +204,13 @@ const LoginModalFormsHelper = {
    * the active mode's sub-form.
    *
    * @param {{mode: string, username: string, email: string, password: string,
-   *   passwordConfirmation: string, fieldErrors: object, submitError: (string|null),
-   *   resultPanel: (string|null), deviceExpiresAt: (string|null), now: (number|undefined)}}
-   *   state - Modal state.
+   *   passwordConfirmation: string, organizationName: string, fieldErrors: object,
+   *   submitError: (string|null), resultPanel: (string|null), deviceExpiresAt: (string|null),
+   *   now: (number|undefined)}} state - Modal state.
    * @param {{onSelectMode: Function, onSubmit: Function, onUsernameChange: Function,
    *   onEmailChange: Function, onPasswordChange: Function,
-   *   onPasswordConfirmationChange: Function}} handlers - Event handlers.
+   *   onPasswordConfirmationChange: Function, onOrganizationNameChange: Function}}
+   *   handlers - Event handlers.
    * @returns {React.ReactElement} The rendered modal body.
    */
   render(state, handlers) {

@@ -39,10 +39,22 @@ describe('formValidators', () => {
       email: 'alice@example.com',
       password: 'secret',
       passwordConfirmation: 'secret',
+      organizationName: 'Acme',
     };
 
     it('returns no errors for a valid form', () => {
       expect(validateRegistration(validFields)).toEqual({});
+    });
+
+    it('flags a missing organization name', () => {
+      expect(validateRegistration({ ...validFields, organizationName: '' }).organizationName)
+        .toBe('Organization name is required');
+    });
+
+    it('flags a too-long organization name', () => {
+      expect(
+        validateRegistration({ ...validFields, organizationName: 'a'.repeat(256) }).organizationName,
+      ).toBe('Organization name must be at most 255 characters');
     });
 
     it('flags a missing username', () => {
@@ -78,8 +90,8 @@ describe('formValidators', () => {
 
     it('reports every error for an empty form', () => {
       expect(Object.keys(validateRegistration({
-        username: '', email: '', password: '', passwordConfirmation: '',
-      }))).toEqual(['username', 'email', 'password', 'passwordConfirmation']);
+        username: '', email: '', password: '', passwordConfirmation: '', organizationName: '',
+      }))).toEqual(['username', 'email', 'password', 'passwordConfirmation', 'organizationName']);
     });
   });
 });

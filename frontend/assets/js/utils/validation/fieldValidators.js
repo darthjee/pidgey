@@ -4,6 +4,9 @@ export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Minimum password length; mirrors the backend's limit. */
 export const MIN_PASSWORD_LENGTH = 8;
 
+/** Maximum organization name length (after trimming); mirrors the backend's limit. */
+export const MAX_ORGANIZATION_NAME_LENGTH = 255;
+
 /**
  * Check that an email is well-formed. Only the format is checked; callers decide whether a
  * blank email is an error.
@@ -46,4 +49,30 @@ export function validatePasswordLength(password, field = 'password') {
  */
 export function validatePasswordConfirmation(password, confirmation, field = 'passwordConfirmation') {
   return password === confirmation ? {} : { [field]: 'Passwords do not match' };
+}
+
+/**
+ * Check that an organization name is present and not too long. The value is trimmed before
+ * checking, mirroring the backend, which trims it on receipt.
+ *
+ * @description Returns an error map so the result can be spread into a controller's errors.
+ * @param {string} [name] - The organization name value to check.
+ * @param {string} [field] - The field name the error is keyed under.
+ * @returns {object} `{ [field]: message }` when blank or longer than
+ *   {@link MAX_ORGANIZATION_NAME_LENGTH} after trimming, otherwise `{}`.
+ */
+export function validateOrganizationName(name, field = 'organizationName') {
+  const trimmed = (name || '').trim();
+
+  if (!trimmed) {
+    return { [field]: 'Organization name is required' };
+  }
+
+  if (trimmed.length > MAX_ORGANIZATION_NAME_LENGTH) {
+    return {
+      [field]: `Organization name must be at most ${MAX_ORGANIZATION_NAME_LENGTH} characters`,
+    };
+  }
+
+  return {};
 }
