@@ -1,5 +1,5 @@
 import React from 'react';
-import Organization, { buildLoadEffect } from '../../../../../../../assets/js/components/resources/organization/pages/Organization.jsx';
+import Organization, { buildFieldUpdate, buildLoadEffect } from '../../../../../../../assets/js/components/resources/organization/pages/Organization.jsx';
 import OrganizationHelper from '../../../../../../../assets/js/components/resources/organization/pages/helpers/OrganizationHelper.jsx';
 import OrganizationController from '../../../../../../../assets/js/components/resources/organization/pages/controllers/OrganizationController.js';
 import { renderCapturingHandlers } from '../../../../../../support/renderCapturingHandlers.js';
@@ -32,6 +32,12 @@ describe('Organization', () => {
       buildLoadEffect(controller)();
 
       expect(controller.load).toHaveBeenCalled();
+    });
+  });
+
+  describe('buildFieldUpdate', () => {
+    it('sets the changed field, keeping the others', () => {
+      expect(buildFieldUpdate('name', 'Acme')({ name: 'Old', other: 1 })).toEqual({ name: 'Acme', other: 1 });
     });
   });
 

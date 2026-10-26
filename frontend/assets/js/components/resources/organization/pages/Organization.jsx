@@ -21,6 +21,18 @@ export function buildLoadEffect(controller) {
 }
 
 /**
+ * Build the state updater applying one field change to the form fields. Extracted as a plain
+ * function so it can be exercised directly in tests without a React renderer.
+ *
+ * @param {string} field - The changed field's name.
+ * @param {string} value - The field's new value.
+ * @returns {Function} State updater returning the fields with `field` set to `value`.
+ */
+export function buildFieldUpdate(field, value) {
+  return (current) => ({ ...current, [field]: value });
+}
+
+/**
  * Organization page: shows the caller's own organization and lets them rename it. Open to any
  * logged-in, approved user — there is no client-side login or admin check; a `401` is handled
  * by `ApiClient`.
@@ -42,8 +54,7 @@ export default function Organization() {
   useEffect(() => buildLoadEffect(controller)(), [controller]);
 
   const onChange = (field) => (event) => {
-    const { value } = event.target;
-    setFields((current) => ({ ...current, [field]: value }));
+    setFields(buildFieldUpdate(field, event.target.value));
   };
 
   const onSubmit = (event) => {
