@@ -75,6 +75,7 @@ function renderUsersTable(state, handlers) {
           <th>ID</th>
           <th>Username</th>
           <th>Email</th>
+          <th>Organization</th>
           <th>Admin</th>
           <th>Status</th>
           <th>Actions</th>
@@ -94,8 +95,8 @@ function renderUsersTable(state, handlers) {
  * the status-dependent Approve/Deny buttons, and whatever per-row result the controller is
  * currently holding for that user.
  *
- * @param {{id: number, username: string, email: string, isAdmin: boolean, status: string}} user -
- *   The row's user account.
+ * @param {{id: number, username: string, email: string, organizationName: (string|null),
+ *   isAdmin: boolean, status: string}} user - The row's user account.
  * @param {{rowResults: object, currentUserId: (number|null)}} state - Page state.
  * @param {{onGenerateLink: Function, onSendEmail: Function, onApprove: Function,
  *   onDeny: Function}} handlers - Event handlers.
@@ -107,6 +108,7 @@ function renderRow(user, state, handlers) {
       <td>{user.id}</td>
       <td>{user.username}</td>
       <td>{user.email}</td>
+      <td>{user.organizationName}</td>
       <td>{user.isAdmin ? 'Yes' : 'No'}</td>
       <td>{user.status}</td>
       <td>
