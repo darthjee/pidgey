@@ -32,7 +32,7 @@ Layers, with dependencies flowing downward only (HTTP → Services → Repositor
 
 | Namespace | Responsibility |
 | --- | --- |
-| `Pidgey\Http\` | Request/Response, router, controllers, JSON encoding, cookie-session gate and Bearer-token auth middleware. No SQL, no SMTP. |
+| `Pidgey\Http\` | Request/Response, router, request handlers, middlewares (cookie-session gate, Bearer-token auth), JSON encoding. No SQL, no SMTP. See [specs/request-handler.md](specs/request-handler.md). |
 | `Pidgey\Service\` | Business logic (registration, login, token issuing/revocation, sending a message). Orchestrates repositories and transport. |
 | `Pidgey\Repository\` | All SQL, through PDO prepared statements. Every organization-scoped query filters by `organization_id`. |
 | `Pidgey\Model\` | Entities and values: Organization, User, SmtpConnection, ApiToken, Message, SendOutcome. |
