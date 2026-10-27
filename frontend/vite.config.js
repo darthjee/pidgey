@@ -12,6 +12,10 @@ export default defineConfig({
         target: 'http://app:80',
         changeOrigin: false,
       },
+      '^/.*\\.json$': {
+        target: 'http://app:80',
+        changeOrigin: false,
+      },
     },
   },
   plugins: [
