@@ -127,3 +127,39 @@ export function validatePort(value, field = 'port') {
 
   return {};
 }
+
+/** Maximum API token name length (after trimming); mirrors the backend's limit. */
+export const MAX_API_TOKEN_NAME_LENGTH = 255;
+
+/**
+ * Check that an API token name is present and not too long. The value is trimmed before
+ * checking, mirroring the backend, which trims it on receipt.
+ *
+ * @description Returns an error map so the result can be spread into a controller's errors.
+ * @param {string} [name] - The API token name value to check.
+ * @param {string} [field] - The field name the error is keyed under.
+ * @returns {object} `{ [field]: message }` when blank or longer than
+ *   {@link MAX_API_TOKEN_NAME_LENGTH} after trimming, otherwise `{}`.
+ */
+export function validateApiTokenName(name, field = 'name') {
+  const trimmed = (name || '').trim();
+
+  if (!trimmed) {
+    return { [field]: 'Name is required' };
+  }
+
+  return validateMaxLength(trimmed, MAX_API_TOKEN_NAME_LENGTH, field, 'Name');
+}
+
+/**
+ * Check that at least one scope is selected.
+ *
+ * @description Returns an error map so the result can be spread into a controller's errors.
+ * @param {string[]} [scopes] - The selected scope names.
+ * @param {string} [field] - The field name the error is keyed under.
+ * @returns {object} `{ [field]: 'Select at least one scope' }` when none is selected,
+ *   otherwise `{}`.
+ */
+export function validateScopes(scopes, field = 'scopes') {
+  return scopes?.length ? {} : { [field]: 'Select at least one scope' };
+}

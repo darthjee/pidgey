@@ -89,6 +89,7 @@ describe('HeaderHelper', () => {
       expect(markup).not.toContain('organization-dropdown');
       expect(markup).not.toContain('href="#/organization"');
       expect(markup).not.toContain('href="#/smtp-connections"');
+      expect(markup).not.toContain('href="#/api-tokens"');
     });
   });
 
@@ -130,6 +131,13 @@ describe('HeaderHelper', () => {
 
       expect(markup).toContain('href="#/smtp-connections"');
       expect(markup.indexOf('>Settings<')).toBeLessThan(markup.indexOf('>SMTP connections<'));
+    });
+
+    it('renders the API tokens item after SMTP connections', () => {
+      const markup = markupOf(true, false);
+
+      expect(markup).toContain('href="#/api-tokens"');
+      expect(markup.indexOf('>SMTP connections<')).toBeLessThan(markup.indexOf('>API tokens<'));
     });
 
     it('renders the Organization dropdown with a Settings item for an admin', () => {
@@ -183,6 +191,7 @@ describe('HeaderHelper', () => {
       expect(markup).not.toContain('organization-dropdown');
       expect(markup).not.toContain('href="#/organization"');
       expect(markup).not.toContain('href="#/smtp-connections"');
+      expect(markup).not.toContain('href="#/api-tokens"');
     });
   });
 });

@@ -66,11 +66,10 @@ optional follow-up #45. This is cosmetic and does not change the status below.
 ## Pidgey admin
 
 The organization endpoints are called by `OrganizationClient` from the Organization screen
-(#42), and the SMTP connection endpoints by `SmtpConnectionsClient` from the SMTP connections
-screens (#43); `GET` requests go through `ApiClient.getJson`. The API token endpoints are not
-called yet (**M6**, #44): there is no screen or client for them. The target client is described
-in [layout.md](layout.md#target-additions) and the target screen in
-[screens.md](screens.md#pidgey-screens-to-come).
+(#42), the SMTP connection endpoints by `SmtpConnectionsClient` from the SMTP connections
+screens (#43), and the API token endpoints by `ApiTokensClient` from the API tokens screens
+(#44, see [screens.md](screens.md#api-tokens-screens)); `GET` requests go through
+`ApiClient.getJson`.
 
 | Method & path | Client method | Spec | Success | Status |
 | --- | --- | --- | --- | --- |
@@ -83,9 +82,9 @@ in [layout.md](layout.md#target-additions) and the target screen in
 | `DELETE /smtp-connections/{id}.json` | `SmtpConnectionsClient.remove` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#delete-smtp-connectionsidjson) | `204` | ✅ (empty body parsed as `{}`) |
 | `POST /smtp-connections/{id}/activate.json` | `SmtpConnectionsClient.activate` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson) | `200` | ✅ (no request body; the returned item marks the active row) |
 | `POST /smtp-connections/{id}/test.json` | `SmtpConnectionsClient.test` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson) | `201` | ✅ (`{ to }` only when a recipient is typed, otherwise `{}`; `smtp.code` / `smtp.message` shown on success; `SMTP_*` failures show `error.smtp` when present) |
-| `GET /api-tokens.json` | none yet | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#get-api-tokensjson) | `200` | **M6**, #44 (`ApiTokensClient`) |
-| `POST /api-tokens.json` | none yet | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#post-api-tokensjson) | `201` | **M6**, #44 |
-| `DELETE /api-tokens/{id}.json` | none yet | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#delete-api-tokensidjson) | `204` | **M6**, #44 |
+| `GET /api-tokens.json` | `ApiTokensClient.list` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#get-api-tokensjson) | `200` | ✅ (`GET` with no body; `apiTokens` read in the API order, revoked ones flagged by `revokedAt`) |
+| `POST /api-tokens.json` | `ApiTokensClient.create` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#post-api-tokensjson) | `201` | ✅ (only `name` (trimmed) and `scopes` sent; the plain `token` shown once and never stored; `VALIDATION_FAILED` details mapped to the name / scopes fields) |
+| `DELETE /api-tokens/{id}.json` | `ApiTokensClient.revoke` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#delete-api-tokensidjson) | `204` | ✅ (no request body; empty body parsed as `{}`; the list is reloaded) |
 
 ## Operational
 

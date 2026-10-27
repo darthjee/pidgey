@@ -16,6 +16,8 @@ const ROUTES = [
   ['/smtp-connections/new', 'smtp-connection-new'],
   ['/smtp-connections/:id/edit', 'smtp-connection-edit'],
   ['/smtp-connections', 'smtp-connections'],
+  ['/api-tokens/new', 'api-token-new'],
+  ['/api-tokens', 'api-tokens'],
   ['/organization', 'organization'],
   ['/', 'home'],
 ];

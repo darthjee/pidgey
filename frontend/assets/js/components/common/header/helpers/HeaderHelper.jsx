@@ -37,8 +37,8 @@ function renderAdminLink(isAdmin) {
 
 /**
  * Render the "Organization" dropdown, shown to every logged-in user — like
- * {@link renderMyAccountDropdown}, it takes no `isAdmin`-style gate. Holds the Settings and SMTP
- * connections items; the API tokens screen (#44) will add its item here.
+ * {@link renderMyAccountDropdown}, it takes no `isAdmin`-style gate. Holds the Settings, SMTP
+ * connections and API tokens items, in that order.
  *
  * @returns {React.ReactElement} The rendered "Organization" dropdown.
  */
@@ -47,6 +47,7 @@ function renderOrganizationDropdown() {
     <NavDropdown title="Organization" id="organization-dropdown" renderMenuOnMount>
       <NavDropdown.Item href="#/organization">Settings</NavDropdown.Item>
       <NavDropdown.Item href="#/smtp-connections">SMTP connections</NavDropdown.Item>
+      <NavDropdown.Item href="#/api-tokens">API tokens</NavDropdown.Item>
     </NavDropdown>
   );
 }
