@@ -1,5 +1,6 @@
 import {
   EMAIL_PATTERN,
+  MAX_API_TOKEN_NAME_LENGTH,
   MAX_ORGANIZATION_NAME_LENGTH,
   MAX_PORT,
   MIN_PASSWORD_LENGTH,
@@ -10,6 +11,8 @@ import {
   validateOrganizationName,
   validatePasswordLength,
   validatePasswordConfirmation,
+  validateApiTokenName,
+  validateScopes,
 } from '../../../../../assets/js/utils/validation/fieldValidators.js';
 
 describe('fieldValidators', () => {
@@ -167,6 +170,49 @@ describe('fieldValidators', () => {
 
     it('keys the error under a custom field name', () => {
       expect(validatePort('', 'smtpPort')).toEqual({ smtpPort: 'Port is required' });
+    });
+  });
+
+  describe('validateApiTokenName', () => {
+    const required = { name: 'Name is required' };
+    const tooLong = { name: 'Name must be at most 255 characters' };
+
+    it('exposes the maximum length', () => {
+      expect(MAX_API_TOKEN_NAME_LENGTH).toBe(255);
+    });
+
+    it('flags a blank name', () => {
+      expect(validateApiTokenName('')).toEqual(required);
+      expect(validateApiTokenName('   ')).toEqual(required);
+      expect(validateApiTokenName(undefined)).toEqual(required);
+    });
+
+    it('flags a name longer than 255 characters after trimming', () => {
+      expect(validateApiTokenName(` ${'a'.repeat(256)} `)).toEqual(tooLong);
+    });
+
+    it('accepts names of 1 to 255 characters after trimming', () => {
+      expect(validateApiTokenName('a')).toEqual({});
+      expect(validateApiTokenName(`  ${'a'.repeat(255)}  `)).toEqual({});
+    });
+
+    it('keys the error under a custom field name', () => {
+      expect(validateApiTokenName('', 'tokenName')).toEqual({ tokenName: 'Name is required' });
+    });
+  });
+
+  describe('validateScopes', () => {
+    it('flags an empty selection', () => {
+      expect(validateScopes([])).toEqual({ scopes: 'Select at least one scope' });
+      expect(validateScopes(undefined)).toEqual({ scopes: 'Select at least one scope' });
+    });
+
+    it('accepts at least one scope', () => {
+      expect(validateScopes(['send'])).toEqual({});
+    });
+
+    it('keys the error under a custom field name', () => {
+      expect(validateScopes([], 'tokenScopes')).toEqual({ tokenScopes: 'Select at least one scope' });
     });
   });
 });
