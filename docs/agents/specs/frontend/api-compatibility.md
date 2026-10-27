@@ -111,7 +111,7 @@ screens (#43), and the API token endpoints by `ApiTokensClient` from the API tok
 | camelCase field names (`refreshToken`, `pollToken`, `currentPassword`, `newPassword`, `isAdmin`, `currentUserId`, …) | ✅ (the snake_case `password_confirmation` is dropped by the API as an unknown field) |
 | `access_token` cookie sent with `credentials: 'same-origin'`; root-relative `*.json` paths with no `/v1` prefix | ✅ |
 | Refresh token in `localStorage` (`pidgey_refresh_token`) | **M3**, kept for v1 as a known limitation (see [screens.md](screens.md#refresh-token-storage)) |
-| Dev server proxies `*.json` paths to the backend | Vite proxies only `/v1` today, so the auth and admin calls do not reach the backend in development (#46; see [development.md](development.md)) |
+| Dev server proxies `*.json` paths to the backend | ✅ (`'^/.*\\.json$'` regex key next to `/v1`, `changeOrigin: false`; see [development.md](development.md#api-access)) |
 
 ## Pending decisions
 
