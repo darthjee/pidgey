@@ -1,7 +1,7 @@
 # Pidgey Specs
 
 This folder defines the intended design of Pidgey: what it is, how the repository is
-organized, how it runs in Docker, how organizations, email sending and the API work,
+organized, how HTTP requests are handled, how it runs in Docker, how organizations, email sending and the API work,
 how the React admin UI is built, how it is deployed, and how it is tested. These
 specs are the **source of truth for implementation**: code must not deviate from
 them without updating the relevant spec first. They describe the target state and
@@ -13,6 +13,7 @@ will later be replaced by documentation of the actual project.
 | --- | --- |
 | [overview](specs/overview.md) | What Pidgey is and is not, goals, component map, terminology. |
 | [architecture](specs/architecture.md) | Repository layout, backend structure, database access, dependency policy. |
+| [request-handler](specs/request-handler.md) | How HTTP requests flow through the backend: Apache rewrite, front controller, request/response, routing, request handlers, middlewares. |
 | [docker](specs/docker.md) | Image layers, docker-compose services, volumes, Makefile targets. |
 | [organizations](specs/organizations.md) | Organizations, users, bootstrap flow, organization scope, data model. |
 | [email](specs/email.md) | SMTP connections, synchronous send flow, message scope, failure handling. |
