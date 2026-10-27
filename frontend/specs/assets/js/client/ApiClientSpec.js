@@ -121,6 +121,23 @@ describe('ApiClient', () => {
         ));
     });
 
+    it('carries error.smtp onto the ApiError', async () => {
+      const smtp = { code: 535, message: 'Authentication failed' };
+      const json = { error: { code: 'SMTP_AUTH_FAILED', message: 'SMTP authentication failed', smtp }, statusCode: 502 };
+
+      globalThis.fetch = fetchSequence([{ ok: false, status: 502, json }]);
+
+      await expectAsync(ApiClient.postJson('/smtp-connections/1/test.json', {}))
+        .toBeRejectedWith(jasmine.objectContaining({ status: 502, code: 'SMTP_AUTH_FAILED', smtp }));
+    });
+
+    it('leaves smtp undefined when the error body has none', async () => {
+      globalThis.fetch = fetchSequence([{ ok: false, status: 502, json: errorBody(502, 'SMTP_ERROR', 'failed') }]);
+
+      await expectAsync(ApiClient.postJson('/smtp-connections/1/test.json', {}))
+        .toBeRejectedWith(jasmine.objectContaining({ status: 502, smtp: undefined }));
+    });
+
     it('falls back to the status text when the error body is empty', async () => {
       globalThis.fetch = fetchSequence([{ ok: false, status: 502, statusText: 'Bad Gateway' }]);
 

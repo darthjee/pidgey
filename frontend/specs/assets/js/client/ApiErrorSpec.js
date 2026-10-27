@@ -26,11 +26,19 @@ describe('ApiError', () => {
     expect(error.details).toEqual(details);
   });
 
-  it('leaves code and details undefined when not given', () => {
+  it('carries the SMTP server reply', () => {
+    const smtp = { code: 535, message: 'Authentication failed' };
+    const error = new ApiError(502, 'SMTP authentication failed', 'SMTP_AUTH_FAILED', undefined, smtp);
+
+    expect(error.smtp).toEqual(smtp);
+  });
+
+  it('leaves code, details and smtp undefined when not given', () => {
     const error = new ApiError(500, 'Request failed');
 
     expect(error.code).toBeUndefined();
     expect(error.details).toBeUndefined();
+    expect(error.smtp).toBeUndefined();
   });
 
   it('is named ApiError', () => {

@@ -88,6 +88,7 @@ describe('HeaderHelper', () => {
 
       expect(markup).not.toContain('organization-dropdown');
       expect(markup).not.toContain('href="#/organization"');
+      expect(markup).not.toContain('href="#/smtp-connections"');
     });
   });
 
@@ -122,6 +123,13 @@ describe('HeaderHelper', () => {
       expect(markup).toContain('>Organization<');
       expect(markup).toContain('href="#/organization"');
       expect(markup).toContain('>Settings<');
+    });
+
+    it('renders the SMTP connections item after Settings', () => {
+      const markup = markupOf(true, false);
+
+      expect(markup).toContain('href="#/smtp-connections"');
+      expect(markup.indexOf('>Settings<')).toBeLessThan(markup.indexOf('>SMTP connections<'));
     });
 
     it('renders the Organization dropdown with a Settings item for an admin', () => {
@@ -174,6 +182,7 @@ describe('HeaderHelper', () => {
       expect(markup).not.toContain('My account');
       expect(markup).not.toContain('organization-dropdown');
       expect(markup).not.toContain('href="#/organization"');
+      expect(markup).not.toContain('href="#/smtp-connections"');
     });
   });
 });

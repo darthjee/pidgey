@@ -19,7 +19,7 @@ let refreshInFlight = null;
  * Build the {@link ApiError} for a failed response.
  *
  * @description Reads the backend's standard error body
- * (`{ error: { code, message, details? }, statusCode, timestamp }`). Falls back to the
+ * (`{ error: { code, message, details?, smtp? }, statusCode, timestamp }`). Falls back to the
  * response's `statusText`, then to a generic message, when the body carries no
  * `error.message` (e.g. a proxy-generated or empty error response), so the resulting error's
  * `message` is never `undefined`.
@@ -31,7 +31,7 @@ function buildApiError(response, data) {
   const error = data?.error ?? {};
   const message = error.message || response.statusText || FALLBACK_ERROR_MESSAGE;
 
-  return new ApiError(response.status, message, error.code, error.details);
+  return new ApiError(response.status, message, error.code, error.details, error.smtp);
 }
 
 /**

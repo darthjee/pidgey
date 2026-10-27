@@ -37,8 +37,8 @@ function renderAdminLink(isAdmin) {
 
 /**
  * Render the "Organization" dropdown, shown to every logged-in user — like
- * {@link renderMyAccountDropdown}, it takes no `isAdmin`-style gate. Holds the Settings item for
- * now; the SMTP connections (#43) and API tokens (#44) screens will add their items here.
+ * {@link renderMyAccountDropdown}, it takes no `isAdmin`-style gate. Holds the Settings and SMTP
+ * connections items; the API tokens screen (#44) will add its item here.
  *
  * @returns {React.ReactElement} The rendered "Organization" dropdown.
  */
@@ -46,6 +46,7 @@ function renderOrganizationDropdown() {
   return (
     <NavDropdown title="Organization" id="organization-dropdown" renderMenuOnMount>
       <NavDropdown.Item href="#/organization">Settings</NavDropdown.Item>
+      <NavDropdown.Item href="#/smtp-connections">SMTP connections</NavDropdown.Item>
     </NavDropdown>
   );
 }

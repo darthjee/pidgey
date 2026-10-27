@@ -5,6 +5,9 @@ import LoginModal from '../../../../../assets/js/components/common/loginModal/Lo
 import ModalRedirect from '../../../../../assets/js/components/common/ModalRedirect.jsx';
 import ResetPasswordLanding from '../../../../../assets/js/components/resources/accounts/pages/ResetPasswordLanding.jsx';
 import Organization from '../../../../../assets/js/components/resources/organization/pages/Organization.jsx';
+import SmtpConnections from '../../../../../assets/js/components/resources/smtpConnections/pages/SmtpConnections.jsx';
+import SmtpConnectionNew from '../../../../../assets/js/components/resources/smtpConnections/pages/SmtpConnectionNew.jsx';
+import SmtpConnectionEdit from '../../../../../assets/js/components/resources/smtpConnections/pages/SmtpConnectionEdit.jsx';
 
 describe('AppHelper', () => {
   const markupFor = (page) => renderToStaticMarkup(
@@ -49,6 +52,12 @@ describe('AppHelper', () => {
 
   it('renders the authorization requests page for the authorization-requests key', () => {
     expect(markupFor('authorization-requests')).toContain('Authorization Requests');
+  });
+
+  it('renders the SMTP connection pages for their keys', () => {
+    expect(partsOf('smtp-connections').page.type).withContext('list').toBe(SmtpConnections);
+    expect(partsOf('smtp-connection-new').page.type).withContext('new').toBe(SmtpConnectionNew);
+    expect(partsOf('smtp-connection-edit').page.type).withContext('edit').toBe(SmtpConnectionEdit);
   });
 
   it('renders the organization page for the organization key', () => {
