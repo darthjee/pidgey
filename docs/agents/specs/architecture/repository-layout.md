@@ -24,7 +24,7 @@ Purpose: define the top-level folders of the repository and their responsibiliti
 | `source/composer.json` | Dependencies and composer scripts (see [testing](../testing.md)). |
 | `source/lib/` | PSR-4 root for namespace `Pidgey\`. |
 | `source/bin/` | Executable PHP CLI entry points (`wait-for-db`, `create-db`, `drop-db`, `migrate`), backed by `Pidgey\Infra`. See [database.md](database.md#database-scripts). |
-| `source/public/` | Apache document root (web root): `index.php` front controller; the built frontend is released under `admin/` here and served at `/admin/` (see [frontend/build.md](../frontend/build.md)). Initially a stub `index.php` returning a JSON health response (no routing yet). |
+| `source/public/` | Apache document root (web root): `index.php` front controller; the built frontend is released under `admin/` here and served at `/admin/` (see [frontend/build.md](../frontend/build.md)). Initially a stub `index.php` returning a JSON health response (no routing yet). The front controller is specified in [request-handler/front-controller.md](../request-handler/front-controller.md). |
 | `source/migrations/` | Plain SQL migration files. See [database.md](database.md). |
 | `source/tests/unit/`, `source/tests/integration/` | PHPUnit suites. |
 | `source/tests/support/`, `source/tests/fixtures/` | Shared test helpers and test fixture data (e.g. migration fixture sets in `source/tests/fixtures/migrations/`). |
