@@ -30,7 +30,7 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 | Subdirectory | Description |
 |--------------|-------------|
 | `lib/` | PSR-4 root for namespace `Pidgey\` (e.g. `Infra/Env.php`). |
-| `public/` | Apache document root: `index.php` (currently a placeholder stub returning `{"status":"ok"}`, replaced by the front controller later); built frontend assets go under `admin/` (git-ignored for now). |
+| `public/` | Apache document root: `index.php` (currently a placeholder stub returning `{"status":"ok"}`, replaced by [the front controller](specs/request-handler.md) later); built frontend assets go under `admin/` (git-ignored for now). |
 | `bin/` | Thin PHP CLI entry points (`wait-for-db`, `create-db`, `drop-db`, `migrate`), exposed as `composer db:*` scripts; logic lives in `Pidgey\Infra`. |
 | `migrations/` | Plain SQL migrations named `NNNN_description.sql`, exactly one statement per file. |
 | `tests/unit/` | PHPUnit unit suite (no database, no network). |
