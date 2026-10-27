@@ -96,6 +96,8 @@ so the web server only needs to serve `index.html`.
 | `#/smtp-connections` | SMTP connections: list the organization's connections, activate, send a test email and delete (every logged-in, approved user; see [SMTP connections screens](#smtp-connections-screens)). |
 | `#/smtp-connections/new` | New SMTP connection: create form (see [SMTP connection form](#smtp-connection-form)). |
 | `#/smtp-connections/:id/edit` | Edit SMTP connection: edit form; the password is write-only (see [SMTP connection form](#smtp-connection-form)). |
+| `#/api-tokens` | API tokens: list the organization's tokens, including revoked ones, and revoke (every logged-in, approved user; see [API tokens screens](#api-tokens-screens)). |
+| `#/api-tokens/new` | New API token: create form, then the plain token shown **once** (see [API token create](#api-token-create)). |
 
 - Unknown routes fall back to home.
 - The header shows links according to the auth state:
@@ -105,8 +107,8 @@ so the web server only needs to serve `index.html`.
     **Organization** dropdown, the **My account** dropdown (authorizations, account) and
     Logout.
 - The **Organization** dropdown is shown to every logged-in, approved user, not only admins.
-  It lists, in this order, **Settings** → `#/organization` and **SMTP connections** →
-  `#/smtp-connections`. The API tokens screen (#44) adds its item to this same dropdown.
+  It lists, in this order, **Settings** → `#/organization`, **SMTP connections** →
+  `#/smtp-connections` and **API tokens** → `#/api-tokens`.
 
 ### Organization screen
 
@@ -197,6 +199,45 @@ and **From address**.
   the fields from the returned item and refreshes "set" / "not set".
 - The create form states that new connections start inactive and are activated from the list.
 
+### API tokens screens
+
+Use `ApiTokensClient` (the three `/api-tokens*.json` endpoints,
+[api/endpoints/pidgey-admin/api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md)).
+Every user of the organization has the same access; there is no admin check. A `401` goes
+through the usual refresh / login-modal flow (see [On `401` and `403`](#on-401-and-403)); when
+the session ended, the screen stays idle.
+
+#### API tokens list
+
+- **Load:** lists the tokens, with a loading state while the call runs and an error message
+  when it fails. An empty list shows "No API tokens yet.". A **New token** button links to
+  `#/api-tokens/new`.
+- **Rows:** in the API order (id ascending): `name`, `tokenPrefix` (followed by "…"), `scopes`,
+  `createdAt` and `lastUsedAt` ("Never" when `null`), dates in the user's locale.
+- **Revoked tokens** (`revokedAt` set) stay in the list with a **Revoked** badge and their
+  `revokedAt` date, and have no Revoke button.
+- **Revoke** (active tokens only): asks for confirmation first (integrations using the token
+  stop working immediately; there is no un-revoke). On success the list is reloaded, so
+  `revokedAt` comes from the API. A `404` reloads the list and shows "This API token no longer
+  exists."; any other error is shown as a list error.
+
+#### API token create
+
+- **Fields:** **Name** and one **Scopes** checkbox per known scope; only `send` exists today and
+  it is checked by default.
+- **Validation:** the name, after trimming, must be 1–255 characters and at least one scope
+  must be checked; otherwise inline errors are shown and no call is made. The trimmed name is
+  sent. A `400 VALIDATION_FAILED` shows its details on the name / scopes fields; any other
+  error (or a detail matching no field) is shown as a submit error.
+- **One-time token panel:** on success the form is replaced by a panel with a warning ("Copy
+  this token now. It cannot be shown again."), the plain `token` in a read-only field, a
+  **Copy** button and a **Done** link back to `#/api-tokens`. Copy uses
+  `navigator.clipboard.writeText`; when the clipboard is missing (non-secure context) or the
+  copy is refused, "Copy failed — select the token and copy it manually" is shown.
+- **Never stored:** the plain token lives only in the create screen's component state. It is
+  never written to `localStorage`, `sessionStorage`, the URL or a module-level variable, and
+  never logged; it is gone once the user leaves the page (Done or any other navigation).
+
 ## Login modal
 
 Login, registration and recovery are modal flows over the current screen, not routes. The
@@ -212,18 +253,6 @@ modal has these modes:
 - **Device login:** username; creates an authorization request, shows a countdown to its
   expiry and polls until it resolves (`approved` logs in; `denied`, `expired` and `logged` end
   the flow).
-
-## Pidgey screens to come
-
-Targets that come with the follow-ups; none exists yet (see
-[api-compatibility.md](api-compatibility.md#pidgey-admin)). Every user of an organization has
-the same access to them, as for the [Organization screen](#organization-screen) and the
-[SMTP connections screens](#smtp-connections-screens), and they are reached from the header's
-**Organization** dropdown.
-
-| Route | Screen |
-| --- | --- |
-| `#/api-tokens` | API tokens: list including revoked tokens, create with a name and scopes, show the plain token **once** and never store it, revoke (#44). |
 
 ## Pending decisions
 

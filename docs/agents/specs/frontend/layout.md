@@ -16,7 +16,7 @@ frontend/
     components/             # React components (screens and shared UI)
       AppController.js
       common/ helpers/
-      resources/            # one folder per screen area (e.g. organization/, smtpConnections/)
+      resources/            # one folder per screen area (e.g. organization/, smtpConnections/, apiTokens/)
     utils/                  # pure helpers
       polling/ routing/ validation/
   specs/
@@ -47,6 +47,7 @@ make, and its status against the API spec, is in [api-compatibility.md](api-comp
 | `AdminClient` | Admin user calls (`searchUsers`, `editUser`, `approveUser`, `denyUser`, `generateRecoveryLink`, `sendRecoveryEmail`). A `403` means a non-admin session. |
 | `OrganizationClient` | The caller's own organization (#42): `get` (`GET /organization.json`) and `update({ name })` (`PATCH /organization.json`, only `name` sent). Both answer `{ organization }`. |
 | `SmtpConnectionsClient` | The organization's SMTP connections (#43): `list`, `create(attributes)`, `get(id)`, `update(id, attributes)`, `remove(id)`, `activate(id)` (no request body) and `test(id, { to })` on `/smtp-connections*.json`. `create` and `update` send only the accepted fields that are defined (`name`, `host`, `port`, `encryption`, `username`, `password`, `fromAddress`); `active` and unknown keys are never sent. `test` sends `{ to }` only when `to` is a non-empty string, otherwise `{}`. |
+| `ApiTokensClient` | The organization's API tokens (#44): `list` (`GET /api-tokens.json`), `create({ name, scopes })` (`POST /api-tokens.json`, only `name` and `scopes` sent, undefined ones dropped) and `revoke(id)` (`DELETE /api-tokens/{id}.json`, no request body). The client never keeps a response, in particular the plain `token` returned by `create`. |
 | `AuthSession` | The stored refresh token: `localStorage` key `pidgey_refresh_token` (in-memory fallback in Node specs). |
 | `AuthStatus` | Runs `POST /auth/status.json` for the stored token and announces the result (logged in, admin, pending) on `AuthEvents`; clears a stale token. |
 | `AuthEvents` | `window` event bus for auth-state changes (`loggedIn`, `isAdmin`, `pending`). |
@@ -54,15 +55,7 @@ make, and its status against the API spec, is in [api-compatibility.md](api-comp
 | `ApiError` | Error carrying `status`, `message`, `code`, `details` and, optionally, `smtp` (the SMTP server reply `{ code, message }` from `error.smtp` on `SMTP_*` failures; `undefined` when absent). |
 | `pickDefined` | Drops `undefined` entries, so optional fields are sent only when given. |
 
-### Target additions
-
-Come with the follow-ups; none exists yet (see
-[api-compatibility.md](api-compatibility.md#pidgey-admin)).
-
-- `ApiTokensClient` (#44): list, create and revoke on `/api-tokens*.json`.
-
-Each new client has one method per endpoint and composes `ApiClient`, the same as the
-existing clients.
+Each client has one method per endpoint and composes `ApiClient`.
 
 ## Pending decisions
 
