@@ -8,6 +8,8 @@ import Organization from '../../../../../assets/js/components/resources/organiza
 import SmtpConnections from '../../../../../assets/js/components/resources/smtpConnections/pages/SmtpConnections.jsx';
 import SmtpConnectionNew from '../../../../../assets/js/components/resources/smtpConnections/pages/SmtpConnectionNew.jsx';
 import SmtpConnectionEdit from '../../../../../assets/js/components/resources/smtpConnections/pages/SmtpConnectionEdit.jsx';
+import ApiTokens from '../../../../../assets/js/components/resources/apiTokens/pages/ApiTokens.jsx';
+import ApiTokenNew from '../../../../../assets/js/components/resources/apiTokens/pages/ApiTokenNew.jsx';
 
 describe('AppHelper', () => {
   const markupFor = (page) => renderToStaticMarkup(
@@ -52,6 +54,11 @@ describe('AppHelper', () => {
 
   it('renders the authorization requests page for the authorization-requests key', () => {
     expect(markupFor('authorization-requests')).toContain('Authorization Requests');
+  });
+
+  it('renders the API token pages for their keys', () => {
+    expect(partsOf('api-tokens').page.type).withContext('list').toBe(ApiTokens);
+    expect(partsOf('api-token-new').page.type).withContext('new').toBe(ApiTokenNew);
   });
 
   it('renders the SMTP connection pages for their keys', () => {

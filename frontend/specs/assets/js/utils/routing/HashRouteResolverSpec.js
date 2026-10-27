@@ -49,6 +49,14 @@ describe('HashRouteResolver', () => {
     expect(resolver.getPage()).toBe('authorization-requests');
   });
 
+  it('resolves the api-tokens route', () => {
+    expect(new HashRouteResolver(() => '#/api-tokens').getPage()).toBe('api-tokens');
+  });
+
+  it('resolves the api-token-new route before the list', () => {
+    expect(new HashRouteResolver(() => '#/api-tokens/new').getPage()).toBe('api-token-new');
+  });
+
   it('resolves the smtp-connections route', () => {
     expect(new HashRouteResolver(() => '#/smtp-connections').getPage()).toBe('smtp-connections');
   });

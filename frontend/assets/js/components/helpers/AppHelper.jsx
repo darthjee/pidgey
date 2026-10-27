@@ -11,6 +11,8 @@ import Organization from '../resources/organization/pages/Organization.jsx';
 import SmtpConnections from '../resources/smtpConnections/pages/SmtpConnections.jsx';
 import SmtpConnectionNew from '../resources/smtpConnections/pages/SmtpConnectionNew.jsx';
 import SmtpConnectionEdit from '../resources/smtpConnections/pages/SmtpConnectionEdit.jsx';
+import ApiTokens from '../resources/apiTokens/pages/ApiTokens.jsx';
+import ApiTokenNew from '../resources/apiTokens/pages/ApiTokenNew.jsx';
 
 const PAGES = new Map([
   ['register', <ModalRedirect mode="register" />],
@@ -24,6 +26,8 @@ const PAGES = new Map([
   ['smtp-connections', <SmtpConnections />],
   ['smtp-connection-new', <SmtpConnectionNew />],
   ['smtp-connection-edit', <SmtpConnectionEdit />],
+  ['api-tokens', <ApiTokens />],
+  ['api-token-new', <ApiTokenNew />],
   ['home', <Home />],
 ]);
 
