@@ -88,7 +88,7 @@ so the web server only needs to serve `index.html`.
 | --- | --- |
 | `#/` | Home. |
 | `#/recover-password?token=` | Reset password: opens the login modal in reset-password mode with the token, then goes back to `#/`. |
-| `#/admin/users` | Admin users: search, filter by status, approve, deny, recovery link and recovery email (admins only). |
+| `#/admin/users` | Admin users: list with each user's organization, search, filter by status, approve, deny, recovery link and recovery email (admins only). |
 | `#/admin/users/:id/edit` | Admin user edit: username, email, new password (admins only). |
 | `#/account/my-account` | My account: edit username, email or password, confirmed with the current password. |
 | `#/account/authorization-requests` | Authorization requests: list the caller's open device-login requests, authorize (with the password) or deny. |

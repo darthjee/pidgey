@@ -50,9 +50,9 @@ whether the call matches the API spec.
 
 ## Admin users
 
-The UI ignores the `organizationId` and `organizationName` fields of the
-[admin user item](../api/endpoints/admin-users.md#admin-user-item); showing them is the
-optional follow-up #45. This is cosmetic and does not change the status below.
+The Admin Users list shows the `organizationName` field of the
+[admin user item](../api/endpoints/admin-users.md#admin-user-item) in an Organization column,
+right after Email. The `organizationId` field is ignored.
 
 | Method & path | Client method | Spec | Success | Status |
 | --- | --- | --- | --- | --- |
