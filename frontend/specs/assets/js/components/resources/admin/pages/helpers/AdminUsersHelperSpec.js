@@ -81,6 +81,36 @@ describe('AdminUsersHelper', () => {
         expect(page.contains('foo@example.com')).withContext('email').toBeTrue();
       });
 
+      it('renders an Organization column between Email and Admin', () => {
+        const page = renderPage(buildState({ users }));
+
+        expect(page.containsInOrder('<th>Email</th>', '<th>Organization</th>', '<th>Admin</th>'))
+          .toBeTrue();
+      });
+
+      it('renders the user organization name in its cell', () => {
+        const page = renderPage(buildState({ users: withStatus('approved', { organizationName: 'Bob\'s Org' }) }));
+
+        expect(page.containsInOrder('<td>foo@example.com</td>', '<td>Bob&#x27;s Org</td>', '<td>Yes</td>'))
+          .toBeTrue();
+      });
+
+      it('renders an empty organization cell when the user has no organization name', () => {
+        const page = renderPage(buildState({ users }));
+
+        expect(page.containsInOrder('<td>foo@example.com</td>', '<td></td>', '<td>Yes</td>'))
+          .withContext('cells').toBeTrue();
+        expect(page.containsElement('td', 'approved')).withContext('status').toBeTrue();
+      });
+
+      it('renders an empty organization cell when the organization name is null', () => {
+        const page = renderPage(buildState({ users: withStatus('approved', { organizationName: null }) }));
+
+        expect(page.containsInOrder('<td>foo@example.com</td>', '<td></td>', '<td>Yes</td>'))
+          .withContext('cells').toBeTrue();
+        expect(page.containsElement('td', 'approved')).withContext('status').toBeTrue();
+      });
+
       it('renders the admin flag as Yes/No', () => {
         const page = renderPage(buildState({ users }));
 
