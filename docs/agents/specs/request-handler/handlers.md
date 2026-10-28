@@ -4,7 +4,7 @@ Purpose: define the request handler base class (`RequestHandler`), the `HandlerF
 
 Part of the request flow indexed in [request-handler.md](../request-handler.md). The handler runs after routing ([routing.md](routing.md)) and the request hooks ([middlewares.md](middlewares.md)), and before the response hooks.
 
-This file is structural only. What each endpoint does stays in [api/endpoints/](../api/endpoints/). The middleware interface stays in [middlewares.md](middlewares.md) (#61), and the front controller in [front-controller.md](front-controller.md) (#62). The processing request, the responses and the exceptions are used here, not redefined ([request-response.md](request-response.md)).
+This file is structural only. What each endpoint does stays in [api/endpoints/](../api/endpoints/). The middleware interface is specified in [middlewares.md](middlewares.md#pidgeyhttpmiddleware), and the front controller in [front-controller.md](front-controller.md) (#62). The processing request, the responses and the exceptions are used here, not redefined ([request-response.md](request-response.md)).
 
 ## `RequestHandler`
 
@@ -49,16 +49,14 @@ final public function handle(ProcessingRequest $request, array $middlewares): Re
 
 ### Errors propagate
 
-`handle()` **catches nothing**. An exception from a request hook, from `process()` or from a response hook propagates unchanged to the error wrapper in the front controller ([front-controller.md](front-controller.md), #62). Whether error responses pass through the response hooks stays with #61 (the CORS hand-off in [request-response/processing-request.md](request-response/processing-request.md#only-for-non-error-answers)).
+`handle()` **catches nothing**. An exception from a request hook, from `process()` or from a response hook propagates unchanged to the error wrapper in the front controller ([front-controller.md](front-controller.md), #62). Error responses built from exceptions **do not** pass through the response hooks; CORS headers on errors come from a front-controller step ([middlewares.md](middlewares.md#errors-cors-and-request-logging)).
 
 ### Hook signatures
 
-The hook signatures are owned by #61 ([middlewares.md](middlewares.md)). `handle()` only uses:
+The hook signatures are owned by [middlewares.md](middlewares.md#pidgeyhttpmiddleware). `handle()` only uses:
 
 - `processRequest(ProcessingRequest $request): void`;
 - `processResponse(ProcessingRequest $request, Response $response): Response`.
-
-If #61 changes them, this spec follows.
 
 ### Rejected
 
@@ -75,7 +73,7 @@ If #61 changes them, this spec follows.
 - Its constructor stays fully typed. The container is only touched in `build()`.
 - A subclass that adds constructor arguments **must** override `build()`. The integration factory test catches a missing override ([Testing](#testing)).
 
-**Middlewares** use the same `static build(Container): static` convention. The middleware interface itself belongs to #61 ([middlewares.md](middlewares.md)).
+**Middlewares** use the same `static build(Container): static` convention, declared on the [`Middleware` interface](middlewares.md#pidgeyhttpmiddleware) (`BaseMiddleware` defaults to `new static()`).
 
 ### `Pidgey\Container`
 
@@ -179,7 +177,7 @@ Integer ids are read with a **protected method on `RequestHandler`**:
 7. **`process()` calls `$request->respond()`:** not allowed, but not guarded. `handle()` uses only `process()`'s return value. Rule: **handlers return their response, and only request hooks use `respond()`**.
 8. **A response hook throws after `process()` committed a side effect:** the client gets a `500` although the action happened.
    - **Handlers own their transactions and commit inside `process()`.**
-   - Response hooks must be infallible in practice (headers only). This is a constraint handed to #61.
+   - Response hooks must be infallible in practice (headers only), as recorded in [middlewares.md](middlewares.md#security).
 9. **A response hook replaces the response:** allowed. The last hook's return value is sent.
 
 ## Example
@@ -250,10 +248,10 @@ The namespaces, the service name and the `Caller` interface above are illustrati
 
 ## Hand-offs
 
-- **#61 (middlewares, [middlewares.md](middlewares.md)):**
-  - the middleware interface, with `static build(Container): static`;
-  - the `processRequest(ProcessingRequest): void` / `processResponse(ProcessingRequest, Response): Response` signatures used by `handle()`;
-  - response hooks must be infallible in practice (headers only).
+- **#61 (middlewares, [middlewares.md](middlewares.md)) — resolved:**
+  - the middleware interface, with `static build(Container): static` ([middlewares.md](middlewares.md#pidgeyhttpmiddleware));
+  - the `processRequest(ProcessingRequest): void` / `processResponse(ProcessingRequest, Response): Response` signatures used by `handle()` (same section);
+  - response hooks must be infallible in practice (headers only) ([middlewares.md](middlewares.md#security)).
 - **#62 (front controller, [front-controller.md](front-controller.md)):**
   - creates one `Container` per request;
   - the dispatcher builds the handler and the middlewares with `HandlerFactory`, concatenates the global and then the per-route middlewares, and calls `handle()`;

@@ -28,7 +28,7 @@ The store is **keyed by class**:
 - A generic string-keyed store (Tent's style): untyped, keys can be mistyped, and `mixed` everywhere.
 - Typed accessors such as `user()` and `apiToken()`: `Pidgey\Http\` would depend on the auth models, and every new attachment would need new methods.
 
-Hand-off to [middlewares.md](../middlewares.md) (#61): organization scope needs an organization id from either the user or the token. Both models should implement a small `Caller` interface with `organizationId()`, so scoped handlers use `require(Caller::class)`.
+Organization scope needs an organization id from either the user or the token. Resolved in #61 ([middlewares.md](../middlewares.md#caller-interface)): both models implement `Pidgey\Auth\Caller` with `organizationId(): int`, at most one `Caller` is attached per request, and scoped handlers use `require(Caller::class)`.
 
 ## Early response
 
@@ -49,11 +49,11 @@ This spec owns the contract; [middlewares.md](../middlewares.md) (#61) uses it. 
 
 ### Only for non-error answers
 
-Early responses are for non-error answers, such as a CORS preflight (`OPTIONS` → `204`) or, later, a `304`. Guard failures (`401`, `403`) **throw**, so every error goes through the single error formatter ([errors.md](errors.md#errorformatter)). This also keeps the gate's uniform `401` byte for byte the same.
+Early responses are for non-error answers, such as, later, a `304`. The CORS preflight is not one of them: it is answered by a front-controller step before routing ([middlewares.md](../middlewares.md#cors-is-a-front-controller-step)). Guard failures (`401`, `403`) **throw**, so every error goes through the single error formatter ([errors.md](errors.md#errorformatter)). This also keeps the gate's uniform `401` byte for byte the same.
 
 **Rejected alternatives:**
 
 - Onion order (only the response hooks of middlewares that ran, in reverse order).
 - No response hooks after an early answer.
 
-Hand-off to [middlewares.md](../middlewares.md) (#61): error responses built from exceptions don't go through the middleware chain. If CORS headers are added by a response hook, a cross-origin admin UI (`ALLOWED_ORIGINS`) would get `401`s without CORS headers, and the browser would hide the status from the frontend. #61 decides whether error responses also go through the response hooks.
+Error responses built from exceptions don't go through the middleware chain. Resolved in #61 ([middlewares.md](../middlewares.md#errors-cors-and-request-logging)): error responses **skip** the response hooks, and CORS is not a middleware but a front-controller step (#62, [front-controller.md](../front-controller.md)) that runs before routing and on every final response, errors included. A cross-origin admin UI (`ALLOWED_ORIGINS`) therefore gets CORS headers on `401`s too.
