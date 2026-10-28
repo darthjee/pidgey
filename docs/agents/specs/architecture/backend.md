@@ -35,7 +35,7 @@ with no prefix; `POST /v1/messages` is the only prefixed route (see
 | Repositories | `Pidgey\Repository\` | All database access through raw PDO with prepared statements. Return plain entity/value objects. |
 | Entities / values | `Pidgey\Model\` | Organization, User, SmtpConnection, ApiToken, Message, SendOutcome. |
 | SMTP transport | `Pidgey\Smtp\` | Opens the connection, negotiates TLS/SSL, authenticates, sends, maps failures to the error taxonomy. See [email](../email.md). |
-| Infrastructure | `Pidgey\Infra\` | Configuration loading, PDO factory, logger factory, migrations runner. |
+| Infrastructure | `Pidgey\Infra\` | Configuration loading, PDO factory, logger factory, migrations runner, wall clock (`WallClock`, see [request-handler/request-response/errors.md](../request-handler/request-response/errors.md#wall-clock)). |
 
 Dependencies flow downward only: HTTP → Services → (Repositories, Transport).
 Wiring is done manually (a small container/factory class), no DI framework.

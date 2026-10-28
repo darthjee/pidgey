@@ -6,7 +6,8 @@ every API endpoint, including the public sending API.
 ## Envelope
 
 Every error, whatever produced it and on whichever endpoint (admin, auth, operational or
-`POST /v1/messages`), has the same shape; the backend has a single error formatter.
+`POST /v1/messages`), has the same shape; the backend has a single error formatter
+([request-handler/request-response/errors.md](../../request-handler/request-response/errors.md#errorformatter)).
 The readiness probe's `503` is not an error in this sense: it answers its own probe body (see [endpoints/operational.md](../endpoints/operational.md#get-readyjson)).
 
 ```json
