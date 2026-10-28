@@ -13,8 +13,8 @@ Routes are registered on a **`Router` instance** in `Pidgey\Http\`. There is no 
 - The front controller ([front-controller.md](front-controller.md)) builds the `Router`. There is **no global state**: unlike Tent's static `Configuration`, there is nothing to `reset()`. Tests build a fresh `new Router()`.
 - **`add(string $method, string $path, string $handlerClass, array $middlewares = []): void`** registers one route.
   - `$method` is upper-cased when it is stored.
-  - `$handlerClass` must be a subclass of the handler base class ([handlers.md](handlers.md), #60), checked with `is_subclass_of`. Otherwise `add()` throws `LogicException`.
-  - `$middlewares` is a list of middleware **class names**. They are built by the factory ([handlers.md](handlers.md), [middlewares.md](middlewares.md)) only when the route matches.
+  - `$handlerClass` must be a subclass of [`RequestHandler`](handlers.md#requesthandler), checked with `is_subclass_of`. Otherwise `add()` throws `LogicException`.
+  - `$middlewares` is a list of middleware **class names**. They are built by the [`HandlerFactory`](handlers.md#pidgeyhttphandlerfactory) ([middlewares.md](middlewares.md)) only when the route matches.
 - **Helpers:** `get()`, `post()`, `patch()` and `delete()` take the same arguments without `$method` and are thin wrappers over `add()`.
 - **Duplicates:** registering the same method and the same *pattern* twice throws `LogicException` at registration. Param names don't count: `/a/:id.json` and `/a/:x.json` are the same pattern.
 - **Lazy compilation:** a route's regex is compiled the first time the route is tried.
@@ -64,9 +64,9 @@ A route path is a literal path in which `:name` marks a param.
 
 - Captured values are read by the handler through `param()` on the processing request ([request-response/processing-request.md](request-response/processing-request.md#route-params)). Handlers never re-parse the path.
 - The router only checks `[^/]+`. It does not check the value's shape.
-- Handlers reject malformed values by throwing `NotFoundException` ([request-response/errors.md](request-response/errors.md#exceptions)). For example, `GET /smtp-connections/abc.json` gets a 404 from the handler.
-  - This conflicts with the endpoint specs, which answer `400 BAD_REQUEST` for a malformed `:id` (see [Pending decisions](#pending-decisions)).
-- A small helper reads integer ids: an `intParam('id')`-style method that throws `NotFoundException` when the value is not a positive integer. Where it lives is decided in #60 ([handlers.md](handlers.md)).
+- Handlers read integer ids with [`intParam()`](handlers.md#route-params-and-intparam), a protected method on `RequestHandler`:
+  - a malformed value (not matching `^[1-9][0-9]*$`) gets `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` (`BadRequestException`, see [request-response/errors.md](request-response/errors.md#exceptions)). For example, `GET /smtp-connections/abc.json` gets a 400 from the handler, as in the endpoint specs ([api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#id-path-parameter));
+  - a well-formed value larger than `PHP_INT_MAX` gets the handler's `404` (`NotFoundException` with the resource's not-found message).
 - Rejected: **per-param constraints** such as `:id(\d+)`. They add syntax, and the handler must still check that the record exists.
 
 ## No match
@@ -83,7 +83,7 @@ A route path is a literal path in which `:name` marks a param.
 - **`Router::match(Request $request): ?RouteMatch`** returns the matched route and the captured params, or `null` when nothing matches.
   - A `RouteMatch` carries the handler class, the middleware class names and the captured params (`array<string, string>`).
 - The dispatcher builds the processing request with the params, so the handler reads them through `param()` ([request-response/processing-request.md](request-response/processing-request.md#route-params)).
-- The dispatcher asks the factory (#60, [handlers.md](handlers.md)) to build the handler and the route's middlewares from the `RouteMatch`.
+- The dispatcher asks the [`HandlerFactory`](handlers.md#pidgeyhttphandlerfactory) to build the handler and the route's middlewares from the `RouteMatch`.
 
 ## Edge cases
 
@@ -116,10 +116,10 @@ A route path is a literal path in which `:name` marks a param.
 
 ## Hand-offs
 
-- **#60 (handlers, [handlers.md](handlers.md)):**
-  - the handler factory builds the handler class (and the route's middlewares) from the `RouteMatch`;
-  - it decides where the integer-id helper lives (a method that throws `NotFoundException` when the value is not a positive integer);
-  - it defines the handler base class that `add()` checks with `is_subclass_of`.
+- **#60 (handlers, [handlers.md](handlers.md)) — resolved:**
+  - the [`HandlerFactory`](handlers.md#pidgeyhttphandlerfactory) builds the handler class (and the route's middlewares) from the `RouteMatch`;
+  - the integer-id helper is [`intParam()`](handlers.md#route-params-and-intparam), a protected method on `RequestHandler` (`400` for a malformed value);
+  - the base class that `add()` checks with `is_subclass_of` is [`RequestHandler`](handlers.md#requesthandler).
 - **#61 (middlewares, [middlewares.md](middlewares.md)):**
   - per-route middleware class names come from `add()`;
   - CORS preflight: routing runs before the hooks, so an `OPTIONS` preflight on an API path gets a 404. v1 is same-origin and needs no preflight. If CORS is enabled later ([api/pending.md](../api/pending.md)), it needs either `OPTIONS` routes or a global hook that runs before routing.
@@ -127,4 +127,4 @@ A route path is a literal path in which `:name` marks a param.
 
 ## Pending decisions
 
-- **Pending decision — status for a malformed `:id`:** this spec (from #59) says handlers reject a malformed param value with `NotFoundException` (`404`), e.g. `GET /smtp-connections/abc.json`. The endpoint specs still answer `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` for an `:id` that does not match `^[1-9][0-9]*$`, after the gate or admin check ([api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#id-path-parameter), [api/endpoints/admin-users.md](../api/endpoints/admin-users.md#id-path-parameter)). Either the endpoint specs move to `404`, or the integer-id helper (#60) throws `BadRequestException` instead. Until this is decided, the endpoint specs govern the observable answer per endpoint; the routing rule that the router itself never validates the value is fixed either way.
+None.
