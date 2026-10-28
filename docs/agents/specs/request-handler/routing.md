@@ -10,12 +10,14 @@ This file is structural only. What each endpoint does stays in [api/endpoints/](
 
 Routes are registered on a **`Router` instance** in `Pidgey\Http\`. There is no router library.
 
-- The front controller ([front-controller.md](front-controller.md)) builds the `Router`. There is **no global state**: unlike Tent's static `Configuration`, there is nothing to `reset()`. Tests build a fresh `new Router()`.
+- The front controller ([front-controller.md](front-controller.md#bootstrap)) gets the `Router` from `source/config/routes.php` ([Route files](#route-files)). There is **no global state**: unlike Tent's static `Configuration`, there is nothing to `reset()`. Tests build a fresh `new Router()`.
+- **Constructor: `new Router(array $globalMiddlewares = [])`** takes the **global middleware list**, as class names. In v1 it is `[OriginCheck::class]` ([middlewares.md](middlewares.md#global)).
+- **`globalMiddlewares(): array`** returns that list unchanged. The dispatcher reads it back and prepends it to the route's list ([front-controller.md](front-controller.md#global-middlewares)), so the list has a single source of truth.
 - **`add(string $method, string $path, string $handlerClass, array $middlewares = []): void`** registers one route.
   - `$method` is upper-cased when it is stored.
   - `$handlerClass` must be a subclass of [`RequestHandler`](handlers.md#requesthandler), checked with `is_subclass_of`. Otherwise `add()` throws `LogicException`.
   - `$middlewares` is a list of middleware **class names**. They are built by the [`HandlerFactory`](handlers.md#pidgeyhttphandlerfactory) ([middlewares.md](middlewares.md)) only when the route matches.
-  - A middleware class that is also in the global list is rejected with `LogicException` ([middlewares.md](middlewares.md#edge-cases)). How the router learns the global list is a **Pending decision** recorded in [middlewares.md](middlewares.md#pending-decisions).
+  - A middleware class that is also in the global list given to the constructor is rejected with `LogicException` ([middlewares.md](middlewares.md#edge-cases)).
 - **Helpers:** `get()`, `post()`, `patch()` and `delete()` take the same arguments without `$method` and are thin wrappers over `add()`.
 - **Duplicates:** registering the same method and the same *pattern* twice throws `LogicException` at registration. Param names don't count: `/a/:id.json` and `/a/:x.json` are the same pattern.
 - **Lazy compilation:** a route's regex is compiled the first time the route is tried.
@@ -25,10 +27,11 @@ Rejected:
 
 - **Static `Configuration` with `reset()`** (Tent): global state that every test must reset.
 - **A plain route-table array**: positional tuples, and per-route options become nested arrays.
+- **A separate `config/middlewares.php`** or **a global list hard-coded in the dispatcher**: a second source of truth, which the router could not check duplicates against.
 
 ## Route files
 
-- `source/config/routes.php` is a function that receives the `Router` and requires one file per area:
+- `source/config/routes.php` builds the `Router` with the global middleware list (`new Router([OriginCheck::class])`, see [front-controller.md](front-controller.md#global-middlewares)) and requires one file per area, each of which registers its routes on that `Router`:
   - `routes/operational.php`;
   - `routes/auth.php`;
   - `routes/admin.php`;
@@ -75,8 +78,8 @@ A route path is a literal path in which `:name` marks a param.
 - A path that matches only with another method gets the **same 404** as an unknown path:
   - status `404`, code `NOT_FOUND`, message `Cannot <METHOD> <path>` (e.g. `Cannot POST /foo.json`, see [api/conventions/errors.md](../api/conventions/errors.md#generic-errors));
   - **no `405`** and no `Allow` header.
-- **`HEAD`** does not fall back to `GET`, and **`OPTIONS`** is not answered by the router. Both get a 404 unless a route is registered for them. A CORS preflight never reaches the router: the front controller's CORS step answers it before routing ([middlewares.md](middlewares.md#cors-is-a-front-controller-step), #62).
-- When nothing matches, the dispatcher throws `NotFoundException('Cannot <METHOD> <path>')`. The error wrapper around the dispatch ([front-controller.md](front-controller.md), #62) formats it like any other error. There is **no fallback handler class** (unlike Tent).
+- **`HEAD`** does not fall back to `GET`, and **`OPTIONS`** is not answered by the router. Both get a 404 unless a route is registered for them. A CORS preflight never reaches the router: the front controller's CORS step answers it before routing ([front-controller.md](front-controller.md#preflight)). A non-preflight `OPTIONS` is routed normally.
+- When nothing matches, the dispatcher throws `NotFoundException('Cannot <METHOD> <path>')`. The error wrapper around the dispatch ([front-controller.md](front-controller.md#error-wrapper)) formats it like any other error. There is **no fallback handler class** (unlike Tent).
 - Whether the router or the dispatcher owns the "no match" exception is the implementer's call. The observable behaviour above is what is fixed.
 
 ## Dispatch API
@@ -102,6 +105,7 @@ A route path is a literal path in which `:name` marks a param.
   - captured params and decoding;
   - first match wins;
   - duplicate and invalid registrations throw `LogicException`;
+  - a route middleware that duplicates a global middleware throws `LogicException`;
   - a wrong method gives `null`;
   - trailing slash and case.
 - A **routes-table test** loads `config/routes.php` and asserts that:
@@ -124,7 +128,11 @@ A route path is a literal path in which `:name` marks a param.
 - **#61 (middlewares, [middlewares.md](middlewares.md)) — resolved:**
   - per-route middleware class names come from `add()` and run after the global ones ([middlewares.md](middlewares.md#attachment));
   - CORS (preflight and headers) is not a middleware but a front-controller step that runs before routing, so a preflight is answered instead of getting a 404 ([middlewares.md](middlewares.md#errors-cors-and-request-logging)).
-- **#62 (front controller, [front-controller.md](front-controller.md)):** it builds the `Router` from `config/routes.php`, runs the dispatch, and formats the `NotFoundException('Cannot <METHOD> <path>')` raised when nothing matches. It also owns the CORS step (before routing and on every final response) and the request-logging step (final status, including routing `404`s).
+- **#62 (front controller, [front-controller.md](front-controller.md)) — resolved:**
+  - it gets the `Router` from `config/routes.php` at boot ([front-controller.md](front-controller.md#bootstrap));
+  - the global middleware list is passed to the `Router` constructor and read back with `globalMiddlewares()` ([front-controller.md](front-controller.md#global-middlewares));
+  - the dispatch runs `match()` and the error wrapper formats the `NotFoundException('Cannot <METHOD> <path>')` raised when nothing matches ([front-controller.md](front-controller.md#dispatch-pipeline), [front-controller.md](front-controller.md#error-wrapper));
+  - the CORS step answers a preflight before routing and adds headers to every final response ([front-controller.md](front-controller.md#cors-step-pidgeyhttpcors)); the request-logging step logs the final status, including routing `404`s ([front-controller.md](front-controller.md#request-logging-step)).
 
 ## Pending decisions
 
