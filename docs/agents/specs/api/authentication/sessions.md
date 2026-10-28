@@ -96,7 +96,8 @@ their original reason.
 ## Clock
 
 - Every time comparison (`expires_at`, `issued_at`, `started_at`, JWT `exp`) uses **PHP's
-  clock in UTC**.
+  clock in UTC**, read through `Pidgey\Infra\WallClock` (see
+  [request-handler/request-response/errors.md](../../request-handler/request-response/errors.md#wall-clock)).
 - SQL receives `now` as a **bound parameter**; queries never call `NOW()` or other database
   clock functions, so PHP and MySQL timezones or clocks cannot disagree.
 
