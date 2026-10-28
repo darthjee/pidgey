@@ -86,7 +86,7 @@ Error responses built from exceptions **do not** go through the response hooks. 
 
 ### CORS is a front-controller step
 
-CORS (response headers and the `OPTIONS` preflight) is **not a middleware**. It is a front-controller step (#62) that:
+CORS (response headers and the `OPTIONS` preflight) is **not a middleware**. It is a front-controller step ([front-controller.md](front-controller.md#cors-step-pidgeyhttpcors)) that:
 
 - runs **before routing**, so a preflight is answered instead of getting the routing `404` ([routing.md](routing.md#no-match));
 - applies to **every final response**, errors included, so a cross-origin admin UI (`ALLOWED_ORIGINS`, see [api/conventions/origin-check.md](../api/conventions/origin-check.md#trusted-origins-and-cors)) can read `401`s and other errors.
@@ -95,7 +95,7 @@ The body and status of the gate's uniform `401` stay byte-for-byte identical ([a
 
 ### Request logging is a front-controller step
 
-Request logging is a front-controller step (#62), **not a middleware**: it logs the **final** status, including errors and routing `404`s, which a response hook never sees. Redaction follows [request-response/request.md](request-response/request.md) and [api/authentication.md](../api/authentication.md).
+Request logging is a front-controller step ([front-controller.md](front-controller.md#request-logging-step)), **not a middleware**: it logs the **final** status, including errors and routing `404`s, which a response hook never sees. Redaction follows [request-response/request.md](request-response/request.md) and [api/authentication.md](../api/authentication.md).
 
 ### Rejected
 
@@ -106,6 +106,8 @@ Request logging is a front-controller step (#62), **not a middleware**: it logs 
 ### Global
 
 Global middlewares run on **every** routed request, **first**. In v1 there is one: **`OriginCheck`** ([api/conventions/origin-check.md](../api/conventions/origin-check.md)).
+
+The list is declared once, in `source/config/routes.php`, as the `Router` constructor argument (`new Router([OriginCheck::class])`, see [routing.md](routing.md#router)). The dispatcher reads it back with `Router::globalMiddlewares()` ([front-controller.md](front-controller.md#global-middlewares)).
 
 Global middlewares run after routing, so a cross-site `POST` to an unknown path gets `404`, not `403`. This is accepted: no handler runs and nothing changes state.
 
@@ -181,7 +183,7 @@ Global first, then the route's list in declared order. Route lists follow the gu
 ## Edge cases
 
 1. **A request hook throws:** later request hooks and the handler are skipped, and **no** response hooks run. The exception propagates to the front controller's error wrapper.
-2. **A middleware class in both the global list and a route's list:** `Router::add()` rejects it with `LogicException`. See [Pending decisions](#pending-decisions) for how the router learns the global list.
+2. **A middleware class in both the global list and a route's list:** `Router::add()` rejects it with `LogicException`, checking against the global list passed to the `Router` constructor ([routing.md](routing.md#router)).
 3. **A route with an empty list:** gets only the global middlewares.
 4. **A response hook replaces the response:** allowed. The last hook's return value is sent.
 
@@ -196,11 +198,11 @@ For the implementation issues:
 
 ## Hand-offs
 
-- **#62 (front controller, [front-controller.md](front-controller.md)):**
-  - the **CORS step**: answers the preflight before routing and adds the CORS headers to every final response, errors included;
-  - the **request-logging step**: logs the final status of every request, including errors and routing `404`s, with redaction per [request-response/request.md](request-response/request.md) and [api/authentication.md](../api/authentication.md);
-  - the global middleware list (`OriginCheck`) is built and prepended by the dispatcher ([handlers.md](handlers.md#pidgeyhttphandlerfactory)).
+- **#62 (front controller, [front-controller.md](front-controller.md)) — resolved:**
+  - the **CORS step** answers the preflight before routing and adds the CORS headers to every final response, errors included ([front-controller.md](front-controller.md#cors-step-pidgeyhttpcors));
+  - the **request-logging step** logs the final status of every request, including errors and routing `404`s, with redaction per [request-response/request.md](request-response/request.md) and [api/authentication.md](../api/authentication.md) ([front-controller.md](front-controller.md#request-logging-step));
+  - the global middleware list (`OriginCheck`) is passed to the `Router` constructor in `config/routes.php`, read back with `Router::globalMiddlewares()` and prepended by the dispatcher ([front-controller.md](front-controller.md#global-middlewares), [handlers.md](handlers.md#pidgeyhttphandlerfactory)).
 
 ## Pending decisions
 
-- **Where the global middleware list comes from, so `Router::add()` can reject a duplicate (edge case 2):** today the `Router` only receives per-route lists ([routing.md](routing.md#router)) and the dispatcher prepends the global list ([handlers.md](handlers.md#pidgeyhttphandlerfactory)), so the router has no access to the global list. The rule ("`add()` rejects a class that is also global, with `LogicException`") is fixed; how the router learns the global list is not.
+None. The former item on where the global middleware list comes from is resolved in #62: the `Router` constructor takes it ([routing.md](routing.md#router)).
