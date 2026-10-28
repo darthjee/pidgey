@@ -33,8 +33,9 @@ Every part can be tested without a web server:
 ## Hand-offs to other parts of the request flow
 
 - [routing.md](routing.md) (#59): the guaranteed fallback throws `NotFoundException` with the message `Cannot <METHOD> <path>`. A wrong method on a known path also answers `404`, never `405`. Routing fills the `param()` values.
-- [middlewares.md](middlewares.md) (#61): the authenticated user and the API token should implement a small `Caller` interface with `organizationId()`, so scoped handlers use `require(Caller::class)`.
-- [middlewares.md](middlewares.md) (#61): decide whether error responses built from exceptions also go through the response hooks, so a cross-origin admin UI gets CORS headers on `401`s.
-- [middlewares.md](middlewares.md) (#61): guards throw for errors; `respond()` is only for non-error early answers ([processing-request.md](request-response/processing-request.md#early-response)).
+- [middlewares.md](middlewares.md) (#61) — resolved:
+  - the authenticated user and the API token implement `Pidgey\Auth\Caller` with `organizationId()`, so scoped handlers use `require(Caller::class)` ([middlewares.md](middlewares.md#caller-interface));
+  - error responses built from exceptions skip the response hooks; CORS headers (on every final response, errors included) and the preflight are a front-controller step (#62), not a middleware ([middlewares.md](middlewares.md#errors-cors-and-request-logging));
+  - guards throw for errors; `respond()` is only for non-error early answers ([middlewares.md](middlewares.md#security), [processing-request.md](request-response/processing-request.md#early-response)).
 - [front-controller.md](front-controller.md) (#62): wraps the whole dispatch, calls `ErrorFormatter` on any `Throwable`, sends through `ResponseSender`, and logs the real error behind a `500` through Monolog.
 - [api/authentication/sessions.md](../api/authentication/sessions.md#clock): sessions use the same `WallClock`.
