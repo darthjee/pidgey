@@ -3,6 +3,7 @@
 [![Build Status](https://circleci.com/gh/darthjee/pidgey.svg?style=shield)](https://circleci.com/gh/darthjee/pidgey)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/f7bff96e68a7423e9e3fd7397410c81c)](https://app.codacy.com/gh/darthjee/pidgey/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
+![pidgey](https://raw.githubusercontent.com/darthjee/pidgey/master/pidgey.png)
 
 Pidgey is an email-delivery service written in plain PHP. It sends transactional
 email through SMTP connections configured per organization, exposes a JSON API
