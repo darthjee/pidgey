@@ -30,7 +30,7 @@ with no prefix; `POST /v1/messages` is the only prefixed route (see
 
 | Layer | Namespace (indicative) | Responsibility |
 | --- | --- | --- |
-| HTTP | `Pidgey\Http\` | Request/Response objects, router, request handlers, middlewares (authentication guards: cookie-session gate and Bearer token, see [api/authentication.md](../api/authentication.md)), JSON encoding. See [request-handler.md](../request-handler.md). No SQL, no SMTP. |
+| HTTP | `Pidgey\Http\` | Request/Response objects, router, request handlers (`RequestHandler`, `HandlerFactory`), middlewares (authentication guards: cookie-session gate and Bearer token, see [api/authentication.md](../api/authentication.md)), JSON encoding. See [request-handler.md](../request-handler.md). No SQL, no SMTP. |
 | Services | `Pidgey\Service\` | Business logic: registration, login, token issuing/revocation, sending a message. Orchestrates repositories and transport. |
 | Repositories | `Pidgey\Repository\` | All database access through raw PDO with prepared statements. Return plain entity/value objects. |
 | Entities / values | `Pidgey\Model\` | Organization, User, SmtpConnection, ApiToken, Message, SendOutcome. |
@@ -38,7 +38,8 @@ with no prefix; `POST /v1/messages` is the only prefixed route (see
 | Infrastructure | `Pidgey\Infra\` | Configuration loading, PDO factory, logger factory, migrations runner, wall clock (`WallClock`, see [request-handler/request-response/errors.md](../request-handler/request-response/errors.md#wall-clock)). |
 
 Dependencies flow downward only: HTTP → Services → (Repositories, Transport).
-Wiring is done manually (a small container/factory class), no DI framework.
+Wiring is done manually (a small container/factory class: `Pidgey\Container` and `Pidgey\Http\HandlerFactory`, see
+[request-handler/handlers.md](../request-handler/handlers.md#factory-and-container)), no DI framework.
 
 ## Configuration
 
