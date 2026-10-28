@@ -4,7 +4,7 @@ Purpose: define the request handler base class (`RequestHandler`), the `HandlerF
 
 Part of the request flow indexed in [request-handler.md](../request-handler.md). The handler runs after routing ([routing.md](routing.md)) and the request hooks ([middlewares.md](middlewares.md)), and before the response hooks.
 
-This file is structural only. What each endpoint does stays in [api/endpoints/](../api/endpoints/). The middleware interface is specified in [middlewares.md](middlewares.md#pidgeyhttpmiddleware), and the front controller in [front-controller.md](front-controller.md) (#62). The processing request, the responses and the exceptions are used here, not redefined ([request-response.md](request-response.md)).
+This file is structural only. What each endpoint does stays in [api/endpoints/](../api/endpoints/). The middleware interface is specified in [middlewares.md](middlewares.md#pidgeyhttpmiddleware), and the front controller in [front-controller.md](front-controller.md). The processing request, the responses and the exceptions are used here, not redefined ([request-response.md](request-response.md)).
 
 ## `RequestHandler`
 
@@ -49,7 +49,7 @@ final public function handle(ProcessingRequest $request, array $middlewares): Re
 
 ### Errors propagate
 
-`handle()` **catches nothing**. An exception from a request hook, from `process()` or from a response hook propagates unchanged to the error wrapper in the front controller ([front-controller.md](front-controller.md), #62). Error responses built from exceptions **do not** pass through the response hooks; CORS headers on errors come from a front-controller step ([middlewares.md](middlewares.md#errors-cors-and-request-logging)).
+`handle()` **catches nothing**. An exception from a request hook, from `process()` or from a response hook propagates unchanged to the error wrapper in the front controller ([front-controller.md](front-controller.md#error-wrapper)). Error responses built from exceptions **do not** pass through the response hooks; CORS headers on errors come from a front-controller step ([front-controller.md](front-controller.md#cors-step-pidgeyhttpcors)).
 
 ### Hook signatures
 
@@ -81,8 +81,8 @@ The "small container/factory class" of [architecture/backend.md](../architecture
 
 - **Namespace:** the root namespace (`Pidgey\Container`), as the composition root. It builds the HTTP, services and infra layers, so it belongs to none of them. Putting it in `Pidgey\Infra\` would invert "dependencies flow downward".
 - **Explicit typed getters**, lazy and memoized, e.g. `pdo(): PDO`, `logger(): LoggerInterface`, `wallClock(): WallClock`. Each service is built on its first call and reused for the rest of the request.
-- **One `Container` per request**, created by the front controller (#62, see [Lifecycle](#lifecycle)).
-- **Out of scope:** the list of getters. #62 creates the container, and each service's implementation issue adds its getter.
+- **One `Container` per request**, created by the front controller at boot ([front-controller.md](front-controller.md#bootstrap), see [Lifecycle](#lifecycle)).
+- **Out of scope:** the list of getters. The front controller creates the container, and each service's implementation issue adds its getter.
 
 ### `Pidgey\Http\HandlerFactory`
 
@@ -91,10 +91,10 @@ Built with the `Container`:
 - **`handler(string $class): RequestHandler`** calls `$class::build($container)`;
 - **`middlewares(list<class-string> $classes): list<Middleware>`** builds each class in order. It checks that each class is a middleware and throws `LogicException` otherwise ([Edge cases](#edge-cases)).
 
-The dispatcher (#62, [front-controller.md](front-controller.md)):
+The dispatcher ([front-controller.md](front-controller.md#dispatch-pipeline)):
 
 1. calls `handler()` with the `RouteMatch`'s handler class ([routing.md](routing.md#dispatch-api));
-2. calls `middlewares()` for the global middlewares and for the route's middleware class names, and concatenates them, global first;
+2. calls `middlewares()` for the global middlewares (read from `Router::globalMiddlewares()`, see [routing.md](routing.md#router)) and for the route's middleware class names, and concatenates them, global first;
 3. calls `handle()` with the processing request and that list.
 
 ### Laziness and failure
@@ -122,7 +122,7 @@ The dispatcher (#62, [front-controller.md](front-controller.md)):
 - **No static mutable state** in handlers, middlewares or services. `static` is used only for `build()` and constants.
   - The reason is not production: under mod_fcgid, `php-cgi` processes persist, but PHP still resets statics on every request.
   - The reason is PHPUnit, which runs the whole suite in one process, so statics would leak between tests. This is the same reasoning as "no `reset()`" in [routing.md](routing.md#router).
-- **Container scope:** one `Container` per request, created by the front controller (#62).
+- **Container scope:** one `Container` per request, created by the front controller ([front-controller.md](front-controller.md#bootstrap)).
   - Memoized services are shared within that request (e.g. one PDO connection for the gate's session lookup and the handler's queries).
   - Nothing survives into the next request.
 - **No teardown hook:** resources (PDO, SMTP sockets) close at the end of the request. The SMTP transport's own cleanup stays with the email specs ([email.md](../email.md)).
@@ -159,7 +159,7 @@ Integer ids are read with a **protected method on `RequestHandler`**:
 
 - Handlers report every error by **throwing**: an `HttpException` subclass, `ValidationFailedException`, or `HttpException` with an SMTP code ([request-response/errors.md](request-response/errors.md#exceptions)).
 - They **never build an `ErrorResponse`** themselves, unlike Tent's `StaticFileHandler`, which maps exceptions to responses.
-- Any other `Throwable` becomes `500 INTERNAL_ERROR` through the single `ErrorFormatter` ([request-response/errors.md](request-response/errors.md#errorformatter)), called by the front controller (#62).
+- Any other `Throwable` becomes `500 INTERNAL_ERROR` through the single `ErrorFormatter` ([request-response/errors.md](request-response/errors.md#errorformatter)), called by the front controller's error wrapper ([front-controller.md](front-controller.md#error-wrapper)).
 
 ## Edge cases
 
@@ -252,10 +252,10 @@ The namespaces, the service name and the `Caller` interface above are illustrati
   - the middleware interface, with `static build(Container): static` ([middlewares.md](middlewares.md#pidgeyhttpmiddleware));
   - the `processRequest(ProcessingRequest): void` / `processResponse(ProcessingRequest, Response): Response` signatures used by `handle()` (same section);
   - response hooks must be infallible in practice (headers only) ([middlewares.md](middlewares.md#security)).
-- **#62 (front controller, [front-controller.md](front-controller.md)):**
-  - creates one `Container` per request;
-  - the dispatcher builds the handler and the middlewares with `HandlerFactory`, concatenates the global and then the per-route middlewares, and calls `handle()`;
-  - wraps the dispatch with `ErrorFormatter`.
+- **#62 (front controller, [front-controller.md](front-controller.md)) — resolved:**
+  - creates one `Container` per request ([front-controller.md](front-controller.md#bootstrap));
+  - the dispatcher builds the handler and the middlewares with `HandlerFactory`, reads the global list from `Router::globalMiddlewares()`, concatenates the global and then the per-route middlewares, and calls `handle()` ([front-controller.md](front-controller.md#dispatch-pipeline), [front-controller.md](front-controller.md#global-middlewares));
+  - wraps the dispatch with `ErrorFormatter` ([front-controller.md](front-controller.md#error-wrapper)).
 
 ## Pending decisions
 

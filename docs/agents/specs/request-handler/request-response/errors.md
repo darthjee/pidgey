@@ -45,7 +45,7 @@ The single error formatter: **`format(Throwable $error): ErrorResponse`**.
   - A missing code falls back to the category code from the [category codes table](../../api/conventions/errors.md#category-codes), or `HTTP_<status>` for any other status.
   - A missing message falls back to the standard reason phrase (e.g. `Bad Request`). The body-parser failures (`400`, `413`, `415`, see [request.md](request.md#json-body)) rely on this.
 - **Any other `Throwable`** (including the `LogicException`s from the attached-data API, see [processing-request.md](processing-request.md#attached-data)): `500 INTERNAL_ERROR` / `Internal server error`. The real error is logged through Monolog and never sent.
-- **Who calls it:** the front controller ([front-controller.md](../front-controller.md), #62), around the whole dispatch.
+- **Who calls it:** the front controller's error wrapper, around the whole dispatch ([front-controller.md](../front-controller.md#error-wrapper)).
 
 ## Wall clock
 

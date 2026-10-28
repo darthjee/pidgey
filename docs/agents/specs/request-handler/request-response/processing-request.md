@@ -49,11 +49,11 @@ This spec owns the contract; [middlewares.md](../middlewares.md) (#61) uses it. 
 
 ### Only for non-error answers
 
-Early responses are for non-error answers, such as, later, a `304`. The CORS preflight is not one of them: it is answered by a front-controller step before routing ([middlewares.md](../middlewares.md#cors-is-a-front-controller-step)). Guard failures (`401`, `403`) **throw**, so every error goes through the single error formatter ([errors.md](errors.md#errorformatter)). This also keeps the gate's uniform `401` byte for byte the same.
+Early responses are for non-error answers, such as, later, a `304`. The CORS preflight is not one of them: it is answered by a front-controller step before routing ([front-controller.md](../front-controller.md#preflight)). Guard failures (`401`, `403`) **throw**, so every error goes through the single error formatter ([errors.md](errors.md#errorformatter)). This also keeps the gate's uniform `401` byte for byte the same.
 
 **Rejected alternatives:**
 
 - Onion order (only the response hooks of middlewares that ran, in reverse order).
 - No response hooks after an early answer.
 
-Error responses built from exceptions don't go through the middleware chain. Resolved in #61 ([middlewares.md](../middlewares.md#errors-cors-and-request-logging)): error responses **skip** the response hooks, and CORS is not a middleware but a front-controller step (#62, [front-controller.md](../front-controller.md)) that runs before routing and on every final response, errors included. A cross-origin admin UI (`ALLOWED_ORIGINS`) therefore gets CORS headers on `401`s too.
+Error responses built from exceptions don't go through the middleware chain. Resolved in #61 ([middlewares.md](../middlewares.md#errors-cors-and-request-logging)): error responses **skip** the response hooks, and CORS is not a middleware but a front-controller step ([front-controller.md](../front-controller.md#cors-step-pidgeyhttpcors)) that runs before routing and on every final response, errors included. A cross-origin admin UI (`ALLOWED_ORIGINS`) therefore gets CORS headers on `401`s too.

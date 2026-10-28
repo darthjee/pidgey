@@ -47,4 +47,4 @@ Reading cookies is covered in [request.md](request.md#cookies).
 
 - The `false` (no replace) is deliberate: several `Set-Cookie` lines survive.
 - Both emitters are **injectable callables**, so tests can see what was sent.
-- The front controller ([front-controller.md](../front-controller.md)) sends every response through it, including error responses.
+- The front controller ([front-controller.md](../front-controller.md#dispatch-pipeline)) sends every response through it, including error responses.
