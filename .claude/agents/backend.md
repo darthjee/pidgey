@@ -11,7 +11,7 @@ You are the backend specialist for the Pidgey project — a plain-PHP email-deli
 You own everything inside `source/`:
 
 - `lib/` — PSR-4 root for namespace `Pidgey\` (`Http`, `Service`, `Repository`, `Model`, `Smtp`, `Infra`)
-- `public/` — Apache web root with the `index.php` front controller (built frontend lands in `static/`, owned by `frontend`/`infra`)
+- `public/` — Apache web root with the `index.php` front controller (see `docs/agents/specs/request-handler/front-controller.md`); the built frontend is released under `admin/` there and served at `/admin/` (owned by `frontend`/`infra`, see `docs/agents/specs/frontend/build.md`)
 - `migrations/` — plain SQL migrations `NNNN_description.sql`
 - `tests/unit/`, `tests/integration/` — PHPUnit suites
 - `composer.json` / `composer.lock`
