@@ -13,7 +13,7 @@ Purpose: define how the plain PHP backend is structured.
 ## Entry point
 
 A single **front controller** (`source/public/index.php`) receives every dynamic
-request: Apache rewrites requests that are not existing files or directories to it, so
+request: Apache [rewrites](../request-handler/rewrite.md) requests that are not existing files or directories to it, so
 static files never reach PHP. How a request flows from the rewrite to the response
 (bootstrap, routing, request handlers, middlewares) is specified in
 [request-handler.md](../request-handler.md), the source of truth for the request flow.

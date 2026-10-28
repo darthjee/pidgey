@@ -43,5 +43,6 @@ decision is recorded; [docker/images.md](../docker/images.md) and
 Apache's `DirectoryIndex` (e.g. an `.htaccess` rewrite). Constraint either way: the
 front-controller rewrite skips existing files and directories (see
 [architecture/backend.md](../architecture/backend.md)), so `mod_dir` redirects `/admin` →
-`/admin/` and `/admin/assets/*` never reach PHP. Hash routing ([screens.md](screens.md)) needs no
+`/admin/` and `/admin/assets/*` never reach PHP. The bypass rules live in
+[request-handler/rewrite.md](../request-handler/rewrite.md). Hash routing ([screens.md](screens.md)) needs no
 route fallback.
