@@ -116,7 +116,8 @@ here.
   charset) answer their own status (`400`, `413`, `415`) with the category code and the
   standard reason phrase, e.g. `{ "code": "BAD_REQUEST", "message": "Bad Request" }`.
 - **Unknown route** answers `404` with code `NOT_FOUND` (message like
-  `Cannot POST /foo.json`).
+  `Cannot POST /foo.json`). A wrong method on a known path gets the same `404`, never `405`
+  (see [request-handler/routing.md](../../request-handler/routing.md#no-match)).
 
 ## Status codes
 

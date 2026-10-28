@@ -65,6 +65,7 @@ A route path is a literal path in which `:name` marks a param.
 - Captured values are read by the handler through `param()` on the processing request ([request-response/processing-request.md](request-response/processing-request.md#route-params)). Handlers never re-parse the path.
 - The router only checks `[^/]+`. It does not check the value's shape.
 - Handlers reject malformed values by throwing `NotFoundException` ([request-response/errors.md](request-response/errors.md#exceptions)). For example, `GET /smtp-connections/abc.json` gets a 404 from the handler.
+  - This conflicts with the endpoint specs, which answer `400 BAD_REQUEST` for a malformed `:id` (see [Pending decisions](#pending-decisions)).
 - A small helper reads integer ids: an `intParam('id')`-style method that throws `NotFoundException` when the value is not a positive integer. Where it lives is decided in #60 ([handlers.md](handlers.md)).
 - Rejected: **per-param constraints** such as `:id(\d+)`. They add syntax, and the handler must still check that the record exists.
 
@@ -126,4 +127,4 @@ A route path is a literal path in which `:name` marks a param.
 
 ## Pending decisions
 
-None.
+- **Pending decision — status for a malformed `:id`:** this spec (from #59) says handlers reject a malformed param value with `NotFoundException` (`404`), e.g. `GET /smtp-connections/abc.json`. The endpoint specs still answer `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` for an `:id` that does not match `^[1-9][0-9]*$`, after the gate or admin check ([api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#id-path-parameter), [api/endpoints/admin-users.md](../api/endpoints/admin-users.md#id-path-parameter)). Either the endpoint specs move to `404`, or the integer-id helper (#60) throws `BadRequestException` instead. Until this is decided, the endpoint specs govern the observable answer per endpoint; the routing rule that the router itself never validates the value is fixed either way.
