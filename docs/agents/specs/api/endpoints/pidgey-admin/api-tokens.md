@@ -3,7 +3,7 @@
 Purpose: define the `/api-tokens*.json` endpoints: list, create (plain token returned once)
 and revoke an organization's API tokens.
 
-Shared rules (access, guards, `{id}` handling, field rules, operator log) are in
+Shared rules (access, guards, `:id` handling, field rules, operator log) are in
 [pidgey-admin.md](../pidgey-admin.md). Token format, hashing, scopes and the checks on `/v1`
 are in [authentication/api-tokens.md](../../authentication/api-tokens.md); the table in
 [organizations/data-model/api-tokens.md](../../../organizations/data-model/api-tokens.md).
@@ -13,7 +13,7 @@ Errors use [conventions/errors.md](../../conventions/errors.md).
 | --- | --- |
 | `GET /api-tokens.json` | `200` |
 | `POST /api-tokens.json` | `201` |
-| `DELETE /api-tokens/{id}.json` | `204` |
+| `DELETE /api-tokens/:id.json` | `204` |
 
 These routes manage tokens with the **cookie session**; an API token never authenticates them
 (see [disjoint credentials](../../authentication/api-tokens.md#disjoint-credentials)).
@@ -105,7 +105,7 @@ Success: **`201`**, the item plus `token`, the **plain token, returned once**:
   one.
 - One operator log line (`api-token-create`, the new id); never the plain token or its hash.
 
-## `DELETE /api-tokens/{id}.json`
+## `DELETE /api-tokens/:id.json`
 
 Revokes a token: sets `revoked_at` to now. The row is **kept** (it stays in the list with
 `revokedAt`). No body.
@@ -126,9 +126,9 @@ Success: **`204`**, no body.
 | --- | --- |
 | Cross-site `POST` / `DELETE` | `403 FORBIDDEN` — `Cross-site request rejected` |
 | Not authenticated, or user not `approved` | gate's `401` |
-| Malformed `{id}` | `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` |
+| Malformed `:id` | `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` |
 | Validation failure | `400 VALIDATION_FAILED` |
-| Unknown, out of range or foreign `{id}` | `404 NOT_FOUND` — `API token not found` |
+| Unknown, out of range or foreign `:id` | `404 NOT_FOUND` — `API token not found` |
 
 ## Edge cases
 

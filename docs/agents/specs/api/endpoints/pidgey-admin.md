@@ -1,7 +1,7 @@
 # Pidgey Admin Endpoints
 
 Purpose: index of the Pidgey-only admin endpoint specs (organization, SMTP connections, API
-tokens) and the rules they all share (access, guards, `{id}` handling, field rules, operator
+tokens) and the rules they all share (access, guards, `:id` handling, field rules, operator
 log).
 
 These endpoints follow the Citadel conventions ([conventions.md](../conventions.md)) and the
@@ -23,14 +23,14 @@ defined in [organizations/scope.md](../../organizations/scope.md). Errors use
 | `PATCH /organization.json` | Update it | `200` |
 | `GET /smtp-connections.json` | List connections | `200` |
 | `POST /smtp-connections.json` | Create a connection | `201` |
-| `GET /smtp-connections/{id}.json` | Read one | `200` |
-| `PATCH /smtp-connections/{id}.json` | Update one | `200` |
-| `DELETE /smtp-connections/{id}.json` | Delete one | `204` |
-| `POST /smtp-connections/{id}/activate.json` | Make it the active connection | `200` |
-| `POST /smtp-connections/{id}/test.json` | Send a test email through it | `201` |
+| `GET /smtp-connections/:id.json` | Read one | `200` |
+| `PATCH /smtp-connections/:id.json` | Update one | `200` |
+| `DELETE /smtp-connections/:id.json` | Delete one | `204` |
+| `POST /smtp-connections/:id/activate.json` | Make it the active connection | `200` |
+| `POST /smtp-connections/:id/test.json` | Send a test email through it | `201` |
 | `GET /api-tokens.json` | List tokens | `200` |
 | `POST /api-tokens.json` | Create a token (plain token returned once) | `201` |
-| `DELETE /api-tokens/{id}.json` | Revoke a token | `204` |
+| `DELETE /api-tokens/:id.json` | Revoke a token | `204` |
 
 - Reads with no body use `GET`. The "reads as `POST`" rule of
   [conventions/format.md](../conventions/format.md#paths) applies only when a read needs a
@@ -61,18 +61,18 @@ Every route goes through, in this order (see
 1. **Origin check** on `POST`, `PATCH` and `DELETE`
    ([conventions/origin-check.md](../conventions/origin-check.md)); `GET` routes skip it.
 2. **Gate** (above).
-3. **`{id}` parsing** on the routes that take one (below).
+3. **`:id` parsing** on the routes that take one (below).
 4. **Body validation** ([conventions/validation.md](../conventions/validation.md)).
 5. **Handler** (including the organization-scoped lookup).
 
-An anonymous caller with an invalid `{id}` or body gets the gate's `401`, never a `400`.
+An anonymous caller with an invalid `:id` or body gets the gate's `401`, never a `400`.
 
-## `{id}` path parameter
+## `:id` path parameter
 
-The routes `/smtp-connections/{id}…` and `/api-tokens/{id}.json` take the resource id in the
+The routes `/smtp-connections/:id…` and `/api-tokens/:id.json` take the resource id in the
 path.
 
-| `{id}` | Answer |
+| `:id` | Answer |
 | --- | --- |
 | Does not match `^[1-9][0-9]*$` (e.g. `0`, `-1`, `01`, `1.5`, `abc`) | `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` |
 | Well-formed but no such resource, out of range for the column (e.g. a huge number), or a resource of another organization | `404 NOT_FOUND` — `SMTP connection not found` / `API token not found` |
@@ -104,12 +104,12 @@ Every **successful** state change writes **one line** to the application (operat
 | --- | --- |
 | `organization-update` | `PATCH /organization.json` |
 | `smtp-connection-create` | `POST /smtp-connections.json` |
-| `smtp-connection-update` | `PATCH /smtp-connections/{id}.json` |
-| `smtp-connection-delete` | `DELETE /smtp-connections/{id}.json` |
-| `smtp-connection-activate` | `POST /smtp-connections/{id}/activate.json` |
-| `smtp-connection-test` | `POST /smtp-connections/{id}/test.json` |
+| `smtp-connection-update` | `PATCH /smtp-connections/:id.json` |
+| `smtp-connection-delete` | `DELETE /smtp-connections/:id.json` |
+| `smtp-connection-activate` | `POST /smtp-connections/:id/activate.json` |
+| `smtp-connection-test` | `POST /smtp-connections/:id/test.json` |
 | `api-token-create` | `POST /api-tokens.json` |
-| `api-token-revoke` | `DELETE /api-tokens/{id}.json` |
+| `api-token-revoke` | `DELETE /api-tokens/:id.json` |
 
 Each line holds:
 

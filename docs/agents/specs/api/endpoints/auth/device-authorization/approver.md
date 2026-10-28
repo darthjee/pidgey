@@ -42,7 +42,7 @@ Success: **`201`**:
 - No request: `{ "requests": [] }`.
 - `username`, `poll_token_hash` and the lockout columns are never included.
 
-## `POST /auth/authorization-requests/{uuid}/authorize.json`
+## `POST /auth/authorization-requests/:uuid/authorize.json`
 
 Gated. Approves a request raised against the caller's **own** username, after re-checking
 the caller's password.
@@ -114,7 +114,7 @@ The authorize lockout follows the same mechanics as the account-edit lockout
 - The lockout is **per request row**, not per user: other requests of the same user are not
   locked. It does **not** interact with the account-edit lockout (`account_edit_lockouts`).
 
-## `POST /auth/authorization-requests/{uuid}/deny.json`
+## `POST /auth/authorization-requests/:uuid/deny.json`
 
 Gated. Denies a request raised against the caller's own username. Empty body (it has no
 fields). No password is needed.

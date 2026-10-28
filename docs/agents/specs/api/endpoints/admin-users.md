@@ -1,7 +1,7 @@
 # Admin User Endpoints
 
 Purpose: index of the `/admin/users/*.json` endpoint specs (instance-admin user management)
-and the rules they all share (guards, admin user item, `{id}` handling, operator log).
+and the rules they all share (guards, admin user item, `:id` handling, operator log).
 
 The admin user endpoints follow the Citadel contract ([conventions.md](../conventions.md)) and
 the authentication model ([authentication.md](../authentication.md)). The admin's powers and
@@ -10,9 +10,9 @@ Errors use [conventions/errors.md](../conventions/errors.md).
 
 | File | Content |
 | --- | --- |
-| [review.md](admin-users/review.md) | `POST /admin/users/search.json`, `POST /admin/users/{id}/approve.json`, `POST /admin/users/{id}/deny.json`. |
-| [edit.md](admin-users/edit.md) | `POST /admin/users/{id}/edit.json`. |
-| [recovery.md](admin-users/recovery.md) | `POST /admin/users/{id}/recovery-link.json`, `POST /admin/users/{id}/send-recovery-email.json`. |
+| [review.md](admin-users/review.md) | `POST /admin/users/search.json`, `POST /admin/users/:id/approve.json`, `POST /admin/users/:id/deny.json`. |
+| [edit.md](admin-users/edit.md) | `POST /admin/users/:id/edit.json`. |
+| [recovery.md](admin-users/recovery.md) | `POST /admin/users/:id/recovery-link.json`, `POST /admin/users/:id/send-recovery-email.json`. |
 
 ## Guards
 
@@ -26,7 +26,7 @@ Every route goes through, in this order (see
 3. **Admin check**: `users.is_admin = true` as read by the gate; otherwise
    `403 FORBIDDEN` — `Admin access required`
    ([authentication/gate.md](../authentication/gate.md#admin-check)).
-4. **`{id}` parsing** on the routes that take one (see [`{id}` path parameter](#id-path-parameter)).
+4. **`:id` parsing** on the routes that take one (see [`:id` path parameter](#id-path-parameter)).
 5. **Body validation** ([conventions/validation.md](../conventions/validation.md)).
 6. **Handler.**
 
@@ -68,11 +68,11 @@ flat `camelCase` fields (the frontend ignores the extra fields):
 Never included: the password digest, any token, `updatedAt`, or any SMTP connection or API
 token data.
 
-## `{id}` path parameter
+## `:id` path parameter
 
-The routes `/admin/users/{id}/*.json` take the target user's id in the path.
+The routes `/admin/users/:id/*.json` take the target user's id in the path.
 
-| `{id}` | Answer |
+| `:id` | Answer |
 | --- | --- |
 | Does not match `^[1-9][0-9]*$` (e.g. `0`, `-1`, `01`, `1.5`, `abc`) | `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` |
 | Well-formed but no such user, or out of range for the column (e.g. a huge number) | `404 NOT_FOUND` — `User not found` |

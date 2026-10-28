@@ -3,7 +3,7 @@
 Purpose: define the `/smtp-connections*.json` endpoints: list, create, read, update, delete,
 activate and send a test email through an organization's SMTP connections.
 
-Shared rules (access, guards, `{id}` handling, field rules, operator log) are in
+Shared rules (access, guards, `:id` handling, field rules, operator log) are in
 [pidgey-admin.md](../pidgey-admin.md). The meaning of each setting and the password
 encryption are in [email/smtp-connections.md](../../../email/smtp-connections.md); the table in
 [organizations/data-model/smtp-connections.md](../../../organizations/data-model/smtp-connections.md).
@@ -13,15 +13,15 @@ Errors use [conventions/errors.md](../../conventions/errors.md).
 | --- | --- |
 | `GET /smtp-connections.json` | `200` |
 | `POST /smtp-connections.json` | `201` |
-| `GET /smtp-connections/{id}.json` | `200` |
-| `PATCH /smtp-connections/{id}.json` | `200` |
-| `DELETE /smtp-connections/{id}.json` | `204` |
-| `POST /smtp-connections/{id}/activate.json` | `200` |
-| `POST /smtp-connections/{id}/test.json` | `201` |
+| `GET /smtp-connections/:id.json` | `200` |
+| `PATCH /smtp-connections/:id.json` | `200` |
+| `DELETE /smtp-connections/:id.json` | `204` |
+| `POST /smtp-connections/:id/activate.json` | `200` |
+| `POST /smtp-connections/:id/test.json` | `201` |
 
 An unknown id, an id out of range, or another organization's connection answers
-`404 NOT_FOUND` — `SMTP connection not found` on every `{id}` route (see
-[`{id}` path parameter](../pidgey-admin.md#id-path-parameter)).
+`404 NOT_FOUND` — `SMTP connection not found` on every `:id` route (see
+[`:id` path parameter](../pidgey-admin.md#id-path-parameter)).
 
 ## SMTP connection item
 
@@ -120,13 +120,13 @@ Request:
 Success: **`201`**, `{ "smtpConnection": <SMTP connection item> }`. One operator log line
 (`smtp-connection-create`, the new id).
 
-## `GET /smtp-connections/{id}.json`
+## `GET /smtp-connections/:id.json`
 
 Reads one connection.
 
 Success: **`200`**, `{ "smtpConnection": <SMTP connection item> }`.
 
-## `PATCH /smtp-connections/{id}.json`
+## `PATCH /smtp-connections/:id.json`
 
 Updates one connection.
 
@@ -155,7 +155,7 @@ Success: **`200`**, `{ "smtpConnection": <SMTP connection item> }`, reloaded aft
   the **names** of the changed fields, e.g. `host`, `password`). With no change (including an
   empty body), the answer is `200` with the unchanged item and no log line.
 
-## `DELETE /smtp-connections/{id}.json`
+## `DELETE /smtp-connections/:id.json`
 
 Deletes one connection (**hard delete**: the row is removed).
 
@@ -165,7 +165,7 @@ Success: **`204`**, no body. One operator log line (`smtp-connection-delete`, th
   connection, and `POST /v1/messages` answers `409 NO_SMTP_CONNECTION`
   ([sending.md](../sending.md)) until another one is activated.
 
-## `POST /smtp-connections/{id}/activate.json`
+## `POST /smtp-connections/:id/activate.json`
 
 Makes the connection the organization's **only** active connection. No body (any body is
 ignored).
@@ -187,7 +187,7 @@ operator log line (`smtp-connection-activate`, the id).
 - There is no deactivate endpoint in v1 (see [Pending decisions](#pending-decisions)); deleting
   the active connection is the only way to have none again.
 
-## `POST /smtp-connections/{id}/test.json`
+## `POST /smtp-connections/:id/test.json`
 
 Sends a fixed test email through the connection, so its settings can be checked.
 
@@ -247,9 +247,9 @@ address beyond what the send flow already logs.
 | --- | --- |
 | Cross-site `POST` / `PATCH` / `DELETE` | `403 FORBIDDEN` — `Cross-site request rejected` |
 | Not authenticated, or user not `approved` | gate's `401` |
-| Malformed `{id}` | `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` |
+| Malformed `:id` | `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` |
 | Validation failure | `400 VALIDATION_FAILED` |
-| Unknown, out of range or foreign `{id}` | `404 NOT_FOUND` — `SMTP connection not found` |
+| Unknown, out of range or foreign `:id` | `404 NOT_FOUND` — `SMTP connection not found` |
 | SMTP failure (test email only) | `502` / `503` / `504`, see [email/failures.md](../../../email/failures.md) |
 
 ## Known limitations
@@ -295,8 +295,8 @@ The implementation must cover at least:
 
 - every endpoint's success code and body shape; `password` never present in any response;
   `hasPassword` reflecting the stored state;
-- the gate's `401` for anonymous calls, before `{id}` parsing and validation; no admin check;
-- organization isolation: `404` on every `{id}` route for another organization's connection;
+- the gate's `401` for anonymous calls, before `:id` parsing and validation; no admin check;
+- organization isolation: `404` on every `:id` route for another organization's connection;
 - the field rules, including the credential pairing on the merged state and the
   header-injection character rules;
 - a created connection is always inactive; `active` in a body is ignored;
@@ -310,7 +310,7 @@ The implementation must cover at least:
 
 ## Pending decisions
 
-- **Pending decision:** a `deactivate` endpoint (`POST /smtp-connections/{id}/deactivate.json`).
+- **Pending decision:** a `deactivate` endpoint (`POST /smtp-connections/:id/deactivate.json`).
 - **Pending decision:** a database-level constraint guaranteeing at most one active
   connection per organization (v1 relies on the locked transaction of activate).
 - **Pending decision:** a configurable SMTP host deny-list / allow-list against server-side
