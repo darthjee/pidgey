@@ -27,6 +27,8 @@ order shared by every API endpoint.
 - **Exception:** the public sending API keeps its own `/v1` contract, `POST /v1/messages`
   (Bearer token with scopes, see [authentication.md](../authentication.md)).
 - Many reads are `POST` on purpose: request bodies never go in query strings.
+- Path params are written `:name` (e.g. `/smtp-connections/:id.json`), as in the route files
+  (see [request-handler/routing.md](../../request-handler/routing.md#path-patterns)).
 
 ## Success codes
 

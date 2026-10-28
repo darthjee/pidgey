@@ -18,8 +18,8 @@ Shared auth rules (identifiers, password hashing, `DUMMY_DIGEST`) are in
 
 | File | Content |
 | --- | --- |
-| [requester.md](device-authorization/requester.md) | `POST /auth/authorization-requests.json` (create) and `POST /auth/authorization-requests/{uuid}/poll.json` (poll and claim). |
-| [approver.md](device-authorization/approver.md) | `POST /auth/authorization-requests/mine.json`, `POST /auth/authorization-requests/{uuid}/authorize.json` (with its per-request lockout) and `POST /auth/authorization-requests/{uuid}/deny.json`. |
+| [requester.md](device-authorization/requester.md) | `POST /auth/authorization-requests.json` (create) and `POST /auth/authorization-requests/:uuid/poll.json` (poll and claim). |
+| [approver.md](device-authorization/approver.md) | `POST /auth/authorization-requests/mine.json`, `POST /auth/authorization-requests/:uuid/authorize.json` (with its per-request lockout) and `POST /auth/authorization-requests/:uuid/deny.json`. |
 
 ## State machine
 
@@ -74,7 +74,7 @@ Citadel contract does and as login, refresh and status do (see
   trimmed, **no max length** (Citadel's 128-character cap is dropped), like `currentPassword`
   in [account.md](account.md).
 - `pollToken` (poll): a non-empty string, taken as sent.
-- A malformed `{uuid}` path segment is **not** a validation error: the route accepts any
+- A malformed `:uuid` path segment is **not** a validation error: the route accepts any
   segment, and the lookup simply finds nothing (`404` on poll, the uniform `400` on authorize
   and deny).
 - Body validation failures answer `400 VALIDATION_FAILED`

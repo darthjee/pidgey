@@ -1,9 +1,9 @@
 # Admin User Review Endpoints
 
 Purpose: define the admin review tools: `POST /admin/users/search.json`,
-`POST /admin/users/{id}/approve.json` and `POST /admin/users/{id}/deny.json`.
+`POST /admin/users/:id/approve.json` and `POST /admin/users/:id/deny.json`.
 
-Shared rules (guards, admin user item, `{id}` handling, operator log) are in
+Shared rules (guards, admin user item, `:id` handling, operator log) are in
 [admin-users.md](../admin-users.md). The user status lifecycle is in
 [organizations/entities.md](../../../organizations/entities.md#user-status-lifecycle);
 session revocation in [authentication/sessions.md](../../authentication/sessions.md#revocation-reasons).
@@ -69,7 +69,7 @@ Success: **`201`**:
 | `q` not a string, or longer than 255 characters | `400 VALIDATION_FAILED` (templates in [validation.md](../../conventions/validation.md#message-templates)) |
 | Otherwise | `201` |
 
-## `POST /admin/users/{id}/approve.json`
+## `POST /admin/users/:id/approve.json`
 
 Moves a `pending` user to `approved`. Empty body (any body fields are dropped).
 
@@ -91,7 +91,7 @@ Success: **`200`**, `{ "user": <admin user item> }` with `status: "approved"`.
   a pending decision ([admin-users.md](../admin-users.md#pending-decisions)).
 - A successful approve writes an [operator log line](../admin-users.md#operator-log).
 
-## `POST /admin/users/{id}/deny.json`
+## `POST /admin/users/:id/deny.json`
 
 Moves a user to `denied` and ends every session. Empty body (any body fields are dropped).
 
@@ -138,7 +138,7 @@ In **one transaction**:
 - Approve of an `approved` or `denied` user: `422`, nothing changes.
 - Deny of self: `422`, nothing changes, the caller's sessions stay active.
 - Deny of an already denied user: `200`.
-- `{id}` values such as `0`, `-1`, `01`, `1.5`, `abc` → `400`; a huge number or an unknown id
+- `:id` values such as `0`, `-1`, `01`, `1.5`, `abc` → `400`; a huge number or an unknown id
   → `404` ([admin-users.md](../admin-users.md#id-path-parameter)).
 
 ## Testable rules
@@ -147,7 +147,7 @@ The implementation must cover at least:
 
 - the guard order: `401` (not `400`) for an anonymous caller with a bad body, `401` for a
   `pending` caller, `403` for an `approved` non-admin;
-- the `{id}` `400`/`404` boundary;
+- the `:id` `400`/`404` boundary;
 - search: `LIKE` escaping of `%`, `_` and `\`; the AND combination; ordering by `id`;
   `currentUserId`; the organization fields in each item; an empty body and no body returning
   every user; no operator log line written;

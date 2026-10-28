@@ -26,7 +26,7 @@ Errors use [conventions/errors.md](../../conventions/errors.md).
 | `createdAt`, `updatedAt` | `organizations.created_at` / `updated_at`, ISO 8601 UTC with milliseconds. |
 
 The organization is always the caller's own (`organization_id` read by the gate); there is no
-`{id}` in the path and no way to address another organization.
+`:id` in the path and no way to address another organization.
 
 ## `GET /organization.json`
 

@@ -110,11 +110,11 @@ Other specs (`docker/images.md`, `deployment/`) still describe a different produ
 
 Observed on `php:8.4-apache` with the rules above. They are documented behavior; no extra rules are added for them.
 
-- **`/index.php`** reaches PHP with `REQUEST_URI=/index.php`. No route matches it, so it gets the 404 fallback ([routing.md](routing.md)).
+- **`/index.php`** reaches PHP with `REQUEST_URI=/index.php`. No route matches it, so it gets the 404 fallback ([routing.md](routing.md#no-match)).
 - **`/admin/` on a fresh clone** (no frontend build) is not an existing directory, so it falls through to PHP and gets a JSON 404. See [frontend/build.md](../frontend/build.md).
-- **Trailing slashes** (`/foo/`) are passed through unchanged. How they match is decided in [routing.md](routing.md).
+- **Trailing slashes** (`/foo/`) are passed through unchanged. Matching is strict, so `/foo/` does not match a `/foo` route ([routing.md](routing.md#edge-cases)).
 - **Percent-encoding** (`/a%20b`) is passed through raw in `REQUEST_URI`. Decoding is the `Request`'s job, decided in [request-response.md](request-response.md).
-- **Encoded slashes (`%2F`)** get an HTML 404 from Apache itself, before the rewrite runs, because of `AllowEncodedSlashes Off` (vhost-only, cannot be changed in `.htaccess`). Accepted: no route needs a `/` inside a `:param`. Path params never contain `/` ([routing.md](routing.md)), and these requests do not get the JSON error envelope.
+- **Encoded slashes (`%2F`)** get an HTML 404 from Apache itself, before the rewrite runs, because of `AllowEncodedSlashes Off` (vhost-only, cannot be changed in `.htaccess`). Accepted: no route needs a `/` inside a `:param`. Path params never contain `/` ([routing.md](routing.md#edge-cases)), and these requests do not get the JSON error envelope.
 - **`/.htaccess`** (and any `.ht*` file) gets a 403 from Apache's default config.
 - **Errors produced by Apache itself** (dotfile 404, directory 403, `%2F` 404) go through the host's `ErrorDocument` handling. On oak these became 302 redirects to oak's own app, so the exact body and status on Pidgey's domain depend on the domain's error-page setup. The only requirement is that they never reach `index.php` and never expose the file.
 

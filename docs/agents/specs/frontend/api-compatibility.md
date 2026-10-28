@@ -43,10 +43,10 @@ whether the call matches the API spec.
 | Method & path | Client method | Spec | Success | Status |
 | --- | --- | --- | --- | --- |
 | `POST /auth/authorization-requests.json` | `AccountsClient.createAuthorizationRequest` | [requester.md](../api/endpoints/auth/device-authorization/requester.md#post-authauthorization-requestsjson) | `201` | ✅ |
-| `POST /auth/authorization-requests/{uuid}/poll.json` | `AccountsClient.pollAuthorizationRequest` | [requester.md](../api/endpoints/auth/device-authorization/requester.md#post-authauthorization-requestsuuidpolljson) | `201` | ✅ (`open`, `approved`, `denied`, `expired`, `logged`; the token is stored on `approved`) |
+| `POST /auth/authorization-requests/:uuid/poll.json` | `AccountsClient.pollAuthorizationRequest` | [requester.md](../api/endpoints/auth/device-authorization/requester.md#post-authauthorization-requestsuuidpolljson) | `201` | ✅ (`open`, `approved`, `denied`, `expired`, `logged`; the token is stored on `approved`) |
 | `POST /auth/authorization-requests/mine.json` | `AccountsClient.listAuthorizationRequests` | [approver.md](../api/endpoints/auth/device-authorization/approver.md#post-authauthorization-requestsminejson) | `201` | ✅ |
-| `POST /auth/authorization-requests/{uuid}/authorize.json` | `AccountsClient.authorizeAuthorizationRequest` | [approver.md](../api/endpoints/auth/device-authorization/approver.md#post-authauthorization-requestsuuidauthorizejson) | `201` | ✅ |
-| `POST /auth/authorization-requests/{uuid}/deny.json` | `AccountsClient.denyAuthorizationRequest` | [approver.md](../api/endpoints/auth/device-authorization/approver.md#post-authauthorization-requestsuuiddenyjson) | `201` | ✅ |
+| `POST /auth/authorization-requests/:uuid/authorize.json` | `AccountsClient.authorizeAuthorizationRequest` | [approver.md](../api/endpoints/auth/device-authorization/approver.md#post-authauthorization-requestsuuidauthorizejson) | `201` | ✅ |
+| `POST /auth/authorization-requests/:uuid/deny.json` | `AccountsClient.denyAuthorizationRequest` | [approver.md](../api/endpoints/auth/device-authorization/approver.md#post-authauthorization-requestsuuiddenyjson) | `201` | ✅ |
 
 ## Admin users
 
@@ -57,11 +57,11 @@ right after Email. The `organizationId` field is ignored.
 | Method & path | Client method | Spec | Success | Status |
 | --- | --- | --- | --- | --- |
 | `POST /admin/users/search.json` | `AdminClient.searchUsers` | [review.md](../api/endpoints/admin-users/review.md#post-adminuserssearchjson) | `201` | ✅ (`q`, `status` only when defined; `users`, `currentUserId` read) |
-| `POST /admin/users/{id}/edit.json` | `AdminClient.editUser` | [edit.md](../api/endpoints/admin-users/edit.md#post-adminusersideditjson) | `201` | ✅ |
-| `POST /admin/users/{id}/approve.json` | `AdminClient.approveUser` | [review.md](../api/endpoints/admin-users/review.md#post-adminusersidapprovejson) | `200` | ✅ |
-| `POST /admin/users/{id}/deny.json` | `AdminClient.denyUser` | [review.md](../api/endpoints/admin-users/review.md#post-adminusersiddenyjson) | `200` | ✅ |
-| `POST /admin/users/{id}/recovery-link.json` | `AdminClient.generateRecoveryLink` | [recovery.md](../api/endpoints/admin-users/recovery.md#post-adminusersidrecovery-linkjson) | `201` | ✅ |
-| `POST /admin/users/{id}/send-recovery-email.json` | `AdminClient.sendRecoveryEmail` | [recovery.md](../api/endpoints/admin-users/recovery.md#post-adminusersidsend-recovery-emailjson) | `201` | ✅ |
+| `POST /admin/users/:id/edit.json` | `AdminClient.editUser` | [edit.md](../api/endpoints/admin-users/edit.md#post-adminusersideditjson) | `201` | ✅ |
+| `POST /admin/users/:id/approve.json` | `AdminClient.approveUser` | [review.md](../api/endpoints/admin-users/review.md#post-adminusersidapprovejson) | `200` | ✅ |
+| `POST /admin/users/:id/deny.json` | `AdminClient.denyUser` | [review.md](../api/endpoints/admin-users/review.md#post-adminusersiddenyjson) | `200` | ✅ |
+| `POST /admin/users/:id/recovery-link.json` | `AdminClient.generateRecoveryLink` | [recovery.md](../api/endpoints/admin-users/recovery.md#post-adminusersidrecovery-linkjson) | `201` | ✅ |
+| `POST /admin/users/:id/send-recovery-email.json` | `AdminClient.sendRecoveryEmail` | [recovery.md](../api/endpoints/admin-users/recovery.md#post-adminusersidsend-recovery-emailjson) | `201` | ✅ |
 
 ## Pidgey admin
 
@@ -77,14 +77,14 @@ screens (#43), and the API token endpoints by `ApiTokensClient` from the API tok
 | `PATCH /organization.json` | `OrganizationClient.update` | [organization.md](../api/endpoints/pidgey-admin/organization.md#patch-organizationjson) | `200` | ✅ (only `name` sent; `VALIDATION_FAILED` details shown on the name field) |
 | `GET /smtp-connections.json` | `SmtpConnectionsClient.list` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsjson) | `200` | ✅ (`GET` with no body; `smtpConnections` read, the active one flagged by `active`) |
 | `POST /smtp-connections.json` | `SmtpConnectionsClient.create` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsjson) | `201` | ✅ (only the accepted fields that are defined; `active` never sent; numeric `port`; `username` / `password` only when filled) |
-| `GET /smtp-connections/{id}.json` | `SmtpConnectionsClient.get` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsidjson) | `200` | ✅ (`GET` with no body; `404` shown as "not found"; `hasPassword` read, no password returned) |
-| `PATCH /smtp-connections/{id}.json` | `SmtpConnectionsClient.update` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#patch-smtp-connectionsidjson) | `200` | ✅ (only the accepted fields that are defined; `active` never sent; `password` only when typed; `""` for both credentials to remove them; `VALIDATION_FAILED` details mapped to fields) |
-| `DELETE /smtp-connections/{id}.json` | `SmtpConnectionsClient.remove` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#delete-smtp-connectionsidjson) | `204` | ✅ (empty body parsed as `{}`) |
-| `POST /smtp-connections/{id}/activate.json` | `SmtpConnectionsClient.activate` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson) | `200` | ✅ (no request body; the returned item marks the active row) |
-| `POST /smtp-connections/{id}/test.json` | `SmtpConnectionsClient.test` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson) | `201` | ✅ (`{ to }` only when a recipient is typed, otherwise `{}`; `smtp.code` / `smtp.message` shown on success; `SMTP_*` failures show `error.smtp` when present) |
+| `GET /smtp-connections/:id.json` | `SmtpConnectionsClient.get` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsidjson) | `200` | ✅ (`GET` with no body; `404` shown as "not found"; `hasPassword` read, no password returned) |
+| `PATCH /smtp-connections/:id.json` | `SmtpConnectionsClient.update` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#patch-smtp-connectionsidjson) | `200` | ✅ (only the accepted fields that are defined; `active` never sent; `password` only when typed; `""` for both credentials to remove them; `VALIDATION_FAILED` details mapped to fields) |
+| `DELETE /smtp-connections/:id.json` | `SmtpConnectionsClient.remove` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#delete-smtp-connectionsidjson) | `204` | ✅ (empty body parsed as `{}`) |
+| `POST /smtp-connections/:id/activate.json` | `SmtpConnectionsClient.activate` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson) | `200` | ✅ (no request body; the returned item marks the active row) |
+| `POST /smtp-connections/:id/test.json` | `SmtpConnectionsClient.test` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson) | `201` | ✅ (`{ to }` only when a recipient is typed, otherwise `{}`; `smtp.code` / `smtp.message` shown on success; `SMTP_*` failures show `error.smtp` when present) |
 | `GET /api-tokens.json` | `ApiTokensClient.list` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#get-api-tokensjson) | `200` | ✅ (`GET` with no body; `apiTokens` read in the API order, revoked ones flagged by `revokedAt`) |
 | `POST /api-tokens.json` | `ApiTokensClient.create` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#post-api-tokensjson) | `201` | ✅ (only `name` (trimmed) and `scopes` sent; the plain `token` shown once and never stored; `VALIDATION_FAILED` details mapped to the name / scopes fields) |
-| `DELETE /api-tokens/{id}.json` | `ApiTokensClient.revoke` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#delete-api-tokensidjson) | `204` | ✅ (no request body; empty body parsed as `{}`; the list is reloaded) |
+| `DELETE /api-tokens/:id.json` | `ApiTokensClient.revoke` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#delete-api-tokensidjson) | `204` | ✅ (no request body; empty body parsed as `{}`; the list is reloaded) |
 
 ## Operational
 
@@ -97,7 +97,7 @@ screens (#43), and the API token endpoints by `ApiTokensClient` from the API tok
 
 | Method & path | Client method | Spec | Success | Status |
 | --- | --- | --- | --- | --- |
-| `POST /v1/messages` | not called by the frontend | [sending.md](../api/endpoints/sending.md#post-v1messages) | `200` | n/a (public API for integrations, Bearer token; the test email goes through `POST /smtp-connections/{id}/test.json`) |
+| `POST /v1/messages` | not called by the frontend | [sending.md](../api/endpoints/sending.md#post-v1messages) | `200` | n/a (public API for integrations, Bearer token; the test email goes through `POST /smtp-connections/:id/test.json`) |
 
 ## Cross-cutting behaviour
 

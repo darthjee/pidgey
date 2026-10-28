@@ -1,9 +1,9 @@
 # Admin User Recovery Endpoints
 
-Purpose: define the admin-driven password recovery: `POST /admin/users/{id}/recovery-link.json`
-and `POST /admin/users/{id}/send-recovery-email.json`.
+Purpose: define the admin-driven password recovery: `POST /admin/users/:id/recovery-link.json`
+and `POST /admin/users/:id/send-recovery-email.json`.
 
-Shared rules (guards, `{id}` handling, operator log) are in [admin-users.md](../admin-users.md).
+Shared rules (guards, `:id` handling, operator log) are in [admin-users.md](../admin-users.md).
 Password-reset tokens and the recovery email are defined in
 [auth/recovery.md](../auth/recovery.md); settings (`PASSWORD_RESET_TOKEN_TTL`,
 `PASSWORD_RESET_COOLDOWN`, `FRONTEND_BASE_URL`) are in
@@ -29,7 +29,7 @@ Password-reset tokens and the recovery email are defined in
   ([admin-users.md](../admin-users.md#id-path-parameter)).
 - Empty body: any body fields are dropped.
 
-## `POST /admin/users/{id}/recovery-link.json`
+## `POST /admin/users/:id/recovery-link.json`
 
 Creates a fresh password-reset token for the target and returns the link, so the admin can
 pass it on by hand.
@@ -57,13 +57,13 @@ The `resetUrl` response body is a **live credential**: it is **never logged**, n
 request/access log nor by any error or debug handler (no response-body logging on this
 route).
 
-## `POST /admin/users/{id}/send-recovery-email.json`
+## `POST /admin/users/:id/send-recovery-email.json`
 
 Creates a token and sends the recovery email to the target, reporting whether it was sent.
 
 Success: **`201`**, `{ "sent": true }` or `{ "sent": false }`.
 
-Steps (after the guards, `{id}` parsing and the user lookup):
+Steps (after the guards, `:id` parsing and the user lookup):
 
 1. **Sending impossible by configuration**: there is no system organization, it has no
    active SMTP connection, or `FRONTEND_BASE_URL` is empty (see

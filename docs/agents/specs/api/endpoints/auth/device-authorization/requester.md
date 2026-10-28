@@ -82,7 +82,7 @@ whether or not the caller is over the limit: an unknown username or an over-limi
 still returns a fresh `uuid`, `pollToken` and `expiresAt`. Only the timing can differ (see
 the known limitation in [device-authorization.md](../device-authorization.md#known-limitations)).
 
-## `POST /auth/authorization-requests/{uuid}/poll.json`
+## `POST /auth/authorization-requests/:uuid/poll.json`
 
 Public. Called by the requester on an interval.
 
@@ -96,7 +96,7 @@ Request:
 | --- | --- |
 | `pollToken` | string, not empty; taken as sent |
 
-Find the row by `uuid` **and** `poll_token_hash = sha256(pollToken)`. A malformed `{uuid}`
+Find the row by `uuid` **and** `poll_token_hash = sha256(pollToken)`. A malformed `:uuid`
 simply finds nothing.
 
 | Case | Answer |

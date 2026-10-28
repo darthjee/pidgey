@@ -1,15 +1,15 @@
 # Admin User Edit Endpoint
 
-Purpose: define `POST /admin/users/{id}/edit.json`, the admin edit of any user's username,
+Purpose: define `POST /admin/users/:id/edit.json`, the admin edit of any user's username,
 email and/or password.
 
-Shared rules (guards, admin user item, `{id}` handling, trimming, operator log) are in
+Shared rules (guards, admin user item, `:id` handling, trimming, operator log) are in
 [admin-users.md](../admin-users.md). Password hashing and identifiers follow
 [auth.md](../auth.md); the "taken" checks are those of the account edit
 ([auth/account.md](../auth/account.md#taken-checks)). Errors use
 [conventions/errors.md](../../conventions/errors.md).
 
-## `POST /admin/users/{id}/edit.json`
+## `POST /admin/users/:id/edit.json`
 
 Updates the target user's username, email and/or password. There is **no current password**
 and **no lockout**: the caller is an instance admin, trusted with every account (see the
@@ -37,7 +37,7 @@ Request:
 Success: **`201`**, `{ "user": <admin user item> }`, **reloaded** after the update (see
 [admin user item](../admin-users.md#admin-user-item)).
 
-Steps, in order (after the guards, `{id}` parsing and body validation):
+Steps, in order (after the guards, `:id` parsing and body validation):
 
 1. None of `username`, `email`, `newPassword` present → `400 BAD_REQUEST` —
    `At least one of username, email, or newPassword is required`.
