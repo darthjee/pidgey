@@ -13,6 +13,7 @@ will later be replaced by documentation of the actual project.
 | --- | --- |
 | [overview](specs/overview.md) | What Pidgey is and is not, goals, component map, terminology. |
 | [architecture](specs/architecture.md) | Repository layout, backend structure, database access, dependency policy. |
+| [persistence](specs/persistence.md) | Runtime database connection, transactions, initial schema migrations, entities, repositories and their tests. |
 | [request-handler](specs/request-handler.md) | How HTTP requests flow through the backend: Apache rewrite, front controller, request/response, routing, request handlers, middlewares. |
 | [docker](specs/docker.md) | Image layers, docker-compose services, volumes, Makefile targets. |
 | [organizations](specs/organizations.md) | Organizations, users, bootstrap flow, organization scope, data model. |
