@@ -86,9 +86,9 @@ jobs:
       - run:
           name: Tests
           command: composer coverage
-      - run:
-          name: Upload coverage to Codacy
-          command: bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r coverage/clover.xml
+      - upload_codacy_coverage:
+          report: coverage/clover.xml
+          prefix: source
 
   frontend_checks:
     docker:
@@ -107,6 +107,9 @@ jobs:
       - run:
           name: Tests
           command: npm run coverage
+      - upload_codacy_coverage:
+          report: coverage/lcov.info
+          prefix: frontend
 
 all_tags: &all_tags
   tags:
