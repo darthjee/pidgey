@@ -24,6 +24,31 @@ commands:
           name: composer install
           command: composer install --no-interaction --no-progress
 
+  upload_codacy_coverage:
+    description: Rewrite coverage paths to be repo-relative and upload a partial report to Codacy
+    parameters:
+      report:
+        type: string
+        description: Path to the coverage report, relative to the job's working dir
+      prefix:
+        type: string
+        description: Repo folder the job flattened to the root (e.g. source or frontend)
+    steps:
+      - run:
+          name: Rewrite coverage paths to be repo-relative
+          command: |
+            set -e
+            ROOT_ESCAPED=$(printf '%s/' "$(pwd)" | sed -e 's/[][\.^$*+?(){}|]/\\&/g')
+            sed -E -i \
+              -e "s|${ROOT_ESCAPED}|<< parameters.prefix >>/|g" \
+              -e 's|^SF:\./|SF:<< parameters.prefix >>/|' \
+              -e '/^SF:(\/|<< parameters.prefix >>\/)/!s|^SF:|SF:<< parameters.prefix >>/|' \
+              << parameters.report >>
+            grep -m3 -E 'SF:|file name=' << parameters.report >> || echo "No path lines found in << parameters.report >>"
+      - run:
+          name: Upload partial coverage to Codacy
+          command: bash <(curl -Ls https://coverage.codacy.com/get.sh) report --partial -r << parameters.report >>
+
 jobs:
   backend_checks:
     executor: pidgey-base
