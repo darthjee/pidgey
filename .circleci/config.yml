@@ -111,6 +111,14 @@ jobs:
           report: coverage/lcov.info
           prefix: frontend
 
+  coverage_final:
+    docker:
+      - image: darthjee/circleci_node:0.2.1
+    steps:
+      - run:
+          name: Finalize Codacy coverage
+          command: bash <(curl -Ls https://coverage.codacy.com/get.sh) final
+
 all_tags: &all_tags
   tags:
     only: /.*/
@@ -123,4 +131,7 @@ workflows:
       - backend_tests:
           filters: *all_tags
       - frontend_checks:
+          filters: *all_tags
+      - coverage_final:
+          requires: [backend_tests, frontend_checks]
           filters: *all_tags
