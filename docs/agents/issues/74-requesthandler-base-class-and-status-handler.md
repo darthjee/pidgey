@@ -15,7 +15,7 @@ Replace the placeholder in `source/public/index.php` with the first real piece o
 
 Follow `docs/agents/specs/request-handler/` and build only what this issue uses:
 
-- **Request models** (`request-response/request.md`, `processing-request.md`): a `Request` built from the PHP globals, with the test overrides the spec defines, and a `ProcessingRequest` with early-response support (`setResponse()` / `hasResponse()` / `response()`). Implement only the members this issue needs; the rest of those specs comes in later issues.
+- **Request models** (`request-response/request.md`, `processing-request.md`): a `Request` built from the PHP globals, with the test overrides the spec defines, and a `ProcessingRequest` with early-response support (`respond()` / `hasResponse()` / `response()`). Implement only the members this issue needs; the rest of those specs comes in later issues.
 - **Responses** (`request-response/response.md`):
   - `Response`: status, header lines (`headers(): list<string>`) and body.
   - `JsonResponse extends Response`: adds `Content-Type: application/json`.
