@@ -32,10 +32,10 @@ with no prefix; `POST /v1/messages` is the only prefixed route (see
 | --- | --- | --- |
 | HTTP | `Pidgey\Http\` | Request/Response objects, router, request handlers (`RequestHandler`, `HandlerFactory`), middlewares (authentication guards: cookie-session gate and Bearer token, see [api/authentication.md](../api/authentication.md)), JSON encoding. See [request-handler.md](../request-handler.md). No SQL, no SMTP. |
 | Services | `Pidgey\Service\` | Business logic: registration, login, token issuing/revocation, sending a message. Orchestrates repositories and transport. |
-| Repositories | `Pidgey\Repository\` | All database access through raw PDO with prepared statements. Return plain entity/value objects. |
-| Entities / values | `Pidgey\Model\` | Organization, User, SmtpConnection, ApiToken, Message, SendOutcome. |
+| Repositories | `Pidgey\Repository\` | All database access through raw PDO with prepared statements. Return plain entity/value objects. See [persistence/repositories.md](../persistence/repositories.md). |
+| Entities / values | `Pidgey\Model\` | Organization, User, SmtpConnection, ApiToken, Message, SendOutcome. Table entities follow [persistence/entities.md](../persistence/entities.md). |
 | SMTP transport | `Pidgey\Smtp\` | Opens the connection, negotiates TLS/SSL, authenticates, sends, maps failures to the error taxonomy. See [email](../email.md). |
-| Infrastructure | `Pidgey\Infra\` | Configuration loading, PDO factory, logger factory, migrations runner, wall clock (`WallClock`, see [request-handler/request-response/errors.md](../request-handler/request-response/errors.md#wall-clock)). |
+| Infrastructure | `Pidgey\Infra\` | Configuration loading, PDO factory, `Transaction` helper (see [persistence/connection.md](../persistence/connection.md)), logger factory, migrations runner, wall clock (`WallClock`, see [request-handler/request-response/errors.md](../request-handler/request-response/errors.md#wall-clock)). |
 
 Dependencies flow downward only: HTTP → Services → (Repositories, Transport).
 Wiring is done manually (a small container/factory class: `Pidgey\Container` and `Pidgey\Http\HandlerFactory`, see
