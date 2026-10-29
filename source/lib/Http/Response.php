@@ -17,13 +17,20 @@ class Response
     /**
      * Builds the response.
      *
-     * @param string  $body   Response body.
-     * @param integer $status HTTP status code.
+     * @param string   $body    Response body.
+     * @param integer  $status  HTTP status code.
+     * @param string[] $headers Header lines, e.g. "Content-Type: text/plain", in order.
+     *
+     * @throws InvalidArgumentException When a header line contains CR or LF.
      */
     public function __construct(
         private readonly string $body = '',
         private readonly int $status = 200,
+        array $headers = [],
     ) {
+        foreach ($headers as $line) {
+            $this->addHeader($line);
+        }
     }
 
     /**
