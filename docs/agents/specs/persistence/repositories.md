@@ -83,6 +83,17 @@ Purpose: define the `Pidgey\Repository\` classes, the only code that writes SQL 
   `Pidgey\Repository\Sql::dateTime()` helper, which converts to UTC first.
 - Column defaults (`created_at`, `updated_at`) still use `CURRENT_TIMESTAMP` in the schema; the
   UTC session time zone keeps them UTC ([connection.md](connection.md#factory)).
+- A creation timestamp that the application later compares in PHP is an explicit
+  `DateTimeImmutable` argument of `create()`, read by the caller from
+  `Pidgey\Infra\WallClock`, so the start and the expiry of a token or request come from the
+  same clock ([api/authentication/sessions.md](../api/authentication/sessions.md#clock)).
+  This covers:
+  - `refresh_tokens.issued_at`;
+  - `password_reset_tokens.created_at` (recover cooldown);
+  - `authorization_requests.created_at` (rate limits).
+
+  The schema still declares `DEFAULT CURRENT_TIMESTAMP` on these columns; every other
+  `created_at` / `updated_at` keeps relying on the database default.
 
 ## Secrets
 
