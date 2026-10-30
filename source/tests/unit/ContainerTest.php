@@ -19,6 +19,7 @@ use Pidgey\Repository\AuthorizationRequestRepository;
 use Pidgey\Repository\OrganizationRepository;
 use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
+use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
 use RuntimeException;
 
@@ -33,6 +34,7 @@ use RuntimeException;
 #[UsesClass(AuthorizationRequestRepository::class)]
 #[UsesClass(AccountEditLockoutRepository::class)]
 #[UsesClass(ApiTokenRepository::class)]
+#[UsesClass(SmtpConnectionRepository::class)]
 final class ContainerTest extends TestCase
 {
     private const VARIABLES = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
@@ -213,6 +215,20 @@ final class ContainerTest extends TestCase
 
         $this->assertInstanceOf(ApiTokenRepository::class, $repository);
         $this->assertSame($repository, $container->apiTokenRepository());
+        $container->organizationRepository();
+        $container->pdo();
+    }
+
+    public function testSmtpConnectionRepositoryIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $repository = $container->smtpConnectionRepository();
+
+        $this->assertInstanceOf(SmtpConnectionRepository::class, $repository);
+        $this->assertSame($repository, $container->smtpConnectionRepository());
         $container->organizationRepository();
         $container->pdo();
     }
