@@ -27,6 +27,7 @@ final class SchemaTest extends IntegrationTestCase
         'password_reset_tokens',
         'refresh_tokens',
         'schema_migrations',
+        'smtp_connections',
         'users',
     ];
 
@@ -436,6 +437,58 @@ final class SchemaTest extends IntegrationTestCase
     public function testApiTokensCollation(): void
     {
         $this->assertSame(self::COLLATION, $this->collation('api_tokens'));
+    }
+
+    public function testSmtpConnectionsColumns(): void
+    {
+        $this->assertSame(
+            [
+                'id' => self::ID,
+                'organization_id' => self::BIGINT,
+                'name' => self::VARCHAR_255,
+                'host' => self::VARCHAR_255,
+                'port' => ['type' => 'int', 'nullable' => false, 'default' => null, 'extra' => ''],
+                'encryption' => [
+                    'type' => "enum('none','tls','ssl')",
+                    'nullable' => false,
+                    'default' => null,
+                    'extra' => '',
+                ],
+                'username' => ['type' => 'varchar(255)', 'nullable' => true, 'default' => null, 'extra' => ''],
+                'password' => ['type' => 'varbinary(1024)', 'nullable' => true, 'default' => null, 'extra' => ''],
+                'from_address' => self::VARCHAR_255,
+                'active' => ['type' => 'tinyint(1)', 'nullable' => false, 'default' => '0', 'extra' => ''],
+                'created_at' => self::CREATED_AT,
+                'updated_at' => self::UPDATED_AT,
+            ],
+            $this->columns('smtp_connections'),
+        );
+    }
+
+    public function testSmtpConnectionsUniqueKeys(): void
+    {
+        $this->assertSame([], $this->uniqueKeys('smtp_connections'));
+    }
+
+    public function testSmtpConnectionsIndexes(): void
+    {
+        $this->assertSame(
+            ['ix_smtp_connections_organization_id' => ['organization_id']],
+            $this->indexes('smtp_connections'),
+        );
+    }
+
+    public function testSmtpConnectionsForeignKeys(): void
+    {
+        $this->assertSame(
+            ['fk_smtp_connections_organization_id' => self::ORGANIZATION_FK],
+            $this->foreignKeys('smtp_connections'),
+        );
+    }
+
+    public function testSmtpConnectionsCollation(): void
+    {
+        $this->assertSame(self::COLLATION, $this->collation('smtp_connections'));
     }
 
     /**
