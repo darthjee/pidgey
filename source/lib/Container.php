@@ -9,7 +9,11 @@ use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\PdoFactory;
 use Pidgey\Infra\Transaction;
+use Pidgey\Repository\AccountEditLockoutRepository;
+use Pidgey\Repository\AuthorizationRequestRepository;
 use Pidgey\Repository\OrganizationRepository;
+use Pidgey\Repository\PasswordResetTokenRepository;
+use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\UserRepository;
 use RuntimeException;
 
@@ -28,6 +32,14 @@ final class Container
     private ?OrganizationRepository $organizationRepository = null;
 
     private ?UserRepository $userRepository = null;
+
+    private ?RefreshTokenRepository $refreshTokenRepository = null;
+
+    private ?PasswordResetTokenRepository $passwordResetTokenRepository = null;
+
+    private ?AuthorizationRequestRepository $authorizationRequestRepository = null;
+
+    private ?AccountEditLockoutRepository $accountEditLockoutRepository = null;
 
     /**
      * Creates an empty container; nothing is built yet.
@@ -84,5 +96,53 @@ final class Container
     public function userRepository(): UserRepository
     {
         return $this->userRepository ??= new UserRepository($this->pdo());
+    }
+
+    /**
+     * Returns the `refresh_tokens` repository, bound to the request's connection.
+     *
+     * @return RefreshTokenRepository
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function refreshTokenRepository(): RefreshTokenRepository
+    {
+        return $this->refreshTokenRepository ??= new RefreshTokenRepository($this->pdo());
+    }
+
+    /**
+     * Returns the `password_reset_tokens` repository, bound to the request's connection.
+     *
+     * @return PasswordResetTokenRepository
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function passwordResetTokenRepository(): PasswordResetTokenRepository
+    {
+        return $this->passwordResetTokenRepository ??= new PasswordResetTokenRepository($this->pdo());
+    }
+
+    /**
+     * Returns the `authorization_requests` repository, bound to the request's connection.
+     *
+     * @return AuthorizationRequestRepository
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function authorizationRequestRepository(): AuthorizationRequestRepository
+    {
+        return $this->authorizationRequestRepository ??= new AuthorizationRequestRepository($this->pdo());
+    }
+
+    /**
+     * Returns the `account_edit_lockouts` repository, bound to the request's connection.
+     *
+     * @return AccountEditLockoutRepository
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function accountEditLockoutRepository(): AccountEditLockoutRepository
+    {
+        return $this->accountEditLockoutRepository ??= new AccountEditLockoutRepository($this->pdo());
     }
 }

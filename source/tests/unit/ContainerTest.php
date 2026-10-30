@@ -13,7 +13,11 @@ use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
 use Pidgey\Infra\Transaction;
+use Pidgey\Repository\AccountEditLockoutRepository;
+use Pidgey\Repository\AuthorizationRequestRepository;
 use Pidgey\Repository\OrganizationRepository;
+use Pidgey\Repository\PasswordResetTokenRepository;
+use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\UserRepository;
 use RuntimeException;
 
@@ -23,6 +27,10 @@ use RuntimeException;
 #[UsesClass(Transaction::class)]
 #[UsesClass(OrganizationRepository::class)]
 #[UsesClass(UserRepository::class)]
+#[UsesClass(RefreshTokenRepository::class)]
+#[UsesClass(PasswordResetTokenRepository::class)]
+#[UsesClass(AuthorizationRequestRepository::class)]
+#[UsesClass(AccountEditLockoutRepository::class)]
 final class ContainerTest extends TestCase
 {
     private const VARIABLES = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
@@ -134,6 +142,62 @@ final class ContainerTest extends TestCase
         $this->assertInstanceOf(UserRepository::class, $repository);
         $this->assertSame($repository, $container->userRepository());
         $container->organizationRepository();
+        $container->pdo();
+    }
+
+    public function testRefreshTokenRepositoryIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $repository = $container->refreshTokenRepository();
+
+        $this->assertInstanceOf(RefreshTokenRepository::class, $repository);
+        $this->assertSame($repository, $container->refreshTokenRepository());
+        $container->userRepository();
+        $container->pdo();
+    }
+
+    public function testPasswordResetTokenRepositoryIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $repository = $container->passwordResetTokenRepository();
+
+        $this->assertInstanceOf(PasswordResetTokenRepository::class, $repository);
+        $this->assertSame($repository, $container->passwordResetTokenRepository());
+        $container->userRepository();
+        $container->pdo();
+    }
+
+    public function testAuthorizationRequestRepositoryIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $repository = $container->authorizationRequestRepository();
+
+        $this->assertInstanceOf(AuthorizationRequestRepository::class, $repository);
+        $this->assertSame($repository, $container->authorizationRequestRepository());
+        $container->userRepository();
+        $container->pdo();
+    }
+
+    public function testAccountEditLockoutRepositoryIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $repository = $container->accountEditLockoutRepository();
+
+        $this->assertInstanceOf(AccountEditLockoutRepository::class, $repository);
+        $this->assertSame($repository, $container->accountEditLockoutRepository());
+        $container->userRepository();
         $container->pdo();
     }
 }
