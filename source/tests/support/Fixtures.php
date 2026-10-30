@@ -210,6 +210,38 @@ final class Fixtures
     }
 
     /**
+     * Inserts an organization SMTP connection and returns its id, creating an organization when
+     * none is given.
+     *
+     * Defaults: a unique name, Mailpit (`mailpit:1025`) without encryption, no credentials, an
+     * inactive connection. `$password` is stored as raw bytes (the ciphertext a service would
+     * produce).
+     */
+    public function smtpConnection(
+        ?int $organizationId = null,
+        ?string $name = null,
+        string $host = 'mailpit',
+        int $port = 1025,
+        string $encryption = 'none',
+        ?string $username = null,
+        ?string $password = null,
+        string $fromAddress = 'noreply@example.com',
+        bool $active = false,
+    ): int {
+        return $this->insert('smtp_connections', [
+            'organization_id' => $organizationId ?? $this->organization(),
+            'name' => $name ?? $this->unique('smtp'),
+            'host' => $host,
+            'port' => $port,
+            'encryption' => $encryption,
+            'username' => $username,
+            'password' => $password,
+            'from_address' => $fromAddress,
+            'active' => (int) $active,
+        ]);
+    }
+
+    /**
      * A random SHA-256-shaped hex digest (64 characters), never derived from a plain token.
      */
     private function digest(): string

@@ -15,6 +15,7 @@ use Pidgey\Repository\AuthorizationRequestRepository;
 use Pidgey\Repository\OrganizationRepository;
 use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
+use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
 use RuntimeException;
 
@@ -43,6 +44,8 @@ final class Container
     private ?AccountEditLockoutRepository $accountEditLockoutRepository = null;
 
     private ?ApiTokenRepository $apiTokenRepository = null;
+
+    private ?SmtpConnectionRepository $smtpConnectionRepository = null;
 
     /**
      * Creates an empty container; nothing is built yet.
@@ -159,5 +162,17 @@ final class Container
     public function apiTokenRepository(): ApiTokenRepository
     {
         return $this->apiTokenRepository ??= new ApiTokenRepository($this->pdo());
+    }
+
+    /**
+     * Returns the `smtp_connections` repository, bound to the request's connection.
+     *
+     * @return SmtpConnectionRepository
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function smtpConnectionRepository(): SmtpConnectionRepository
+    {
+        return $this->smtpConnectionRepository ??= new SmtpConnectionRepository($this->pdo());
     }
 }
