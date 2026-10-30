@@ -17,7 +17,7 @@ use UnexpectedValueException;
 #[CoversClass(Row::class)]
 final class RowTest extends TestCase
 {
-    private const SECRET = 'sup3r-s3cret-digest';
+    private const SENSITIVE_VALUE = 'value-that-must-not-leak';
 
     public function testInt(): void
     {
@@ -291,18 +291,18 @@ final class RowTest extends TestCase
     public function testMessagesNeverContainTheValue(callable $convert): void
     {
         try {
-            $convert(['password_digest' => self::SECRET], 'password_digest');
+            $convert(['password_digest' => self::SENSITIVE_VALUE], 'password_digest');
             $this->fail('Expected the conversion to fail.');
         } catch (UnexpectedValueException $exception) {
             $this->assertStringContainsString('password_digest', $exception->getMessage());
-            $this->assertNoSecret($exception);
+            $this->assertNoSensitiveValue($exception);
         }
     }
 
-    private function assertNoSecret(Throwable $exception): void
+    private function assertNoSensitiveValue(Throwable $exception): void
     {
         for ($current = $exception; $current !== null; $current = $current->getPrevious()) {
-            $this->assertStringNotContainsString(self::SECRET, $current->getMessage());
+            $this->assertStringNotContainsString(self::SENSITIVE_VALUE, $current->getMessage());
         }
     }
 }
