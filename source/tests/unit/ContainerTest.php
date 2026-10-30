@@ -13,12 +13,16 @@ use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
 use Pidgey\Infra\Transaction;
+use Pidgey\Repository\OrganizationRepository;
+use Pidgey\Repository\UserRepository;
 use RuntimeException;
 
 #[CoversClass(Container::class)]
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(Transaction::class)]
+#[UsesClass(OrganizationRepository::class)]
+#[UsesClass(UserRepository::class)]
 final class ContainerTest extends TestCase
 {
     private const VARIABLES = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
@@ -103,5 +107,33 @@ final class ContainerTest extends TestCase
         $this->assertSame($transaction, $container->transaction());
         $this->assertSame($pdo, $container->pdo());
         $this->assertSame('ok', $transaction->run(static fn (): string => 'ok'));
+    }
+
+    public function testOrganizationRepositoryIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $repository = $container->organizationRepository();
+
+        $this->assertInstanceOf(OrganizationRepository::class, $repository);
+        $this->assertSame($repository, $container->organizationRepository());
+        $container->userRepository();
+        $container->transaction();
+    }
+
+    public function testUserRepositoryIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $repository = $container->userRepository();
+
+        $this->assertInstanceOf(UserRepository::class, $repository);
+        $this->assertSame($repository, $container->userRepository());
+        $container->organizationRepository();
+        $container->pdo();
     }
 }

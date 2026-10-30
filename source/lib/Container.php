@@ -9,6 +9,8 @@ use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\PdoFactory;
 use Pidgey\Infra\Transaction;
+use Pidgey\Repository\OrganizationRepository;
+use Pidgey\Repository\UserRepository;
 use RuntimeException;
 
 /**
@@ -22,6 +24,10 @@ final class Container
     private ?PDO $pdo = null;
 
     private ?Transaction $transaction = null;
+
+    private ?OrganizationRepository $organizationRepository = null;
+
+    private ?UserRepository $userRepository = null;
 
     /**
      * Creates an empty container; nothing is built yet.
@@ -54,5 +60,29 @@ final class Container
     public function transaction(): Transaction
     {
         return $this->transaction ??= new Transaction($this->pdo());
+    }
+
+    /**
+     * Returns the `organizations` repository, bound to the request's connection.
+     *
+     * @return OrganizationRepository
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function organizationRepository(): OrganizationRepository
+    {
+        return $this->organizationRepository ??= new OrganizationRepository($this->pdo());
+    }
+
+    /**
+     * Returns the `users` repository, bound to the request's connection.
+     *
+     * @return UserRepository
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function userRepository(): UserRepository
+    {
+        return $this->userRepository ??= new UserRepository($this->pdo());
     }
 }
