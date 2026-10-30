@@ -21,6 +21,7 @@ final class SchemaTest extends IntegrationTestCase
     /** Every base table the migrations create, plus the runner's own table. */
     private const TABLES = [
         'account_edit_lockouts',
+        'api_tokens',
         'authorization_requests',
         'organizations',
         'password_reset_tokens',
@@ -60,6 +61,13 @@ final class SchemaTest extends IntegrationTestCase
     private const NULLABLE_DATETIME = ['type' => 'datetime', 'nullable' => true, 'default' => null, 'extra' => ''];
 
     private const COUNTER = ['type' => 'int', 'nullable' => false, 'default' => '0', 'extra' => ''];
+
+    private const ORGANIZATION_FK = [
+        'column' => 'organization_id',
+        'referenced_table' => 'organizations',
+        'referenced_column' => 'id',
+        'delete_rule' => 'RESTRICT',
+    ];
 
     private const USER_FK = [
         'column' => 'user_id',
@@ -111,7 +119,7 @@ final class SchemaTest extends IntegrationTestCase
         $this->assertSame(
             [
                 'id' => self::ID,
-                'organization_id' => ['type' => 'bigint', 'nullable' => false, 'default' => null, 'extra' => ''],
+                'organization_id' => self::BIGINT,
                 'username' => self::VARCHAR_255,
                 'email' => self::VARCHAR_255,
                 'password_digest' => self::VARCHAR_255,
@@ -158,14 +166,7 @@ final class SchemaTest extends IntegrationTestCase
     public function testUsersForeignKeys(): void
     {
         $this->assertSame(
-            [
-                'fk_users_organization_id' => [
-                    'column' => 'organization_id',
-                    'referenced_table' => 'organizations',
-                    'referenced_column' => 'id',
-                    'delete_rule' => 'RESTRICT',
-                ],
-            ],
+            ['fk_users_organization_id' => self::ORGANIZATION_FK],
             $this->foreignKeys('users'),
         );
     }
@@ -388,6 +389,53 @@ final class SchemaTest extends IntegrationTestCase
     public function testAccountEditLockoutsCollation(): void
     {
         $this->assertSame(self::COLLATION, $this->collation('account_edit_lockouts'));
+    }
+
+    public function testApiTokensColumns(): void
+    {
+        $this->assertSame(
+            [
+                'id' => self::ID,
+                'organization_id' => self::BIGINT,
+                'name' => self::VARCHAR_255,
+                'token_prefix' => ['type' => 'varchar(16)', 'nullable' => false, 'default' => null, 'extra' => ''],
+                'token_hash' => self::CHAR_64,
+                'scopes' => ['type' => 'json', 'nullable' => false, 'default' => null, 'extra' => ''],
+                'created_at' => self::CREATED_AT,
+                'last_used_at' => self::NULLABLE_DATETIME,
+                'revoked_at' => self::NULLABLE_DATETIME,
+            ],
+            $this->columns('api_tokens'),
+        );
+    }
+
+    public function testApiTokensUniqueKeys(): void
+    {
+        $this->assertSame(
+            ['uq_api_tokens_token_hash' => ['token_hash']],
+            $this->uniqueKeys('api_tokens'),
+        );
+    }
+
+    public function testApiTokensIndexes(): void
+    {
+        $this->assertSame(
+            ['ix_api_tokens_organization_id' => ['organization_id']],
+            $this->indexes('api_tokens'),
+        );
+    }
+
+    public function testApiTokensForeignKeys(): void
+    {
+        $this->assertSame(
+            ['fk_api_tokens_organization_id' => self::ORGANIZATION_FK],
+            $this->foreignKeys('api_tokens'),
+        );
+    }
+
+    public function testApiTokensCollation(): void
+    {
+        $this->assertSame(self::COLLATION, $this->collation('api_tokens'));
     }
 
     /**
