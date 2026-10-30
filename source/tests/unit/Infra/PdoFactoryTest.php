@@ -47,5 +47,6 @@ final class PdoFactoryTest extends TestCase
         $this->assertSame(PDO::FETCH_ASSOC, $options[PDO::ATTR_DEFAULT_FETCH_MODE]);
         $this->assertFalse($options[PDO::ATTR_EMULATE_PREPARES]);
         $this->assertFalse($options[Mysql::ATTR_MULTI_STATEMENTS]);
+        $this->assertSame("SET time_zone = '+00:00'", $options[Mysql::ATTR_INIT_COMMAND]);
     }
 }

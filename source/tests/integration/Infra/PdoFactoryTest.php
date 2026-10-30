@@ -34,6 +34,18 @@ final class PdoFactoryTest extends IntegrationTestCase
         $this->assertSame('utf8mb4', self::pdo()->query('SELECT @@character_set_connection')->fetchColumn());
     }
 
+    public function testDatabaseConnectionRunsInUtc(): void
+    {
+        $this->assertSame('+00:00', self::pdo()->query('SELECT @@session.time_zone')->fetchColumn());
+    }
+
+    public function testServerConnectionRunsInUtc(): void
+    {
+        $pdo = (new PdoFactory())->createServer(self::config());
+
+        $this->assertSame('+00:00', $pdo->query('SELECT @@session.time_zone')->fetchColumn());
+    }
+
     public function testQueryRejectsStackedStatements(): void
     {
         $this->expectException(PDOException::class);
