@@ -15,6 +15,9 @@ use PDO;
  */
 final class Fixtures
 {
+    /** A fixed `password_hash()`-shaped digest; fixtures never hash at run time. */
+    public const PASSWORD_DIGEST = '$2y$10$abcdefghijklmnopqrstuuJ6C3D5yWv0cZx1vQ8kYb2e4f6g8h0i2';
+
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -45,5 +48,36 @@ final class Fixtures
         $statement->execute($values);
 
         return (int) $this->pdo->lastInsertId();
+    }
+
+    /**
+     * Inserts an organization and returns its id.
+     */
+    public function organization(?string $name = null): int
+    {
+        return $this->insert('organizations', ['name' => $name ?? $this->unique('organization')]);
+    }
+
+    /**
+     * Inserts a user and returns its id, creating an organization when none is given.
+     *
+     * Defaults: unique username and email, an approved, non-admin user.
+     */
+    public function user(
+        ?int $organizationId = null,
+        ?string $username = null,
+        ?string $email = null,
+        string $passwordDigest = self::PASSWORD_DIGEST,
+        bool $isAdmin = false,
+        string $status = 'approved',
+    ): int {
+        return $this->insert('users', [
+            'organization_id' => $organizationId ?? $this->organization(),
+            'username' => $username ?? $this->unique('user'),
+            'email' => $email ?? $this->unique('user') . '@example.com',
+            'password_digest' => $passwordDigest,
+            'is_admin' => (int) $isAdmin,
+            'status' => $status,
+        ]);
     }
 }
