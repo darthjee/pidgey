@@ -181,6 +181,35 @@ final class Fixtures
     }
 
     /**
+     * Inserts an organization API token and returns its id, creating an organization when none
+     * is given.
+     *
+     * Defaults: a unique name, the `pdg_` prefix, a random digest, scopes `["send"]`, never
+     * used and not revoked. Dates are UTC `Y-m-d H:i:s` strings.
+     *
+     * @param list<string> $scopes Scope names, stored as a JSON list.
+     */
+    public function apiToken(
+        ?int $organizationId = null,
+        ?string $name = null,
+        string $tokenPrefix = 'pdg_',
+        ?string $tokenHash = null,
+        array $scopes = ['send'],
+        ?string $lastUsedAt = null,
+        ?string $revokedAt = null,
+    ): int {
+        return $this->insert('api_tokens', [
+            'organization_id' => $organizationId ?? $this->organization(),
+            'name' => $name ?? $this->unique('token'),
+            'token_prefix' => $tokenPrefix,
+            'token_hash' => $tokenHash ?? $this->digest(),
+            'scopes' => json_encode($scopes, JSON_THROW_ON_ERROR),
+            'last_used_at' => $lastUsedAt,
+            'revoked_at' => $revokedAt,
+        ]);
+    }
+
+    /**
      * A random SHA-256-shaped hex digest (64 characters), never derived from a plain token.
      */
     private function digest(): string
