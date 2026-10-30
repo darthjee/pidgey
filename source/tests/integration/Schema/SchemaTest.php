@@ -20,7 +20,11 @@ final class SchemaTest extends IntegrationTestCase
 {
     /** Every base table the migrations create, plus the runner's own table. */
     private const TABLES = [
+        'account_edit_lockouts',
+        'authorization_requests',
         'organizations',
+        'password_reset_tokens',
+        'refresh_tokens',
         'schema_migrations',
         'users',
     ];
@@ -44,6 +48,25 @@ final class SchemaTest extends IntegrationTestCase
     ];
 
     private const VARCHAR_255 = ['type' => 'varchar(255)', 'nullable' => false, 'default' => null, 'extra' => ''];
+
+    private const CHAR_64 = ['type' => 'char(64)', 'nullable' => false, 'default' => null, 'extra' => ''];
+
+    private const BIGINT = ['type' => 'bigint', 'nullable' => false, 'default' => null, 'extra' => ''];
+
+    private const NULLABLE_BIGINT = ['type' => 'bigint', 'nullable' => true, 'default' => null, 'extra' => ''];
+
+    private const DATETIME = ['type' => 'datetime', 'nullable' => false, 'default' => null, 'extra' => ''];
+
+    private const NULLABLE_DATETIME = ['type' => 'datetime', 'nullable' => true, 'default' => null, 'extra' => ''];
+
+    private const COUNTER = ['type' => 'int', 'nullable' => false, 'default' => '0', 'extra' => ''];
+
+    private const USER_FK = [
+        'column' => 'user_id',
+        'referenced_table' => 'users',
+        'referenced_column' => 'id',
+        'delete_rule' => 'RESTRICT',
+    ];
 
     public function testTableSet(): void
     {
@@ -150,6 +173,221 @@ final class SchemaTest extends IntegrationTestCase
     public function testUsersCollation(): void
     {
         $this->assertSame(self::COLLATION, $this->collation('users'));
+    }
+
+    public function testRefreshTokensColumns(): void
+    {
+        $this->assertSame(
+            [
+                'id' => self::ID,
+                'token_hash' => self::CHAR_64,
+                'user_id' => self::BIGINT,
+                'issued_at' => self::CREATED_AT,
+                'expires_at' => self::DATETIME,
+                'revoked_at' => self::NULLABLE_DATETIME,
+                'revoked_reason' => ['type' => 'varchar(32)', 'nullable' => true, 'default' => null, 'extra' => ''],
+                'session_uuid' => ['type' => 'varchar(36)', 'nullable' => false, 'default' => null, 'extra' => ''],
+                'started_at' => self::DATETIME,
+            ],
+            $this->columns('refresh_tokens'),
+        );
+    }
+
+    public function testRefreshTokensUniqueKeys(): void
+    {
+        $this->assertSame(
+            ['uq_refresh_tokens_token_hash' => ['token_hash']],
+            $this->uniqueKeys('refresh_tokens'),
+        );
+    }
+
+    public function testRefreshTokensIndexes(): void
+    {
+        $this->assertSame(
+            [
+                'ix_refresh_tokens_session_uuid' => ['session_uuid'],
+                'ix_refresh_tokens_user_id' => ['user_id'],
+            ],
+            $this->indexes('refresh_tokens'),
+        );
+    }
+
+    public function testRefreshTokensForeignKeys(): void
+    {
+        $this->assertSame(
+            ['fk_refresh_tokens_user_id' => self::USER_FK],
+            $this->foreignKeys('refresh_tokens'),
+        );
+    }
+
+    public function testRefreshTokensCollation(): void
+    {
+        $this->assertSame(self::COLLATION, $this->collation('refresh_tokens'));
+    }
+
+    public function testPasswordResetTokensColumns(): void
+    {
+        $this->assertSame(
+            [
+                'id' => self::ID,
+                'token_hash' => self::CHAR_64,
+                'user_id' => self::BIGINT,
+                'created_at' => self::CREATED_AT,
+                'expires_at' => self::DATETIME,
+                'used_at' => self::NULLABLE_DATETIME,
+            ],
+            $this->columns('password_reset_tokens'),
+        );
+    }
+
+    public function testPasswordResetTokensUniqueKeys(): void
+    {
+        $this->assertSame(
+            ['uq_password_reset_tokens_token_hash' => ['token_hash']],
+            $this->uniqueKeys('password_reset_tokens'),
+        );
+    }
+
+    public function testPasswordResetTokensIndexes(): void
+    {
+        $this->assertSame(
+            ['ix_password_reset_tokens_user_id' => ['user_id']],
+            $this->indexes('password_reset_tokens'),
+        );
+    }
+
+    public function testPasswordResetTokensForeignKeys(): void
+    {
+        $this->assertSame(
+            ['fk_password_reset_tokens_user_id' => self::USER_FK],
+            $this->foreignKeys('password_reset_tokens'),
+        );
+    }
+
+    public function testPasswordResetTokensCollation(): void
+    {
+        $this->assertSame(self::COLLATION, $this->collation('password_reset_tokens'));
+    }
+
+    public function testAuthorizationRequestsColumns(): void
+    {
+        $this->assertSame(
+            [
+                'id' => self::ID,
+                'uuid' => ['type' => 'varchar(36)', 'nullable' => false, 'default' => null, 'extra' => ''],
+                'username' => self::VARCHAR_255,
+                'user_id' => self::NULLABLE_BIGINT,
+                'status' => [
+                    'type' => "enum('open','approved','denied','logged','expired')",
+                    'nullable' => false,
+                    'default' => 'open',
+                    'extra' => '',
+                ],
+                'poll_token_hash' => self::CHAR_64,
+                'request_ip' => ['type' => 'varchar(45)', 'nullable' => false, 'default' => null, 'extra' => ''],
+                'request_user_agent' => [
+                    'type' => 'varchar(512)',
+                    'nullable' => false,
+                    'default' => null,
+                    'extra' => '',
+                ],
+                'approved_by_user_id' => self::NULLABLE_BIGINT,
+                'created_at' => self::CREATED_AT,
+                'expires_at' => self::DATETIME,
+                'resolved_at' => self::NULLABLE_DATETIME,
+                'logged_at' => self::NULLABLE_DATETIME,
+                'authorize_failed_attempts' => self::COUNTER,
+                'authorize_locked_until' => self::NULLABLE_DATETIME,
+            ],
+            $this->columns('authorization_requests'),
+        );
+    }
+
+    public function testAuthorizationRequestsUniqueKeys(): void
+    {
+        $this->assertSame(
+            [
+                'uq_authorization_requests_poll_token_hash' => ['poll_token_hash'],
+                'uq_authorization_requests_uuid' => ['uuid'],
+            ],
+            $this->uniqueKeys('authorization_requests'),
+        );
+    }
+
+    public function testAuthorizationRequestsIndexes(): void
+    {
+        $this->assertSame(
+            [
+                'ix_authorization_requests_approved_by_user_id' => ['approved_by_user_id'],
+                'ix_authorization_requests_expires_at' => ['expires_at'],
+                'ix_authorization_requests_request_ip_created_at' => ['request_ip', 'created_at'],
+                'ix_authorization_requests_user_id_status' => ['user_id', 'status'],
+                'ix_authorization_requests_username_created_at' => ['username', 'created_at'],
+            ],
+            $this->indexes('authorization_requests'),
+        );
+    }
+
+    public function testAuthorizationRequestsForeignKeys(): void
+    {
+        $this->assertSame(
+            [
+                'fk_authorization_requests_approved_by_user_id' => [
+                    'column' => 'approved_by_user_id',
+                    'referenced_table' => 'users',
+                    'referenced_column' => 'id',
+                    'delete_rule' => 'RESTRICT',
+                ],
+                'fk_authorization_requests_user_id' => self::USER_FK,
+            ],
+            $this->foreignKeys('authorization_requests'),
+        );
+    }
+
+    public function testAuthorizationRequestsCollation(): void
+    {
+        $this->assertSame(self::COLLATION, $this->collation('authorization_requests'));
+    }
+
+    public function testAccountEditLockoutsColumns(): void
+    {
+        $this->assertSame(
+            [
+                'id' => self::ID,
+                'user_id' => self::BIGINT,
+                'failed_attempts' => self::COUNTER,
+                'locked_until' => self::NULLABLE_DATETIME,
+                'created_at' => self::CREATED_AT,
+                'updated_at' => self::UPDATED_AT,
+            ],
+            $this->columns('account_edit_lockouts'),
+        );
+    }
+
+    public function testAccountEditLockoutsUniqueKeys(): void
+    {
+        $this->assertSame(
+            ['uq_account_edit_lockouts_user_id' => ['user_id']],
+            $this->uniqueKeys('account_edit_lockouts'),
+        );
+    }
+
+    public function testAccountEditLockoutsIndexes(): void
+    {
+        $this->assertSame([], $this->indexes('account_edit_lockouts'));
+    }
+
+    public function testAccountEditLockoutsForeignKeys(): void
+    {
+        $this->assertSame(
+            ['fk_account_edit_lockouts_user_id' => self::USER_FK],
+            $this->foreignKeys('account_edit_lockouts'),
+        );
+    }
+
+    public function testAccountEditLockoutsCollation(): void
+    {
+        $this->assertSame(self::COLLATION, $this->collation('account_edit_lockouts'));
     }
 
     /**
