@@ -11,7 +11,7 @@ use Pdo\Mysql;
  * Creates hardened PDO connections to MySQL.
  *
  * Every connection throws on errors, fetches associative arrays, uses native prepared
- * statements and refuses stacked (multi-statement) queries.
+ * statements, refuses stacked (multi-statement) queries and runs its session in UTC.
  */
 final class PdoFactory implements ConnectionFactory
 {
@@ -70,6 +70,7 @@ final class PdoFactory implements ConnectionFactory
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
             Mysql::ATTR_MULTI_STATEMENTS => false,
+            Mysql::ATTR_INIT_COMMAND => "SET time_zone = '+00:00'",
         ];
     }
 }
