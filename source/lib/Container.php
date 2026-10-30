@@ -10,6 +10,7 @@ use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\PdoFactory;
 use Pidgey\Infra\Transaction;
 use Pidgey\Repository\AccountEditLockoutRepository;
+use Pidgey\Repository\ApiTokenRepository;
 use Pidgey\Repository\AuthorizationRequestRepository;
 use Pidgey\Repository\OrganizationRepository;
 use Pidgey\Repository\PasswordResetTokenRepository;
@@ -40,6 +41,8 @@ final class Container
     private ?AuthorizationRequestRepository $authorizationRequestRepository = null;
 
     private ?AccountEditLockoutRepository $accountEditLockoutRepository = null;
+
+    private ?ApiTokenRepository $apiTokenRepository = null;
 
     /**
      * Creates an empty container; nothing is built yet.
@@ -144,5 +147,17 @@ final class Container
     public function accountEditLockoutRepository(): AccountEditLockoutRepository
     {
         return $this->accountEditLockoutRepository ??= new AccountEditLockoutRepository($this->pdo());
+    }
+
+    /**
+     * Returns the `api_tokens` repository, bound to the request's connection.
+     *
+     * @return ApiTokenRepository
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function apiTokenRepository(): ApiTokenRepository
+    {
+        return $this->apiTokenRepository ??= new ApiTokenRepository($this->pdo());
     }
 }
