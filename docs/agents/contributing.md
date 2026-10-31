@@ -69,8 +69,9 @@ To determine which checks to run:
 2. Read `.circleci/config.yml` to find which jobs are triggered for those folders (look for path filters, `only` rules, or job names that reference those folders).
 3. Run the corresponding local commands for each relevant job.
 
-Jobs currently defined in `.circleci/config.yml` (all run on every branch and tag); jobs still
-planned in [specs/deployment/pipeline.md](specs/deployment/pipeline.md) are marked *(planned)*:
+Jobs currently defined in `.circleci/config.yml` (check jobs run on every branch and tag); jobs still
+planned in [specs/deployment/pipeline.md](specs/deployment/pipeline.md) are marked *(planned)*.
+The deploy jobs run only on semver tags, after the check jobs pass, and have no local equivalent:
 
 | Modified folder | Job | Local commands |
 | --- | --- | --- |
@@ -78,6 +79,11 @@ planned in [specs/deployment/pipeline.md](specs/deployment/pipeline.md) are mark
 | `source/` | `backend_tests` | `composer db:prepare && composer coverage` (in the `tests` container) |
 | `frontend/` | `frontend_checks` *(planned)* | `cd frontend && yarn lint && yarn test && yarn coverage` |
 | `dockerfiles/` | `build_images` *(planned)* | `make build` (and `make build-base` / `make build-ci-base` when a base image changes) |
+| — | `build_backend` *(planned)* | none (tag-triggered deploy, see [specs/deployment/release.md](specs/deployment/release.md)) |
+| — | `build_frontend` *(planned)* | none (tag-triggered deploy) |
+| — | `upload_backend` *(planned)* | none (tag-triggered deploy) |
+| — | `upload_frontend` *(planned)* | none (tag-triggered deploy) |
+| — | `release` *(planned)* | none (tag-triggered deploy) |
 
 `make tests` runs everything inside the `tests` container.
 

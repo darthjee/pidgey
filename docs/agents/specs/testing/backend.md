@@ -58,3 +58,31 @@ Linters:
 - **phpcs**: PSR-12 plus slevomat/coding-standard rules; PHPDoc is required outside tests.
 - **phpmd**: the unused-code ruleset is a gate in `lint`; the complexity rules produce a
   report through `complexity`.
+
+## Configuration loading
+
+Tests for the env-file loader and `bin/check-config` (see
+[architecture/configuration.md](../architecture/configuration.md#env-file)):
+
+- **Env-file loader, unit tests** (fixture files under `source/tests/fixtures/`):
+  - parsing: `#` comments and blank lines are ignored, single and double surrounding quotes
+    are stripped, the value is everything after the first `=`, and `$VAR` / `${VAR}` are kept
+    literally (no expansion);
+  - lines without `=`, lines whose key does not match `[A-Za-z_][A-Za-z0-9_]*`, and
+    `export KEY=VALUE` lines are skipped;
+  - `KEY=` sets the variable to an empty string;
+  - a variable that is already set is never overridden, including one set to an empty string;
+  - a missing file is a silent no-op.
+- **`bin/check-config`, integration tests** (run the command as a process):
+  - a valid configuration exits `0`;
+  - each invalid configuration (e.g. missing or short `SECRET_KEY`, a bad
+    `PREVIOUS_SECRET_KEYS` entry, a missing required `DB_*`) exits non-zero and names the
+    failed check;
+  - an existing but unreadable `config/.env` exits non-zero and reports
+    `env file: unreadable`, without printing the file's content;
+  - a PHP version other than 8.4.x exits non-zero (the version check must be testable without
+    a second PHP binary, e.g. by injecting the version);
+  - the output never contains any configured value, on success or failure.
+
+There is no automated test of the deploy workflow itself; how a release is verified is in
+[deployment/release.md](../deployment/release.md#verification).

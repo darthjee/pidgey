@@ -13,7 +13,7 @@ Purpose: define the Makefile targets used for local work and CI.
 | `db-reset` | Drop and re-prepare the development database: `docker compose run --rm app sh -c "composer db:drop && composer db:prepare"`. |
 | `tests` | Run tests and linters: backend in the `tests` container (`docker compose run --rm tests sh -c "composer lint && composer tests"`), then frontend in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev sh -c "yarn lint && yarn coverage"`). |
 | `build-ci-base` | Build the `circleci_pidgey-base` CI image (amd64 only) from the `source/` context, tagged `$(CI_BASE_IMAGE):$(CI_BASE_VERSION)`. |
-| `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). |
+| `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). Rebuilt and pushed (with a bumped `CI_BASE_VERSION`) when the deploy tooling is added. |
 | `build-fe-base` | Build the `vite_pidgey-base` image from the repository-root context, tagged `$(FE_BASE_IMAGE):$(FE_BASE_VERSION)$(BASE_SUFFIX)`. |
 | `push-fe-base` | Push `vite_pidgey-base` to the registry (manual; there is no automated image build). |
 | `build-fe` | Build the `vite_pidgey` image on top of `vite_pidgey-base`. |

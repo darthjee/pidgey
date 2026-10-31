@@ -12,6 +12,13 @@ rate-limit pending decision in [api/pending.md](../api/pending.md)). Deployments
 limit `/auth/*.json` per client IP at the reverse proxy in front of the app, to slow down
 password guessing and registration abuse.
 
+The current production host is a shared host with no configurable reverse proxy, so this
+recommendation **cannot be applied there**. It is recorded as a known gap in
+[security.md](security.md#known-gaps); until application-level throttling exists, production
+keeps `USER_APPROVAL_REQUIRED=true`.
+
 ## Pending decisions
 
-None. (Application-level throttling is pending in [api/pending.md](../api/pending.md).)
+- **Pending decision — auth rate limiting on the current host:** the proxy rate limit cannot
+  be applied there; application-level throttling is pending in
+  [api/pending.md](../api/pending.md) (see [security.md](security.md#pending-decisions)).

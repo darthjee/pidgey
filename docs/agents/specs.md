@@ -20,7 +20,7 @@ will later be replaced by documentation of the actual project.
 | [email](specs/email.md) | SMTP connections, synchronous send flow, message scope, failure handling. |
 | [api](specs/api.md) | JSON API v1 surface, token authentication and scopes, conventions. |
 | [frontend](specs/frontend.md) | React admin UI stack, layout, client layer, screens, build. |
-| [deployment](specs/deployment.md) | CircleCI jobs, image release, frontend deploy. |
+| [deployment](specs/deployment.md) | CircleCI checks, tag-triggered production deploy (release flow, frontend upload), server layout, deployment security and edge cases. |
 | [testing](specs/testing.md) | Backend and frontend testing, linting, definition of done. |
 
 ## Spec granularity rule

@@ -18,31 +18,48 @@ Purpose: define how the frontend is built, released into the web root and served
 - `http://localhost:8080/admin/` shows the **last** release build and can be stale; the live UI
   is the Vite dev server on :8030 (see [development.md](development.md#two-uis-in-development)).
   On a fresh clone there is no build, so `/admin/` falls through to `index.php` (JSON 404).
-- In production the UI is served from the web root's `admin/` folder, same origin as the API.
+- In production the UI is served from the release's `public/admin/` folder at `/admin/`, same
+  origin as the API (see [Production delivery](#production-delivery)).
 
-**Interim rule:** until the production decision below is made, `source/public/admin/` is
-git-ignored, so `make build-fe-release` leaves no untracked files.
+`source/public/admin/` is git-ignored, so `make build-fe-release` leaves no untracked files and
+build output never lives in git.
+
+## Production delivery
+
+**Decision — option C, git-ignored and uploaded.** The deploy workflow builds the frontend
+(`vite build`, in the `build_frontend` job, without the deploy context) and uploads `dist/`
+into the staging release's `public/admin/`, in the same release as the backend (the
+`upload_frontend` job, see
+[deployment/pipeline.md](../deployment/pipeline.md#deploy-jobs) and
+[deployment/release.md](../deployment/release.md#frontend-upload-upload_frontend)). Both halves
+come from the same tag and are swapped in together, so they stay in sync.
+
+Rejected options:
+
+- **A. Committed** (`source/public/admin` in git, shipped with the backend): build output in
+  git means noisy diffs and a risk of shipping a stale bundle that does not match the tag's
+  source.
+- **B. Built in a production image** (multi-stage Dockerfile with a Node stage): production
+  does not run Docker images (it is an SSH/rsync host), so there is no production image to
+  build it into (see [docker/images.md](../docker/images.md)).
+
+## Admin serving
+
+**Decision:** Apache's `DirectoryIndex` is enough to serve `/admin/` → `index.html`; no rewrite
+is needed. The front-controller rewrite skips existing files and directories (see
+[architecture/backend.md](../architecture/backend.md)), so `mod_dir` redirects `/admin` →
+`/admin/` and `/admin/assets/*` never reach PHP. The bypass rules live in
+[request-handler/rewrite.md](../request-handler/rewrite.md). Hash routing
+([screens.md](screens.md)) needs no route fallback.
+
+`public/admin/.htaccess` exists only to send `Cache-Control: no-cache` for `index.html`, so
+browsers revalidate it after a release and pick up the new hashed asset names (see
+[deployment/edge-cases.md](../deployment/edge-cases.md#frontend)). Hashed Vite assets keep
+their default caching. The file is part of the frontend build output (kept in the Vite
+project's static `public/` folder, which Vite copies into `dist/`), so it reaches both
+`make build-fe-release` and the production upload while `source/public/admin/` stays
+git-ignored.
 
 ## Pending decisions
 
-**Pending decision — how the built frontend reaches production.** This is the single place this
-decision is recorded; [docker/images.md](../docker/images.md) and
-[deployment/pipeline.md](../deployment/pipeline.md) link here. Options:
-
-- **A. Committed** — `source/public/admin` is committed; the production image (built from
-  `source/`) picks it up; no upload job. Simplest, but build output lives in git (noisy diffs,
-  stale-bundle risk).
-- **B. Git-ignored, built in the production image** — multi-stage production Dockerfile (a Node
-  stage runs `yarn build` and copies `dist/` into `admin/`). Clean git, always in sync; the
-  production image needs the repository root as build context.
-- **C. Git-ignored, uploaded** — the `upload_fe_files` job uploads `dist/` (majora pattern).
-  Independent frontend deploys; needs a deploy target and credentials, and two artifacts to keep
-  in sync.
-
-**Pending decision — `/admin/` serving:** whether `/admin/` → `index.html` needs anything beyond
-Apache's `DirectoryIndex` (e.g. an `.htaccess` rewrite). Constraint either way: the
-front-controller rewrite skips existing files and directories (see
-[architecture/backend.md](../architecture/backend.md)), so `mod_dir` redirects `/admin` →
-`/admin/` and `/admin/assets/*` never reach PHP. The bypass rules live in
-[request-handler/rewrite.md](../request-handler/rewrite.md). Hash routing ([screens.md](screens.md)) needs no
-route fallback.
+None.

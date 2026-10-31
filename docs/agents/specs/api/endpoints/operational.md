@@ -40,7 +40,9 @@ Readiness: the application can serve requests. It runs `SELECT 1` against the da
 ## Scope
 
 - Wiring these probes into Docker or deployment health checks is out of scope (see
-  [docker.md](../../docker.md) and [deployment.md](../../deployment.md)).
+  [docker.md](../../docker.md) and [deployment.md](../../deployment.md)); the deploy's post-release
+  smoke check is manual (see
+  [deployment/release.md](../../deployment/release.md#verification)).
 - No SMTP check: SMTP connections belong to organizations and are tested per connection
   ([pidgey-admin/smtp-connections.md](pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson)).
 
