@@ -44,11 +44,30 @@ as composer scripts (see [testing/backend.md](../testing/backend.md)):
   the file, in a `schema_migrations` table (created if missing).
 - Migrations are forward-only; no down migrations.
 - The same `migrate` script runs in development, in integration tests (against the test
-  database) and, later, at deploy time. It reads its settings only from the environment.
+  database) and at deploy time. It reads its settings only from the environment (filled from
+  `config/.env` when that file exists, see
+  [configuration.md](configuration.md#env-file)).
+- In production the deploy runs `$PHP_BIN bin/migrate` in the staging folder, after
+  `bin/check-config` and **before** the swap, so new code never serves an old schema and a
+  failed migration aborts the deploy with the live release untouched (see
+  [deployment/release.md](../deployment/release.md#release-release)).
 - `wait-for-db` runs before migrations wherever the database may still be starting
   (compose, CI).
 - Before integration tests, the test database is created (if missing) and migrated
   (`composer db:prepare`).
+
+### Compatibility with the previous release
+
+Because migrations run before the swap, the previous release keeps serving requests on the new
+schema for a while, and keeps doing so if the deploy fails after migrating. Rule: **every
+migration must keep working with the previous release's code.**
+
+- **Expand first:** add tables, nullable columns or columns with defaults, and indexes in one
+  release.
+- **Contract later:** drop or rename columns and tables only in a later release, once no
+  released code uses them.
+
+See [deployment/edge-cases.md](../deployment/edge-cases.md#migrations).
 
 ### One statement per file
 

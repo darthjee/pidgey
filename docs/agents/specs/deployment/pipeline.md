@@ -7,8 +7,8 @@ https://github.com/darthjee/tent and https://github.com/darthjee/majora.
 
 Backend jobs run in the CI image `circleci_pidgey-base` (see
 [images](../docker/images.md)), not in `dev_pidgey`. `frontend_checks` runs in
-`darthjee/circleci_node:0.2.1`. The frontend deploy job runs in `circleci_pidgey-node`, the
-frontend deploy image.
+`darthjee/circleci_node:0.2.1`. The frontend deploy job runs in the frontend deploy image (see
+[images](../docker/images.md#deploy-tooling)).
 
 ## Check jobs
 
@@ -30,7 +30,7 @@ folder. The step-by-step flow, the deploy script and the CircleCI variables are 
 | Job | Image | Steps |
 | --- | --- | --- |
 | `upload_backend` | `circleci_pidgey-base` (PHP 8.4) | Keep only `source/`, `composer install --no-dev`, then `upload` the release root into the staging folder, skipping the paths in `.circleci/backend-exclude.txt`. |
-| `upload_frontend` | `circleci_pidgey-node` | Keep only `frontend/`, `yarn install --frozen-lockfile`, `vite build`, then `upload` `dist/` into the staging folder's `public/admin/`. |
+| `upload_frontend` | Frontend deploy image (node/yarn) | Keep only `frontend/`, `yarn install --frozen-lockfile`, `vite build`, then `upload` `dist/` into the staging folder's `public/admin/`. |
 | `release` | `circleci_pidgey-base` | In the staging folder: `link` the shared `.env` to `config/.env`, `run` `$PHP_BIN bin/check-config`, `run` `$PHP_BIN bin/migrate`; then `release` (swap staging into live) and `cleanup` (remove stale staging folders). |
 
 Every deploy job:
@@ -52,7 +52,7 @@ requires both uploads (and, through them, every check job).
 No production image is built: a release is identified by its git semver tag, and the host
 runs the uploaded files.
 
-For now images (`dev_pidgey-base`, `circleci_pidgey-base`, `circleci_pidgey-node`) are built and pushed manually
+For now images (`dev_pidgey-base`, `circleci_pidgey-base`, the frontend deploy image) are built and pushed manually
 (see [makefile](../docker/makefile.md)); there is no automated image build.
 
 ## Database access in CI
