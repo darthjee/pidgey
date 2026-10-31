@@ -4,7 +4,10 @@
 declare(strict_types=1);
 
 use Pidgey\Infra\Cli\DatabaseCommand;
+use Pidgey\Infra\EnvFile;
 
 require __DIR__ . '/../vendor/autoload.php';
+
+EnvFile::load(__DIR__ . '/../config/.env');
 
 exit(DatabaseCommand::fromEnvironment(__DIR__ . '/../migrations', STDOUT, STDERR)->waitForDb());
