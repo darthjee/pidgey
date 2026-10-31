@@ -1,0 +1,13 @@
+/tests/
+/coverage/
+/phpcs.xml
+/phpcs/
+/phpmd*.xml
+/phpdoc.dist.xml
+/phpunit.xml
+/phpdoc/
+/.phpdoc/
+/.phpunit.result.cache
+/.phpunit.cache
+.env*
+.git

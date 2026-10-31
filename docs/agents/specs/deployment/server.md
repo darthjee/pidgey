@@ -11,8 +11,8 @@ for them are in [security.md](security.md).
 Real host names, SSH users, home paths, folder paths and domains are **never** committed —
 not in specs, docs, CI config or code. The repository refers to them only through CircleCI
 variable names (`SSH_HOST`, `SSH_USER`, `SSH_REMOTE_DIR`, `SSH_REMOTE_TEMP_DIR`,
-`REMOTE_HOME`, `PHP_BIN`, see [release.md](release.md#circleci-variables)) or obvious
-placeholders such as `<shared folder>` and `<live>`.
+`REMOTE_HOME`, `SHARED_DIR`, `PHP_BIN`, see [release.md](release.md#circleci-variables)) or
+obvious placeholders such as `<live>`.
 
 ## Folders
 
@@ -20,7 +20,7 @@ placeholders such as `<shared folder>` and `<live>`.
 | --- | --- | --- | --- |
 | Live | `$SSH_REMOTE_DIR` | The current release root (the content of `source/`, with `vendor/` and the built `public/admin/`). | Replaced on every release by the swap. |
 | Staging | `${SSH_REMOTE_TEMP_DIR}-<workflow workspace id>` | The release being prepared by one workflow. | Created by the first upload; renamed to live by `release`; stale ones removed by `cleanup`. |
-| Shared | `$REMOTE_HOME/<shared folder>` | The production `.env`. | Persistent, outside every release; created by hand by the owner before the first release. |
+| Shared | `$REMOTE_HOME/$SHARED_DIR` | The production `.env`. | Persistent, outside every release; created by hand by the owner before the first release. |
 
 - Live, staging (including the `<live>_old_<timestamp>` folder the swap moves live aside to)
   and the shared folder are all **outside every web directory of the hosting account**, not
@@ -46,7 +46,7 @@ placeholders such as `<shared folder>` and `<live>`.
 
 ### The `config/.env` link
 
-Each release gets a symlink `config/.env` → `$REMOTE_HOME/<shared folder>/.env`, created in
+Each release gets a symlink `config/.env` → `$REMOTE_HOME/$SHARED_DIR/.env`, created in
 staging by the `release` job before `check-config` and `migrate` run. `config/` is outside
 `public/`, so the file is never web-reachable. The app's env-file loader reads it from the
 release root (see [architecture/configuration.md](../architecture/configuration.md#env-file)).

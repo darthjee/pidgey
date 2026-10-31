@@ -44,7 +44,7 @@ The deploy chain is split in two kinds of jobs:
 | `build_frontend` | None | `darthjee/circleci_node:0.2.1` | Keep only `frontend/`, `yarn install --frozen-lockfile`, `vite build`, then `persist_to_workspace` `dist/`. |
 | `upload_backend` | `pidgey-deploy` | `circleci_pidgey-base` | `attach_workspace`, then `upload` the backend into the staging folder, skipping the paths in `.circleci/backend-exclude.txt`. |
 | `upload_frontend` | `pidgey-deploy` | `circleci_pidgey-base` | `attach_workspace`, then `upload` `dist/` into the staging folder's `public/admin/`. |
-| `release` | `pidgey-deploy` | `circleci_pidgey-base` | In the staging folder: `link` the shared `.env` to `config/.env`, `run` `$PHP_BIN bin/check-config`, `run` `$PHP_BIN bin/migrate`; then `release` (swap staging into live) and `cleanup` (remove stale staging folders). |
+| `release` | `pidgey-deploy` | `circleci_pidgey-base` | In the staging folder: `link` the shared `.env` (`$REMOTE_HOME/$SHARED_DIR/.env`) to `config/.env`, `run` `$PHP_BIN bin/check-config`, `run` `$PHP_BIN bin/migrate`; then `release` (swap staging into live) and `cleanup` (remove stale staging folders). |
 
 Every job of the deploy chain (build jobs and context jobs):
 
