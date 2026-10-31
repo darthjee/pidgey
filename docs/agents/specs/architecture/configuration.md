@@ -117,11 +117,18 @@ production host (see [deployment/server.md](../deployment/server.md#the-configen
   - The value is everything after the first `=`.
   - Surrounding single or double quotes around the value are stripped (`KEY="a b"` → `a b`).
   - There is no variable expansion: `$OTHER` and `${OTHER}` are kept literally.
+  - A line without `=`, or whose key does not match `[A-Za-z_][A-Za-z0-9_]*`, is skipped.
+  - A leading `export ` is **not supported**: `export KEY=VALUE` has a key that does not
+    match the pattern above, so the line is skipped.
+  - `KEY=` (an empty value) sets the variable to an empty string.
 - **Precedence:** the loader never overrides a variable that is already set in the
-  environment. Only keys that are unset are added, so the rest of the app keeps reading
+  environment. A variable set to an empty string counts as set. Only keys that are unset are added, so the rest of the app keeps reading
   everything through `Env`.
 - **Missing file:** the loader does nothing and reports nothing. Docker compose, CI and tests
   have no `config/.env` and behave exactly as before.
+- **Unreadable file:** if `config/.env` exists but cannot be read (e.g. wrong permissions),
+  `bin/check-config` reports an
+  `env file: unreadable` failure and exits `1`; it never prints the file's content.
 - **When it runs:** before anything reads `Env`, at the start of `public/index.php` and of
   every `bin/*` script.
 - The loader never prints or logs keys or values.
@@ -141,7 +148,7 @@ the staging folder before migrating and swapping (see
 - It does not connect to the database.
 - **Exit codes:** `0` when every check passes; `1` when one or more checks fail.
 - **Output:** names each failed check (e.g. `SECRET_KEY: too short`, `DB_HOST: missing`,
-  `PHP version: not 8.4.x`), never a value, not even a partial one.
+  `PHP version: not 8.4.x`, `env file: unreadable`), never a value, not even a partial one.
 
 ## Pending decisions
 

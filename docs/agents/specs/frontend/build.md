@@ -27,8 +27,9 @@ build output never lives in git.
 ## Production delivery
 
 **Decision — option C, git-ignored and uploaded.** The deploy workflow builds the frontend
-(`vite build`) and uploads `dist/` into the staging release's `public/admin/`, in the same
-release as the backend (the `upload_frontend` job, see
+(`vite build`, in the `build_frontend` job, without the deploy context) and uploads `dist/`
+into the staging release's `public/admin/`, in the same release as the backend (the
+`upload_frontend` job, see
 [deployment/pipeline.md](../deployment/pipeline.md#deploy-jobs) and
 [deployment/release.md](../deployment/release.md#frontend-upload-upload_frontend)). Both halves
 come from the same tag and are swapped in together, so they stay in sync.

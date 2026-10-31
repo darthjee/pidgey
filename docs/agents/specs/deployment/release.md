@@ -9,17 +9,21 @@ the host are in [server.md](server.md); failure handling is in [edge-cases.md](e
 ## Overview
 
 1. A semver tag (`1.2.3`, no `v` prefix) is pushed and the check jobs pass.
-2. `upload_backend` fills the staging folder with the backend.
-3. `upload_frontend` adds the built admin UI under `public/admin/`.
-4. `release` links the shared `.env`, checks the configuration, runs migrations, swaps
+2. `build_backend` installs the production Composer dependencies and `build_frontend` builds
+   the admin UI, without the deploy context; both persist their output to the CircleCI
+   workspace.
+3. `upload_backend` fills the staging folder with the backend.
+4. `upload_frontend` adds the built admin UI under `public/admin/`.
+5. `release` links the shared `.env`, checks the configuration, runs migrations, swaps
    staging into live and removes stale staging folders.
 
-Nothing reaches the live folder until step 4's swap. Every step before the swap only touches
+Nothing reaches the live folder until step 5's swap. Every step before the swap only touches
 the staging folder, so any failure before it leaves the live release untouched.
 
 ## Deploy script
 
-Every deploy job uses the shared `deploy_frontend.sh` from the `darthjee/scripts` image (not a
+Every context job (`upload_backend`, `upload_frontend`, `release`) uses the shared
+`deploy_frontend.sh` from the `darthjee/scripts` image (not a
 per-project copy), copied into the deploy images (see
 [docker/images.md](../docker/images.md#deploy-tooling)).
 
@@ -31,11 +35,11 @@ per-project copy), copied into the deploy images (see
   deploys start on `0.11.0` without the `cleanup` step and stale staging folders are removed
   by hand until the upgrade.
 
-Actions Pidgey uses:
+Actions Pidgey uses (the script's `build` action is not used: building happens in the build
+jobs, without the deploy context):
 
 | Action | Used by | What it does |
 | --- | --- | --- |
-| `build` | `upload_frontend` | Runs `BUILD_COMMAND` locally (the Vite build). |
 | `upload` | `upload_backend`, `upload_frontend` | rsyncs local files into the staging folder, under `DEPLOY_PATH` when set, skipping the paths listed in `EXCLUDE_FROM`. |
 | `link` | `release` | Creates a symlink inside staging (`ln -sfn`), pointing at a path outside the release. |
 | `run` | `release` | Runs a command on the host, inside the staging folder. |
@@ -51,12 +55,31 @@ Each workflow gets its own staging folder on the host:
 - "Rerun from failed" keeps `CIRCLE_WORKFLOW_WORKSPACE_ID`, so a rerun refills the same folder.
 - Its layout is the release root: the content of the repository's `source/` folder.
 
-## Backend upload (`upload_backend`)
+## Build jobs
+
+The build jobs run **without** the `pidgey-deploy` context (see
+[security.md](security.md#third-party-code)), use the same semver-tag filter and require every
+check job (see [pipeline.md](pipeline.md#deploy-jobs)).
+
+### Backend build (`build_backend`)
 
 1. Keep only `source/` as the job's working directory.
 2. `composer install --no-dev` with PHP 8.4. Composer is not on the host, so `vendor/` ships
    with the release.
-3. `upload` the working directory into the staging root, with `EXCLUDE_FROM` pointing at
+3. `persist_to_workspace` the working directory (with `vendor/`).
+
+### Frontend build (`build_frontend`)
+
+1. Keep only `frontend/` as the job's working directory.
+2. `yarn install --frozen-lockfile`.
+3. `vite build` (Vite `base: '/admin/'`, see [frontend/build.md](../frontend/build.md)),
+   producing `dist/`.
+4. `persist_to_workspace` `dist/`.
+
+## Backend upload (`upload_backend`)
+
+1. `attach_workspace` to get the output of `build_backend`.
+2. `upload` it into the staging root, with `EXCLUDE_FROM` pointing at
    `.circleci/backend-exclude.txt`.
 
 The exclude list keeps out of the release:
@@ -70,13 +93,14 @@ The exclude list keeps out of the release:
 What ships: `bin/`, `lib/`, `migrations/`, `public/`, `vendor/`, `composer.json` and
 `composer.lock`. `config/` holds only the `.env` link, created in the `release` job.
 
+Any new top-level path in `source/` must, in the same change, be added either to
+`.circleci/backend-exclude.txt` or to the "What ships" list (here and in
+[security.md](security.md#what-ships)), so nothing reaches the host by accident.
+
 ## Frontend upload (`upload_frontend`)
 
-1. Keep only `frontend/` as the job's working directory.
-2. `yarn install --frozen-lockfile`.
-3. `build` with `vite build` (Vite `base: '/admin/'`, see
-   [frontend/build.md](../frontend/build.md)), producing `dist/`.
-4. `upload` `dist/` with `DEPLOY_PATH=public/admin/`, so it lands in the staging folder's
+1. `attach_workspace` to get the `dist/` built by `build_frontend`.
+2. `upload` `dist/` with `DEPLOY_PATH=public/admin/`, so it lands in the staging folder's
    `public/admin/`.
 
 The build output includes `public/admin/.htaccess`, which sends `Cache-Control: no-cache` for
@@ -108,8 +132,9 @@ Scripts on the host always use `$PHP_BIN`, never a bare `php` (see
 
 ## CircleCI variables
 
-All deploy variables live in the `pidgey-deploy` CircleCI context, attached only to the deploy
-jobs (see [security.md](security.md#ci-secrets)). Their values are never committed.
+All deploy variables live in the `pidgey-deploy` CircleCI context, attached only to the
+context jobs and restricted to semver-tag pipelines (see
+[security.md](security.md#ci-secrets)). The build jobs never see them. Their values are never committed.
 
 | Variable | Meaning | Required | Secret |
 | --- | --- | --- | --- |
@@ -117,7 +142,7 @@ jobs (see [security.md](security.md#ci-secrets)). Their values are never committ
 | `SSH_PORT` | SSH port of that server. | Yes | No |
 | `SSH_USER` | Host user the deploy logs in as (the user PHP runs as). | Yes | No (kept private) |
 | `SSH_PRIVATE_KEY` | Private half of the dedicated deploy key. | Yes | Yes |
-| `SSH_KNOWN_HOSTS` | `known_hosts` line(s) for the host, from a verified `ssh-keyscan`. The deploy jobs fail if it is unset. | Yes | No (integrity-critical) |
+| `SSH_KNOWN_HOSTS` | `known_hosts` line(s) for the host, from a verified `ssh-keyscan`. The context jobs fail if it is unset. | Yes | No (integrity-critical) |
 | `SSH_REMOTE_DIR` | Live folder on the host (the release root the web directory's `public/` lives in). | Yes | No (kept private) |
 | `SSH_REMOTE_TEMP_DIR` | Prefix of the staging folders; the workflow workspace id is appended. | Yes | No (kept private) |
 | `REMOTE_HOME` | Home folder of the host user, under which the shared folder lives. | Yes | No (kept private) |

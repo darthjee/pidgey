@@ -6,8 +6,9 @@ CI uses CircleCI (`.circleci/config.yml`) following the patterns of
 https://github.com/darthjee/tent and https://github.com/darthjee/majora.
 
 Backend jobs run in the CI image `circleci_pidgey-base` (see
-[images](../docker/images.md)), not in `dev_pidgey`. `frontend_checks` runs in
-`darthjee/circleci_node:0.2.1`. The frontend deploy job runs in the frontend deploy image (see
+[images](../docker/images.md)), not in `dev_pidgey`. `frontend_checks` and `build_frontend`
+run in `darthjee/circleci_node:0.2.1`. The context jobs (`upload_backend`, `upload_frontend`,
+`release`) run in `circleci_pidgey-base`, which carries the deploy tooling (see
 [images](../docker/images.md#deploy-tooling)).
 
 ## Check jobs
@@ -27,32 +28,58 @@ Production is an SSH/rsync host (see [server.md](server.md)). A release is the c
 folder. The step-by-step flow, the deploy script and the CircleCI variables are in
 [release.md](release.md).
 
-| Job | Image | Steps |
-| --- | --- | --- |
-| `upload_backend` | `circleci_pidgey-base` (PHP 8.4) | Keep only `source/`, `composer install --no-dev`, then `upload` the release root into the staging folder, skipping the paths in `.circleci/backend-exclude.txt`. |
-| `upload_frontend` | Frontend deploy image (node/yarn) | Keep only `frontend/`, `yarn install --frozen-lockfile`, `vite build`, then `upload` `dist/` into the staging folder's `public/admin/`. |
-| `release` | `circleci_pidgey-base` | In the staging folder: `link` the shared `.env` to `config/.env`, `run` `$PHP_BIN bin/check-config`, `run` `$PHP_BIN bin/migrate`; then `release` (swap staging into live) and `cleanup` (remove stale staging folders). |
+The deploy chain is split in two kinds of jobs:
 
-Every deploy job:
+- **Build jobs** install third-party dependencies and build the frontend. They run
+  **without** the `pidgey-deploy` context, so third-party code (Composer and Yarn packages,
+  their scripts and plugins) never runs next to the deploy key. They hand their output to the
+  upload jobs through the CircleCI workspace (`persist_to_workspace` / `attach_workspace`).
+- **Context jobs** use the `pidgey-deploy` context and run only deploy-script actions
+  (`upload`, `link`, `run`, `release`, `cleanup`) on files already built; they install and
+  build nothing.
+
+| Job | Context | Image | Steps |
+| --- | --- | --- | --- |
+| `build_backend` | None | `circleci_pidgey-base` (PHP 8.4) | Keep only `source/`, `composer install --no-dev`, then `persist_to_workspace` the result (with `vendor/`). |
+| `build_frontend` | None | `darthjee/circleci_node:0.2.1` | Keep only `frontend/`, `yarn install --frozen-lockfile`, `vite build`, then `persist_to_workspace` `dist/`. |
+| `upload_backend` | `pidgey-deploy` | `circleci_pidgey-base` | `attach_workspace`, then `upload` the backend into the staging folder, skipping the paths in `.circleci/backend-exclude.txt`. |
+| `upload_frontend` | `pidgey-deploy` | `circleci_pidgey-base` | `attach_workspace`, then `upload` `dist/` into the staging folder's `public/admin/`. |
+| `release` | `pidgey-deploy` | `circleci_pidgey-base` | In the staging folder: `link` the shared `.env` to `config/.env`, `run` `$PHP_BIN bin/check-config`, `run` `$PHP_BIN bin/migrate`; then `release` (swap staging into live) and `cleanup` (remove stale staging folders). |
+
+Every job of the deploy chain (build jobs and context jobs):
 
 - runs only on semver tags matching `/^\d+\.\d+\.\d+$/` (no `v` prefix), with all
   branches ignored;
-- requires `backend_checks`, `backend_tests` and `frontend_checks`, so a tag on a red commit
-  deploys nothing;
-- uses the `pidgey-deploy` context, which holds every deploy variable and is attached only
-  to these jobs (see [security.md](security.md#ci-secrets));
-- belongs to one `serial-group` (`pidgey-deploy`), so deploys run one at a time and an older
-  tag can never swap in after a newer one;
+- requires `backend_checks`, `backend_tests` and `frontend_checks` (directly or through the
+  jobs it requires), so a tag on a red commit deploys nothing.
+
+Every context job (`upload_backend`, `upload_frontend`, `release`):
+
+- uses the `pidgey-deploy` context, which holds every deploy variable. The context is
+  attached only to these jobs **and** restricted in CircleCI, so attaching it in
+  `config.yml` is not enough on its own (see [security.md](security.md#ci-secrets)):
+  - an expression restriction makes it available only to pipelines on semver tags, e.g.
+    `pipeline.git.tag =~ "^[0-9]+\.[0-9]+\.[0-9]+$"`;
+  - when available on the plan, a security group containing only the owner;
+  - a branch that edits `config.yml` to attach the context gets an unauthorized error;
+- belongs to one `serial-group` (`pidgey-deploy`), so deploys run one at a time, in the order
+  they were queued. Rerunning or pushing an older tag redeploys that older code; its schema
+  stays compatible under the expand/contract rule (see
+  [edge-cases.md](edge-cases.md#migrations));
 - checks that `SSH_KNOWN_HOSTS` is set before any SSH call and fails otherwise.
 
-Job order: `upload_backend` → `upload_frontend` → `release`. The frontend upload waits for
-the backend upload so the two never write to the staging folder at the same time; `release`
-requires both uploads (and, through them, every check job).
+Job order:
+
+1. `build_backend` and `build_frontend` run in parallel, after all three check jobs pass.
+2. `upload_backend` requires `build_backend`.
+3. `upload_frontend` requires `build_frontend` and `upload_backend`, so the two uploads never
+   write to the staging folder at the same time.
+4. `release` requires both uploads (and, through them, every build and check job).
 
 No production image is built: a release is identified by its git semver tag, and the host
 runs the uploaded files.
 
-For now images (`dev_pidgey-base`, `circleci_pidgey-base`, the frontend deploy image) are built and pushed manually
+For now images (`dev_pidgey-base`, `circleci_pidgey-base`) are built and pushed manually
 (see [makefile](../docker/makefile.md)); there is no automated image build.
 
 ## Database access in CI
@@ -69,8 +96,8 @@ throwaway, so root carries no risk.
 
 - `backend_checks`, `backend_tests` and `frontend_checks` run in parallel on every branch
   **and every tag**.
-- The deploy jobs (`upload_backend`, `upload_frontend`, `release`) run only on semver tags,
-  after all three check jobs pass. Pushes to `main` or any other branch never deploy.
+- The deploy chain (`build_backend`, `build_frontend`, `upload_backend`, `upload_frontend`,
+  `release`) runs only on semver tags, after all three check jobs pass. Pushes to `main` or any other branch never deploy.
 
 ## Codacy
 

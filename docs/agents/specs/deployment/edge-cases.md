@@ -14,10 +14,12 @@ The flow these refer to is in [release.md](release.md).
 - **Reruns:** supported. "Rerun from failed" keeps `CIRCLE_WORKFLOW_WORKSPACE_ID`, so it
   refills the same staging folder. `upload`, `link` (`ln -sfn`), `check-config` and `migrate`
   are safe to run again.
-- **Concurrent tags:** deploy jobs share one CircleCI `serial-group`, so deploys run one at a
-  time and an older tag can never swap in after a newer one.
-- **A tag on a red commit:** deploy jobs require every check job, so nothing is deployed.
-- **`SSH_KNOWN_HOSTS` unset:** the deploy jobs fail before any SSH call (see
+- **Concurrent tags:** the context jobs share one CircleCI `serial-group`, so deploys run one
+  at a time, in the order they were queued. Rerunning or pushing an older tag redeploys that
+  older code; its schema stays compatible under the expand/contract rule (see
+  [Migrations](#migrations)).
+- **A tag on a red commit:** every job of the deploy chain requires every check job, so nothing is deployed.
+- **`SSH_KNOWN_HOSTS` unset:** the context jobs fail before any SSH call (see
   [security.md](security.md#host-keys)).
 
 ## Configuration

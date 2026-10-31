@@ -6,7 +6,7 @@ Purpose: define the top-level folders of the repository and their responsibiliti
 | --- | --- |
 | `source/` | Backend (PHP). Contains `composer.json`, `lib/` (PSR-4 code), the public web root with the front controller, migrations and tests. |
 | `frontend/` | React admin UI (Vite project). See [frontend/layout.md](../frontend/layout.md). |
-| `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/`, `vite_pidgey-base/`, `vite_pidgey/`, and a frontend deploy image if one is added (see [docker/images.md](../docker/images.md#deploy-tooling)). See [docker/images.md](../docker/images.md). |
+| `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/`, `vite_pidgey-base/`, `vite_pidgey/`. See [docker/images.md](../docker/images.md). |
 | `docker_volumes/` | Host-side persistent data mounted into containers (mysql data, vendor, node_modules, configuration, cache). Git-ignored except placeholders. |
 | `dev/` | Development helpers (sample configuration, seed data, local scripts not used in production). |
 | `scripts/` | Host-side / CI-only operational scripts (DB scripts live in `source/bin/`, since only `source/` ships in a release). Not created until such a script is needed. |

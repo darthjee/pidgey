@@ -17,7 +17,6 @@ Purpose: define the Makefile targets used for local work and CI.
 | `build-fe-base` | Build the `vite_pidgey-base` image from the repository-root context, tagged `$(FE_BASE_IMAGE):$(FE_BASE_VERSION)$(BASE_SUFFIX)`. |
 | `push-fe-base` | Push `vite_pidgey-base` to the registry (manual; there is no automated image build). |
 | `build-fe` | Build the `vite_pidgey` image on top of `vite_pidgey-base`. |
-| `build-ci-fe` / `push-ci-fe` | Only if #98 adds a new frontend deploy image (see [images.md](images.md#deploy-tooling)): build it (amd64 only), tagged `$(CI_FE_IMAGE):$(CI_FE_VERSION)`, and push it to the registry (manual; there is no automated image build). |
 | `fe-install` | Install frontend dependencies into `docker_volumes/node_modules`: `docker compose run --rm --no-deps frontend_dev yarn install`. |
 | `build-fe-release` | Run `yarn build` in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev yarn build`), then replace `$(FE_RELEASE_DIR)` with the contents of `frontend/dist/` (see [frontend/build.md](../frontend/build.md)). |
 
@@ -36,8 +35,6 @@ There are no `ci-*` wrapper targets: CircleCI calls composer directly inside the
 | `DOCKER_ID_USER` | Docker Hub namespace for published images (`darthjee`). |
 | `CI_BASE_VERSION` | Version tag of `circleci_pidgey-base` to build and push (`0.0.1`). |
 | `CI_BASE_IMAGE` | CI image name, `$(DOCKER_ID_USER)/circleci_$(PROJECT)-base`. |
-| `CI_FE_VERSION` | Version tag of the frontend deploy image, if one is added. |
-| `CI_FE_IMAGE` | Frontend deploy image name, if one is added, `$(DOCKER_ID_USER)/circleci_$(PROJECT)-<name>`. |
 | `FE_BASE_VERSION` | Version tag of `vite_pidgey-base` to build, push and build from (`0.0.1`). |
 | `FE_BASE_IMAGE` | Frontend base image name, `$(DOCKER_ID_USER)/vite_$(PROJECT)-base`. |
 | `FE_IMAGE` | Frontend image name, `$(DOCKER_ID_USER)/vite_$(PROJECT)`. |

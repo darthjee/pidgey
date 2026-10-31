@@ -22,6 +22,9 @@ placeholders such as `<shared folder>` and `<live>`.
 | Staging | `${SSH_REMOTE_TEMP_DIR}-<workflow workspace id>` | The release being prepared by one workflow. | Created by the first upload; renamed to live by `release`; stale ones removed by `cleanup`. |
 | Shared | `$REMOTE_HOME/<shared folder>` | The production `.env`. | Persistent, outside every release; created by hand by the owner before the first release. |
 
+- Live, staging (including the `<live>_old_<timestamp>` folder the swap moves live aside to)
+  and the shared folder are all **outside every web directory of the hosting account**, not
+  just outside Pidgey's. Only the live release's `public/` is served.
 - Staging and live are on the same filesystem, so the swap is a plain rename.
 - The live folder exists before the first deploy, so the first release needs no special case.
 - There are no other persistent folders for now. PHP output goes to the host's Apache logs,
@@ -33,9 +36,13 @@ placeholders such as `<shared folder>` and `<live>`.
 - Mode `700`; the production `.env` inside it is mode `600`. Both are owned by the host user,
   which is the user PHP runs as.
 - The `.env` holds every app setting (`SECRET_KEY`, `DB_*`, `PHP_ENV`,
-  `USER_APPROVAL_REQUIRED`, …) in the format defined in
+  `USER_APPROVAL_REQUIRED`, `TRUSTED_PROXY_HOPS`, …) in the format defined in
   [architecture/configuration.md](../architecture/configuration.md#env-file). It is the only
   place these settings exist; they are never CircleCI variables.
+- `TRUSTED_PROXY_HOPS` (default `1`, see
+  [architecture/configuration.md](../architecture/configuration.md)) is set to the number of
+  `X-Forwarded-For` hops the host's reverse proxy adds, or `0` when no reverse proxy sits in
+  front of Apache (see [To confirm](#to-confirm)). A wrong value lets clients spoof their IP.
 
 ### The `config/.env` link
 
@@ -49,6 +56,9 @@ release root (see [architecture/configuration.md](../architecture/configuration.
 - Pidgey runs at the root of its own (sub)domain, with no base path.
 - The domain's web directory points at the **live release's `public/`** folder, so `bin/`,
   `config/`, `lib/`, `migrations/` and `vendor/` are not web-reachable.
+- No web directory of the hosting account (for any domain or subdomain) contains the live,
+  staging, `<live>_old_<timestamp>` or shared folders, so none of them can be served through
+  another site on the same account.
 - The admin UI is served from `public/admin/` at `/admin/`, same origin as the API.
 - The host already redirects HTTP to HTTPS.
 
@@ -77,6 +87,11 @@ decisions.
 - [ ] The web PHP version for the domain is 8.4 (it cannot be checked from the CLI, so
   `bin/check-config` does not cover it).
 - [ ] The domain's web directory points at the live release's `public/`.
+- [ ] No web directory of the hosting account (any domain or subdomain) contains
+  `$SSH_REMOTE_DIR`, the staging folders (`$SSH_REMOTE_TEMP_DIR-*`), the swap's
+  `<live>_old_<timestamp>` folder or the shared folder.
+- [ ] Whether a reverse proxy sits in front of Apache, and how many `X-Forwarded-For` hops
+  it adds; `TRUSTED_PROXY_HOPS` in the shared `.env` is set to match (`0` if none).
 - [ ] The MySQL server version (`SELECT VERSION()`) is 8 or newer.
 - [ ] The DB user's grants (`SHOW GRANTS`) include the rights listed above.
 - [ ] OPcache has `validate_timestamps` on.
