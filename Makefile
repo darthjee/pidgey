@@ -6,7 +6,7 @@ BASE_SUFFIX?=$(if $(filter arm64 aarch64,$(shell uname -m)),-arm64,)
 BASE_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)-base
 DEV_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)
 
-CI_BASE_VERSION=0.0.1
+CI_BASE_VERSION=0.0.2
 CI_BASE_IMAGE=$(DOCKER_ID_USER)/circleci_$(PROJECT)-base
 
 FE_BASE_VERSION=0.0.1
