@@ -14,7 +14,10 @@ Purpose: track API concerns that are explicitly not decided yet.
   which has no rate limit in v1 and opens an outbound SMTP connection per call. A per-username
   login lockout is rejected (it lets anyone lock a victim out and reveals that the username
   exists). Until then, proxy-level rate limiting is recommended (see
-  [deployment/production.md](../deployment/production.md)).
+  [deployment/production.md](../deployment/production.md)); the current production host
+  cannot apply it, a known gap recorded in
+  [deployment/security.md](../deployment/security.md#known-gaps), so production keeps
+  `USER_APPROVAL_REQUIRED=true`.
 - **Pending decision — size limits:** maximum request body size and maximum
   `subject`/`text`/`html` length.
 - **Pending decision — idempotency:** whether `POST /v1/messages` accepts an
