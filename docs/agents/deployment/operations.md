@@ -1,0 +1,116 @@
+# Operations
+
+Purpose: runbooks for releasing Pidgey and for the manual tasks the deploy does not automate.
+
+Placeholders: `<live>` is the live folder (`$SSH_REMOTE_DIR`), `<domain>` is Pidgey's domain.
+Commands on the host run over SSH as the host user (see [variables.md](variables.md)).
+
+## Release
+
+1. Make sure the commit to release is on `main` and its CI is green.
+2. Tag it with a bare semver tag (`X.Y.Z`, no `v` prefix) and push the tag:
+
+   ```bash
+   git tag X.Y.Z <commit>
+   git push origin X.Y.Z
+   ```
+
+3. Watch the `main` workflow for the tag in CircleCI: the check jobs, then `build_backend`,
+   `build_frontend`, `upload_backend`, `upload_frontend` and `release` (see
+   [pipeline.md](pipeline.md#deploy-chain)).
+4. Verify the release:
+   - `https://<domain>/health.json` returns `200`;
+   - `https://<domain>/admin/` loads;
+   - the migrations are applied: `cd <live> && $PHP_BIN bin/migrate --status` lists no
+     pending migration.
+
+## Rerun a failed workflow
+
+Use **Rerun from failed** in CircleCI. It keeps `CIRCLE_WORKFLOW_WORKSPACE_ID`, so the rerun
+refills the same staging folder instead of starting a new one. Every step is safe to repeat:
+`upload` (rsync), `link` (`ln -sfn`), `bin/check-config` and `bin/migrate` (already applied
+migrations are skipped).
+
+Rerunning an older workflow, or pushing an older tag, redeploys that older code over the
+current one. That works because every migration keeps working with the previous release's code
+(expand first, contract in a later release; see
+[architecture/database.md](../specs/architecture/database.md)).
+
+## Failure before the swap
+
+When `upload_*`, `bin/check-config` or `bin/migrate` fails, the `release` action never runs
+and the live release is untouched. Read the job output (`bin/check-config` names each failed
+check, never a value), fix the cause and push a new tag. Fix a shared `.env` problem on the
+host, then rerun the workflow instead.
+
+A failed migration stops at the first failing file; each file is atomic. Fix it with a **new**
+migration in a new tag, never by editing an applied one.
+
+## Broken swap
+
+`release` runs, in one SSH command:
+
+1. check that staging exists;
+2. remove any leftover `<live>_old_<ts>`, then move `<live>` to `<live>_old_<ts>`;
+3. move staging to `<live>`;
+4. remove `<live>_old_<ts>`.
+
+If the chain breaks between steps 2 and 3, `<live>` does not exist and the site is down. Look
+at the folders on the host:
+
+| State | Meaning | Action |
+| --- | --- | --- |
+| `<live>` exists, no `<live>_old_*` | The swap completed (or never started). | None. |
+| `<live>` missing, `<live>_old_<ts>` and staging exist | Live was moved aside, staging was not moved in. | Restore: `mv <live>_old_<ts> <live>`. |
+| `<live>` exists, `<live>_old_<ts>` exists | The swap completed but the old folder was not removed. | Remove `<live>_old_<ts>` by hand. |
+
+After restoring, fix the cause and push a new tag (or rerun the workflow).
+
+## Removing stale staging folders
+
+`darthjee/scripts:0.11.0` has no `cleanup` action, so a workflow that fails before the swap
+leaves its `${SSH_REMOTE_TEMP_DIR}-<workspace id>` folder behind. After a failed deploy:
+
+1. List them: `ls -d "$SSH_REMOTE_TEMP_DIR"-*` (with the variable's value).
+2. Check in CircleCI that no deploy workflow is running. Never remove a folder that belongs
+   to a running workflow, and keep the folder of a workflow you still plan to rerun from
+   failed.
+3. Remove the rest with `rm -rf`.
+
+## Rotate the deploy key
+
+1. Generate a new ed25519 key: `ssh-keygen -t ed25519 -N '' -f <new key>`.
+2. Add the public half to the host user's `~/.ssh/authorized_keys` with `restrict`:
+   `restrict ssh-ed25519 AAAA... <comment>`.
+3. Update `SSH_PRIVATE_KEY` in the `pidgey-deploy` context with the new private key, in the
+   one-line format (see [variables.md](variables.md#ssh_private_key-format)).
+4. Deploy (push a new tag or rerun the last release) to confirm the new key works.
+5. Remove the old key's line from `authorized_keys`.
+
+## Rotate the host key
+
+If the host's SSH key changes, the context jobs fail on host key verification. Re-run
+`ssh-keyscan -t ed25519`, check the fingerprint against the host's own and update
+`SSH_KNOWN_HOSTS` (see [variables.md](variables.md#ssh_known_hosts-format)).
+
+## Rotate `SECRET_KEY`
+
+1. Generate a new key: `openssl rand -hex 32` (at least 32 bytes, no `,`).
+2. Edit the shared `.env` on the host (`$REMOTE_HOME/$SHARED_DIR/.env`):
+   - **routine rotation:** move the current `SECRET_KEY` into `PREVIOUS_SECRET_KEYS`, then set
+     the new `SECRET_KEY`; remove the old one from `PREVIOUS_SECRET_KEYS` after at least
+     `ACCESS_TOKEN_TTL`;
+   - **leaked key:** set the new `SECRET_KEY` and drop the leaked key at once, without moving
+     it to `PREVIOUS_SECRET_KEYS`.
+3. Check the file: `cd <live> && $PHP_BIN bin/check-config`.
+
+No deploy is needed: `public/index.php` loads `config/.env` on every request, so the change
+takes effect on the next request.
+
+What it invalidates (see
+[api/authentication/access-token.md](../specs/api/authentication/access-token.md#key-rotation)
+and [architecture/configuration.md](../specs/architecture/configuration.md#secret-keys)): only
+access tokens signed with a key that is no longer `SECRET_KEY` or in `PREVIOUS_SECRET_KEYS`.
+Clients get a `401` and refresh; refresh tokens are not signed with the key, so nobody is
+logged out unless their refresh token has also expired. Today no endpoint reads `SECRET_KEY`
+yet, so a rotation has no visible effect until authentication ships.
