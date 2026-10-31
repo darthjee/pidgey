@@ -131,6 +131,86 @@ jobs:
           name: Finalize Codacy coverage
           command: bash <(curl -Ls https://coverage.codacy.com/get.sh) final
 
+  build_backend:
+    executor: pidgey-base
+    steps:
+      - checkout
+      - run:
+          name: Keep only source/ as backend/
+          command: mv source backend
+      - run:
+          name: Copy dependencies
+          working_directory: backend
+          command: cp /home/circleci/vendor/ ./vendor/ -R
+      - run:
+          name: composer install (production)
+          working_directory: backend
+          command: composer install --no-dev --no-interaction --no-progress --optimize-autoloader
+      - persist_to_workspace:
+          root: .
+          paths:
+            - backend
+
+  build_frontend:
+    docker:
+      - image: darthjee/circleci_node:0.2.1
+    steps:
+      - checkout
+      - run:
+          name: Set folder
+          command: mv frontend /tmp/frontend; rm -rf ./*; cp -R /tmp/frontend/. ./
+      - run:
+          name: Yarn install
+          command: yarn install --frozen-lockfile
+      - run:
+          name: Build
+          command: yarn build
+      - run:
+          name: Move build output
+          command: mv dist frontend-dist
+      - persist_to_workspace:
+          root: .
+          paths:
+            - frontend-dist
+
+  upload_backend:
+    executor: pidgey-base
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/workspace
+      - deploy_setup
+      - run:
+          name: Upload backend
+          command: SOURCE=/tmp/workspace/backend/ EXCLUDE_FROM=.circleci/backend-exclude.txt deploy_frontend.sh upload
+
+  upload_frontend:
+    executor: pidgey-base
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - deploy_setup
+      - run:
+          name: Upload frontend
+          command: SOURCE=/tmp/workspace/frontend-dist/ DEPLOY_PATH=public/admin/ deploy_frontend.sh upload
+
+  release:
+    executor: pidgey-base
+    steps:
+      - deploy_setup
+      - run:
+          name: Link shared .env
+          command: SOURCE="$REMOTE_HOME/$SHARED_DIR/.env" DEPLOY_PATH=config/.env deploy_frontend.sh link
+      - run:
+          name: Check configuration
+          command: COMMAND="$PHP_BIN bin/check-config" deploy_frontend.sh run
+      - run:
+          name: Run migrations
+          command: COMMAND="$PHP_BIN bin/migrate" deploy_frontend.sh run
+      - run:
+          name: Release
+          command: deploy_frontend.sh release
+
 all_tags: &all_tags
   tags:
     only: /.*/
@@ -153,3 +233,24 @@ workflows:
       - coverage_final:
           requires: [backend_tests, frontend_checks]
           filters: *all_tags
+      - build_backend:
+          requires: [backend_checks, backend_tests, frontend_checks]
+          filters: *deploy_tags
+      - build_frontend:
+          requires: [backend_checks, backend_tests, frontend_checks]
+          filters: *deploy_tags
+      - upload_backend:
+          requires: [build_backend]
+          context: pidgey-deploy
+          serial-group: << pipeline.project.slug >>/pidgey-deploy
+          filters: *deploy_tags
+      - upload_frontend:
+          requires: [build_frontend, upload_backend]
+          context: pidgey-deploy
+          serial-group: << pipeline.project.slug >>/pidgey-deploy
+          filters: *deploy_tags
+      - release:
+          requires: [upload_backend, upload_frontend]
+          context: pidgey-deploy
+          serial-group: << pipeline.project.slug >>/pidgey-deploy
+          filters: *deploy_tags
