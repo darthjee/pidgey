@@ -16,8 +16,8 @@ final class CheckConfigTest extends TestCase
 {
     private const SOURCE_ROOT = __DIR__ . '/../../..';
 
-    private const SECRET_KEY = 'distinctive-secret-key-6f1c2a9e8b7d4c3a';
-    private const PREVIOUS_KEY = 'distinctive-previous-key-0d9e8f7a6b5c4d3e';
+    private const SECRET_KEY = 'test-secret-value-not-a-real-secret-current';
+    private const PREVIOUS_KEY = 'test-secret-value-not-a-real-secret-previous';
     private const DB_HOST = 'distinctive-db-host.example';
     private const DB_NAME = 'distinctive_db_name';
     private const DB_USER = 'distinctive_db_user';

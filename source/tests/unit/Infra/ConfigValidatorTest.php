@@ -15,8 +15,8 @@ use Pidgey\Infra\Env;
 #[UsesClass(Env::class)]
 final class ConfigValidatorTest extends TestCase
 {
-    private const VALID_KEY = 'valid-key-0123456789abcdef0123456789abcdef';
-    private const OTHER_KEY = 'other-key-0123456789abcdef0123456789abcdef';
+    private const VALID_KEY = 'test-secret-value-not-a-real-secret-valid';
+    private const OTHER_KEY = 'test-secret-value-not-a-real-secret-other';
 
     private const VARIABLES = [
         'SECRET_KEY',
