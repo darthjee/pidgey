@@ -19,7 +19,7 @@ Purpose: record the security decisions for deploying Pidgey to production, and t
 
 ## CI secrets
 
-- `SSH_*`, `REMOTE_HOME` and `PHP_BIN` live in a CircleCI context, `pidgey-deploy`, attached
+- `SSH_*`, `REMOTE_HOME`, `SHARED_DIR` and `PHP_BIN` live in a CircleCI context, `pidgey-deploy`, attached
   only to the context jobs `upload_backend`, `upload_frontend` and `release` (see
   [pipeline.md](pipeline.md#deploy-jobs)). Check jobs and build jobs never see them.
 - Attaching the context only in `config.yml` is **not sufficient on its own**: anyone who can

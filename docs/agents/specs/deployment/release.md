@@ -111,7 +111,7 @@ The build output includes `public/admin/.htaccess`, which sends `Cache-Control: 
 
 All steps run against the staging folder, in this order. A failing step stops the job.
 
-1. **`link`** the shared `.env` (`$REMOTE_HOME/<shared folder>/.env`) to `config/.env` in
+1. **`link`** the shared `.env` (`$REMOTE_HOME/$SHARED_DIR/.env`) to `config/.env` in
    staging. It is a symlink, not a copy: one source of truth, independent of the previous
    release.
 2. **`run` `$PHP_BIN bin/check-config`**: loads `config/.env` and runs the boot-time
@@ -146,6 +146,7 @@ context jobs and restricted to semver-tag pipelines (see
 | `SSH_REMOTE_DIR` | Live folder on the host (the release root the web directory's `public/` lives in). | Yes | No (kept private) |
 | `SSH_REMOTE_TEMP_DIR` | Prefix of the staging folders; the workflow workspace id is appended. | Yes | No (kept private) |
 | `REMOTE_HOME` | Home folder of the host user, under which the shared folder lives. | Yes | No (kept private) |
+| `SHARED_DIR` | Name of the shared folder, relative to `REMOTE_HOME`. | Yes | No (kept private) |
 | `PHP_BIN` | Absolute path of the PHP 8.4 CLI on the host. | Yes | No |
 
 "Kept private" values are not credentials, but they describe the host and are never written
