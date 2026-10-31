@@ -69,21 +69,21 @@ To determine which checks to run:
 2. Read `.circleci/config.yml` to find which jobs are triggered for those folders (look for path filters, `only` rules, or job names that reference those folders).
 3. Run the corresponding local commands for each relevant job.
 
-Jobs currently defined in `.circleci/config.yml` (check jobs run on every branch and tag); jobs still
-planned in [specs/deployment/pipeline.md](specs/deployment/pipeline.md) are marked *(planned)*.
+Jobs defined in `.circleci/config.yml` (check jobs run on every branch and tag); `build_images`,
+still planned in [specs/deployment/pipeline.md](specs/deployment/pipeline.md), is marked *(planned)*.
 The deploy jobs run only on semver tags, after the check jobs pass, and have no local equivalent:
 
 | Modified folder | Job | Local commands |
 | --- | --- | --- |
 | `source/` | `backend_checks` | `composer lint` (in the `tests` container) |
 | `source/` | `backend_tests` | `composer db:prepare && composer coverage` (in the `tests` container) |
-| `frontend/` | `frontend_checks` *(planned)* | `cd frontend && yarn lint && yarn test && yarn coverage` |
+| `frontend/` | `frontend_checks` | `cd frontend && yarn lint && yarn test && yarn coverage` |
 | `dockerfiles/` | `build_images` *(planned)* | `make build` (and `make build-base` / `make build-ci-base` when a base image changes) |
-| — | `build_backend` *(planned)* | none (tag-triggered deploy, see [specs/deployment/release.md](specs/deployment/release.md)) |
-| — | `build_frontend` *(planned)* | none (tag-triggered deploy) |
-| — | `upload_backend` *(planned)* | none (tag-triggered deploy) |
-| — | `upload_frontend` *(planned)* | none (tag-triggered deploy) |
-| — | `release` *(planned)* | none (tag-triggered deploy) |
+| — | `build_backend` | none (tag-triggered deploy, see [deployment/pipeline.md](deployment/pipeline.md)) |
+| — | `build_frontend` | none (tag-triggered deploy) |
+| — | `upload_backend` | none (tag-triggered deploy) |
+| — | `upload_frontend` | none (tag-triggered deploy) |
+| — | `release` | none (tag-triggered deploy) |
 
 `make tests` runs everything inside the `tests` container.
 
