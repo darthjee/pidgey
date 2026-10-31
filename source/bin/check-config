@@ -1,0 +1,11 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Pidgey\Infra\Cli\CheckConfigCommand;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+// The command loads config/.env itself, so that it can report an unreadable file.
+exit(CheckConfigCommand::create(__DIR__ . '/../config/.env', STDOUT, STDERR)->run());

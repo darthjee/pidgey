@@ -2,6 +2,7 @@
 docker_volumes/*/*
 !docker_volumes/*/.gitkeep
 source/vendor/
+source/config/.env
 source/coverage
 source/.phpunit.result.cache
 source/complexity.html

@@ -149,6 +149,11 @@ the staging folder before migrating and swapping (see
 - **Exit codes:** `0` when every check passes; `1` when one or more checks fail.
 - **Output:** names each failed check (e.g. `SECRET_KEY: too short`, `DB_HOST: missing`,
   `PHP version: not 8.4.x`, `env file: unreadable`), never a value, not even a partial one.
+- **Web boot refusal not wired yet:** for now, `public/index.php` only loads the env file; it
+  does not run the validation, so the web app does not yet refuse to boot on an invalid
+  configuration. Until it does, `bin/check-config`, run before every release, is what enforces
+  the rules on this page. The web boot refusal lands with the authentication work that first
+  reads `SECRET_KEY`.
 
 ## Pending decisions
 

@@ -73,6 +73,19 @@ Tests for the env-file loader and `bin/check-config` (see
   - `KEY=` sets the variable to an empty string;
   - a variable that is already set is never overridden, including one set to an empty string;
   - a missing file is a silent no-op.
+- **Configuration validator, unit tests**: each boot-refusing rule in
+  [architecture/configuration.md](../architecture/configuration.md) has a passing and a
+  failing case, and each failure is reported under its check name (e.g. `SECRET_KEY: missing`,
+  `SECRET_KEY: too short`, `PREVIOUS_SECRET_KEYS: empty entry`,
+  `PREVIOUS_SECRET_KEYS: entry too short`, `DB_HOST: missing`,
+  `<NAME>: not a positive integer`, `TRUSTED_PROXY_HOPS: not a non-negative integer`,
+  `ACCESS_TOKEN_TTL: not less than REFRESH_TOKEN_TTL`), never with a value.
+- **`bin/check-config` PHP version check, unit tests**: the PHP version is passed in rather
+  than read from the running binary, so no second PHP binary is needed:
+  - a version other than 8.4.x (e.g. `8.3.0`, `8.5.0`) fails with `PHP version: not 8.4.x`;
+  - an 8.4.x version passes;
+  - when no version is passed in, the command uses `PHP_VERSION`. There is no environment
+    variable that overrides the version.
 - **`bin/check-config`, integration tests** (run the command as a process):
   - a valid configuration exits `0`;
   - each invalid configuration (e.g. missing or short `SECRET_KEY`, a bad
@@ -80,8 +93,6 @@ Tests for the env-file loader and `bin/check-config` (see
     failed check;
   - an existing but unreadable `config/.env` exits non-zero and reports
     `env file: unreadable`, without printing the file's content;
-  - a PHP version other than 8.4.x exits non-zero (the version check must be testable without
-    a second PHP binary, e.g. by injecting the version);
   - the output never contains any configured value, on success or failure.
 
 There is no automated test of the deploy workflow itself; how a release is verified is in
