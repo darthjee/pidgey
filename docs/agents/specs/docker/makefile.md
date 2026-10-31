@@ -13,7 +13,7 @@ Purpose: define the Makefile targets used for local work and CI.
 | `db-reset` | Drop and re-prepare the development database: `docker compose run --rm app sh -c "composer db:drop && composer db:prepare"`. |
 | `tests` | Run tests and linters: backend in the `tests` container (`docker compose run --rm tests sh -c "composer lint && composer tests"`), then frontend in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev sh -c "yarn lint && yarn coverage"`). |
 | `build-ci-base` | Build the `circleci_pidgey-base` CI image (amd64 only) from the `source/` context, tagged `$(CI_BASE_IMAGE):$(CI_BASE_VERSION)`. |
-| `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). Rebuilt and pushed (with a bumped `CI_BASE_VERSION`) when the deploy tooling is added. |
+| `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). The deploy tooling was added in `0.0.2`; rebuilt and pushed with a bumped `CI_BASE_VERSION` whenever the image changes. |
 | `build-fe-base` | Build the `vite_pidgey-base` image from the repository-root context, tagged `$(FE_BASE_IMAGE):$(FE_BASE_VERSION)$(BASE_SUFFIX)`. |
 | `push-fe-base` | Push `vite_pidgey-base` to the registry (manual; there is no automated image build). |
 | `build-fe` | Build the `vite_pidgey` image on top of `vite_pidgey-base`. |
@@ -33,7 +33,7 @@ There are no `ci-*` wrapper targets: CircleCI calls composer directly inside the
 | `PROJECT` | Project name, `pidgey`; used to build image names (`dev_$(PROJECT)-base`, ...). |
 | `BASE_VERSION` | Version tag of `dev_pidgey-base` to build, push and build from. |
 | `DOCKER_ID_USER` | Docker Hub namespace for published images (`darthjee`). |
-| `CI_BASE_VERSION` | Version tag of `circleci_pidgey-base` to build and push (`0.0.1`). |
+| `CI_BASE_VERSION` | Version tag of `circleci_pidgey-base` to build and push (`0.0.2`). |
 | `CI_BASE_IMAGE` | CI image name, `$(DOCKER_ID_USER)/circleci_$(PROJECT)-base`. |
 | `FE_BASE_VERSION` | Version tag of `vite_pidgey-base` to build, push and build from (`0.0.1`). |
 | `FE_BASE_IMAGE` | Frontend base image name, `$(DOCKER_ID_USER)/vite_$(PROJECT)-base`. |

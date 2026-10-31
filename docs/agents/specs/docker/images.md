@@ -32,15 +32,18 @@ git semver tag.
 The context jobs `upload_backend`, `upload_frontend` and `release` (see
 [deployment/pipeline.md](../deployment/pipeline.md#deploy-jobs)) need:
 
-- **`deploy_frontend.sh`** from the `darthjee/scripts` image, version `0.11.0` (`0.12.0` once
-  released, for `cleanup`; see [deployment/release.md](../deployment/release.md#deploy-script)).
+- **`deploy_frontend.sh`** from the `darthjee/scripts` image, version `0.11.0`. `0.12.0`
+  (which adds `cleanup`) is not released yet, so the image uses `0.11.0`; moving to `0.12.0`
+  is a version bump of the copied image plus an image rebuild (see
+  [deployment/release.md](../deployment/release.md#deploy-script)).
   It is copied in, not vendored:
   `COPY --from=darthjee/scripts:<version> /home/scripts/sbin/deploy_frontend.sh /usr/local/sbin/`.
 - **`ssh`** (`openssh-client`) and **`rsync`**.
 
 Images:
 
-- **`circleci_pidgey-base`** gains `deploy_frontend.sh`, `openssh-client` and `rsync`. It runs
+- **`circleci_pidgey-base`** carries `deploy_frontend.sh`, `openssh-client` and `rsync`
+  starting with version `0.0.2`. It runs
   `build_backend` (PHP 8.4, Composer) and all three context jobs: `upload_backend`,
   `upload_frontend` and `release`.
 - **No frontend deploy image:** `build_frontend` runs in `darthjee/circleci_node:0.2.1` (like
