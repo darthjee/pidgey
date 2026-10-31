@@ -79,7 +79,9 @@ The deploy jobs run only on semver tags, after the check jobs pass, and have no 
 | `source/` | `backend_tests` | `composer db:prepare && composer coverage` (in the `tests` container) |
 | `frontend/` | `frontend_checks` *(planned)* | `cd frontend && yarn lint && yarn test && yarn coverage` |
 | `dockerfiles/` | `build_images` *(planned)* | `make build` (and `make build-base` / `make build-ci-base` when a base image changes) |
-| — | `upload_backend` *(planned)* | none (tag-triggered deploy, see [specs/deployment/release.md](specs/deployment/release.md)) |
+| — | `build_backend` *(planned)* | none (tag-triggered deploy, see [specs/deployment/release.md](specs/deployment/release.md)) |
+| — | `build_frontend` *(planned)* | none (tag-triggered deploy) |
+| — | `upload_backend` *(planned)* | none (tag-triggered deploy) |
 | — | `upload_frontend` *(planned)* | none (tag-triggered deploy) |
 | — | `release` *(planned)* | none (tag-triggered deploy) |
 
