@@ -1,9 +1,11 @@
 version: 2.1
 
+ci_base_image: &ci_base_image darthjee/circleci_pidgey-base:0.0.2
+
 executors:
   pidgey-base:
     docker:
-      - image: darthjee/circleci_pidgey-base:0.0.1
+      - image: *ci_base_image
 
 commands:
   prepare_source:
@@ -49,6 +51,16 @@ commands:
           name: Upload partial coverage to Codacy
           command: bash <(curl -Ls https://coverage.codacy.com/get.sh) report --partial -r << parameters.report >>
 
+  deploy_setup:
+    description: Fail early without SSH_KNOWN_HOSTS, then write the SSH key files
+    steps:
+      - run:
+          name: Check SSH_KNOWN_HOSTS
+          command: if [ -z "${SSH_KNOWN_HOSTS:-}" ]; then echo "SSH_KNOWN_HOSTS is not set" >&2; exit 1; fi
+      - run:
+          name: Generate SSH key file
+          command: deploy_frontend.sh generate_key_file
+
 jobs:
   backend_checks:
     executor: pidgey-base
@@ -61,7 +73,7 @@ jobs:
 
   backend_tests:
     docker:
-      - image: darthjee/circleci_pidgey-base:0.0.1
+      - image: *ci_base_image
         environment:
           PHP_ENV: test
           DB_HOST: mysql
@@ -122,6 +134,12 @@ jobs:
 all_tags: &all_tags
   tags:
     only: /.*/
+
+deploy_tags: &deploy_tags
+  tags:
+    only: /^\d+\.\d+\.\d+$/
+  branches:
+    ignore: /.*/
 
 workflows:
   main:
