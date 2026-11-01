@@ -49,6 +49,7 @@ When a task spans multiple agents:
 | [Folder Structure](../../docs/agents/folder-structure.md) | Top-level directory layout and the role of each folder. | `architect` |
 | [Architecture](../../docs/agents/architecture.md) | Source layout, modules, code style, and implementation guidelines. | `architect` |
 | [Flow](../../docs/agents/flow.md) | Main runtime flow of the application. | `architect` |
+| [Deployment](../../docs/agents/deployment.md) | The production deployment as built: pipeline, variables, server, operations, known gaps. Deployment has no spec; this is its reference. | `architect` |
 | [Contributing](../../docs/agents/contributing.md) | Commit guidelines, PR standards, code organization, and refactoring rules. | `architect` |
 | [Plans](../../docs/agents/plans/) | Implementation plans for ongoing or upcoming features. | `architect` |
 | [Issues](../../docs/agents/issues/) | Detailed specs for open issues. | `product-owner` |

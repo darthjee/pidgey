@@ -17,6 +17,8 @@ All project documentation lives under `docs/agents/`. The entry point is
    detail files that apply.
 2. **Specs are the source of truth.** Code must not deviate from them. If a decision
    changes, update the spec first (in the same change set), then the code.
+   Exception: deployment has no spec. [`docs/agents/deployment.md`](docs/agents/deployment.md)
+   describes it as built and is its reference (see [Documentation](#documentation)).
 3. **Respect pending decisions.** Items marked "Pending decision" must not be
    implemented by guessing; raise them or record the decision in the spec first.
 4. **Follow the spec granularity rule** below when adding or growing specs.

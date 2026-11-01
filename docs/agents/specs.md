@@ -2,10 +2,14 @@
 
 This folder defines the intended design of Pidgey: what it is, how the repository is
 organized, how HTTP requests are handled, how it runs in Docker, how organizations, email sending and the API work,
-how the React admin UI is built, how it is deployed, and how it is tested. These
+how the React admin UI is built, and how it is tested. These
 specs are the **source of truth for implementation**: code must not deviate from
 them without updating the relevant spec first. They describe the target state and
 will later be replaced by documentation of the actual project.
+
+Deployment is not specified here: it is documented as built in
+[`deployment.md`](deployment.md), and new deployment requirements go in GitHub issues and
+plans (see [contributing.md](contributing.md#deployment-changes)).
 
 ## Index
 
@@ -20,7 +24,6 @@ will later be replaced by documentation of the actual project.
 | [email](specs/email.md) | SMTP connections, synchronous send flow, message scope, failure handling. |
 | [api](specs/api.md) | JSON API v1 surface, token authentication and scopes, conventions. |
 | [frontend](specs/frontend.md) | React admin UI stack, layout, client layer, screens, build. |
-| [deployment](specs/deployment.md) | CircleCI checks, tag-triggered production deploy (release flow, frontend upload), server layout, deployment security and edge cases. |
 | [testing](specs/testing.md) | Backend and frontend testing, linting, definition of done. |
 
 ## Spec granularity rule

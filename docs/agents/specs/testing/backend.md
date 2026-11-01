@@ -96,4 +96,4 @@ Tests for the env-file loader and `bin/check-config` (see
   - the output never contains any configured value, on success or failure.
 
 There is no automated test of the deploy workflow itself; how a release is verified is in
-[deployment/release.md](../deployment/release.md#verification).
+[deployment/operations.md](../../deployment/operations.md#release).

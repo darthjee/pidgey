@@ -32,6 +32,6 @@ jasmine; it lints `assets` and `specs`.
 - Locally: `make tests` runs `yarn lint` and `yarn coverage` in `frontend_dev`
   (see [docker/makefile.md](../docker/makefile.md)).
 - CI: the `frontend_checks` job runs lint and coverage
-  (see [deployment/pipeline.md](../deployment/pipeline.md#check-jobs)).
+  (see [deployment/pipeline.md](../../deployment/pipeline.md#check-jobs)).
 
 See [testing](../testing.md).

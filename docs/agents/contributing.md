@@ -70,7 +70,8 @@ To determine which checks to run:
 3. Run the corresponding local commands for each relevant job.
 
 Jobs defined in `.circleci/config.yml` (check jobs run on every branch and tag); `build_images`,
-still planned in [specs/deployment/pipeline.md](specs/deployment/pipeline.md), is marked *(planned)*.
+still future work (see [deployment/known-gaps.md](deployment/known-gaps.md#no-automated-image-builds)),
+is marked *(planned)*.
 The deploy jobs run only on semver tags, after the check jobs pass, and have no local equivalent:
 
 | Modified folder | Job | Local commands |
@@ -90,6 +91,14 @@ The deploy jobs run only on semver tags, after the check jobs pass, and have no 
 Run only the checks that correspond to the folders you changed. If a new container or application folder is added in the future, its corresponding test and check jobs must be included before merging changes to that folder.
 
 This same process must be followed when **planning how to resolve an issue**: include a final step in the plan that identifies the affected folders and lists the CI commands to run before opening a PR.
+
+### Deployment changes
+
+Deployment has no spec. New deployment requirements are written in the GitHub issue and its
+plan (`docs/agents/plans/`). A change to the pipeline, the deploy variables, the host layout or
+the runbooks updates [deployment.md](deployment.md) and `deployment/*.md` in the **same**
+change that ships it, so those docs keep describing the deployment as built. A gap the change
+leaves open goes in [deployment/known-gaps.md](deployment/known-gaps.md).
 
 ## Code Organization
 

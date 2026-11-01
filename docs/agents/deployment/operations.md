@@ -26,7 +26,15 @@ Commands on the host run over SSH as the host user (see [variables.md](variables
    - the HSTS header is sent: `curl -sI https://<domain>/health.json` and
      `curl -sI https://<domain>/admin/` both show `Strict-Transport-Security: max-age=86400`;
    - the migrations are applied: `cd <live> && $PHP_BIN bin/migrate --status` lists no
-     pending migration.
+     pending migration;
+   - `bin/`, `vendor/` and `config/` are not web-reachable (for example
+     `https://<domain>/config/.env` and `https://<domain>/vendor/autoload.php` do not return
+     their content).
+
+There is no automated test of the deploy workflow itself: it only runs against the real host.
+Besides this check, it is covered by the `darthjee/scripts` test suite (the script's
+behaviour) and by the pre-swap guards (`SSH_KNOWN_HOSTS` set, `bin/check-config`,
+`bin/migrate`, and the `release` check that staging exists).
 
 ## Rerun a failed workflow
 
@@ -49,6 +57,11 @@ host, then rerun the workflow instead.
 
 A failed migration stops at the first failing file; each file is atomic. Fix it with a **new**
 migration in a new tag, never by editing an applied one.
+
+Migrations run before the swap, so a failure after them (or between them and the swap) leaves
+the old release running on the new schema. That is safe because every migration keeps working
+with the previous release's code (expand first, contract in a later release; see
+[architecture/database.md](../specs/architecture/database.md#compatibility-with-the-previous-release)).
 
 ## Failure in `Cleanup`
 
@@ -78,6 +91,9 @@ at the folders on the host:
 
 After restoring, fix the cause and push a new tag (or rerun the workflow).
 
+Even a successful swap leaves a window of a few milliseconds where `<live>` does not exist and
+requests fail. This is accepted.
+
 ## Removing stale staging folders
 
 The `Cleanup` step of the `release` job removes staging folders older than one day after each
@@ -95,7 +111,7 @@ dead (for example, left by a failed workflow you will not rerun).
 
 One-time, manual step done by the owner, after the release that adds `DB_MIGRATE_USER` /
 `DB_MIGRATE_PASSWORD` (#109) is live. The grants of each user are in
-[server.md](server.md#host-requirements).
+[server.md](server.md#database-users).
 
 Edit the shared `.env` on the host (`$REMOTE_HOME/$SHARED_DIR/.env`), in this order:
 

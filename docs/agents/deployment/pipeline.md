@@ -17,6 +17,35 @@ These run on **every branch and every tag** (`tags: only: /.*/`).
 | `frontend_checks` | `darthjee/circleci_node` | `yarn install --frozen-lockfile`, `npm run lint`, `npm run coverage`, then a partial Codacy coverage upload. |
 | `coverage_final` | `darthjee/circleci_node` | Requires `backend_tests` and `frontend_checks`; sends the Codacy `final` call. |
 
+### Database access in CI
+
+`backend_tests` connects to MySQL as **root**: the `mysql` service sets
+`MYSQL_ROOT_PASSWORD=root`, and the primary container sets `DB_HOST=mysql`, `DB_PORT=3306`,
+`DB_NAME=pidgey_test`, `DB_USER=root`, `DB_PASSWORD=root`, `SMTP_HOST=mailpit`,
+`SMTP_PORT=1025` and `PHP_ENV=test`.
+
+Why: CircleCI service containers cannot run the `initdb.d` grant script used locally (see
+[docker/compose.md](../specs/docker/compose.md)), and the tests create both `pidgey_test` and
+`pidgey_runner_*_test` databases, which a restricted user could not do. The CI database is
+throwaway, so root carries no risk.
+
+## Codacy
+
+- `backend_tests` and `frontend_checks` each upload their coverage report
+  (`coverage/clover.xml` and `coverage/lcov.info`) as a **partial** report, through the
+  `upload_codacy_coverage` command. That command first rewrites the report's file paths to be
+  repository-relative (`source/…`, `frontend/…`), because each job flattens its folder to the
+  working directory's root.
+- `coverage_final` sends the Codacy `final` call once both partial reports are in.
+- Frontend coverage is therefore in Codacy, next to backend coverage (#75). This settles the
+  open question of whether `frontend_checks` should upload it.
+- The uploads use `CODACY_PROJECT_TOKEN`, a CircleCI **project** variable (see
+  [variables.md](variables.md#where-they-live)); it is never committed.
+- Static-analysis exclusions live in `.codacy.yml` at the repository root (`exclude_paths`):
+  generated and third-party files (`source/vendor/**`, coverage, phpdoc and PHPUnit caches,
+  `frontend/node_modules/**`, `**/yarn.lock`), `docs/**`, `docker_volumes/**` and
+  `.claude/**`.
+
 ## Deploy chain
 
 These run **only on semver tags**: the filter is `tags: only: /^\d+\.\d+\.\d+$/` with
@@ -43,6 +72,11 @@ Order:
 A tag on a red commit deploys nothing: every deploy job depends, directly or through other
 jobs, on all three check jobs.
 
+No production image is built: a release is identified by its git semver tag, and the host runs
+the uploaded files. The deploy chain builds the admin UI and uploads it into `public/admin/`
+(the frontend delivery decision in
+[frontend/build.md](../specs/frontend/build.md#production-delivery)).
+
 ## Build jobs and context jobs
 
 - **Build jobs** (`build_backend`, `build_frontend`) have **no context**. They are the only
@@ -53,8 +87,11 @@ jobs, on all three check jobs.
   and build nothing; they only run `deploy_frontend.sh` actions on files already built.
 
 Why: third-party code never runs next to the deploy key. A compromised dependency in a build
-job finds no secret to read. Builds hand their output to the context jobs as plain files,
-through the CircleCI workspace (`persist_to_workspace` / `attach_workspace`).
+job finds no secret to read; at worst it alters the release content, which is the same risk
+any dependency carries at runtime. Builds hand their output to the context jobs as plain
+files, through the CircleCI workspace (`persist_to_workspace` / `attach_workspace`). Because
+the build jobs hold no secret, Composer's `--no-scripts --no-plugins` (and their Yarn
+equivalents) are not needed.
 
 ## Context restriction
 
@@ -68,7 +105,12 @@ pipeline.git.tag =~ "^[0-9]+\.[0-9]+\.[0-9]+$"
 
 Only pipelines on semver tags get the context; any other pipeline that attaches it gets an
 unauthorized error and no variables. There is no security group on top of it: security
-groups are not available on the CircleCI free plan.
+groups are not available on the CircleCI free plan. "Pass secrets to builds from forked pull
+requests" stays off (see [variables.md](variables.md#where-they-live)).
+
+Why: the restriction is enforced by CircleCI, outside the repository, so no change to
+`config.yml` can lift it. Together with the tag filter, only someone who can push a semver tag
+can reach the deploy key (see [Who can deploy](#who-can-deploy)).
 
 ## Serial group
 
@@ -86,7 +128,9 @@ tag redeploys that older code.
 Every context job starts with the `deploy_setup` command:
 
 1. **`SSH_KNOWN_HOSTS` guard:** fails the job when `SSH_KNOWN_HOSTS` is unset or empty.
-   Without it the deploy script would fall back to `StrictHostKeyChecking=no`.
+   Without it the deploy script would fall back to `StrictHostKeyChecking=no`, and a machine
+   impersonating the host would receive the release and run the deploy commands. Its value comes from a
+   verified `ssh-keyscan` (see [variables.md](variables.md#ssh_known_hosts-format)).
 2. **`deploy_frontend.sh generate_key_file`:** writes `SSH_PRIVATE_KEY` to `~/ssh_key` and
    `SSH_KNOWN_HOSTS` to `~/ssh_known_hosts` (both mode `600`), turning each literal `\n`
    into a newline (see [variables.md](variables.md)). Every later SSH and rsync call uses
@@ -118,6 +162,11 @@ Actions used:
 `upload_backend` checks out the repository only to read the exclude list; the files it
 uploads come from the workspace.
 
+**Migrations on deploy:** `bin/check-config` and `bin/migrate` run in staging, before the
+swap. Why: new code never serves an old schema, and a missing `.env` setting or a failed
+migration stops the deploy with the live release untouched instead of causing a site-wide
+`500` after the swap (see [operations.md](operations.md#failure-before-the-swap)).
+
 **Cleanup:** the `release` job ends with a `Cleanup` step (`deploy_frontend.sh cleanup`), run
 after the swap. It is a plain step: if it fails, the job and the workflow fail even though the
 new release is already live, so leftover folders get noticed. Fall back to removing them by
@@ -135,12 +184,31 @@ release:
 - any `.env*` file;
 - `.git`.
 
-Everything else under `source/` ships: `bin/`, `config/` (route files), `lib/`, `migrations/`,
-`public/`, `vendor/`
-(production dependencies only), `composer.json` and `composer.lock`. A new top-level path in
-`source/` ships too unless it is added to the exclude list.
+Everything else under `source/` ships: `bin/`, `config/` (route files; the `release` job adds
+the `.env` link), `lib/`, `migrations/`, `public/` (with the built admin UI), `vendor/`
+(production dependencies only), `composer.json` and `composer.lock`. Only the live release's
+`public/` is web-reachable (see [server.md](server.md#web-directory)).
+
+A new top-level path in `source/` ships too unless it is added to the exclude list. Rule: any
+change that adds a top-level path to `source/` adds it, in the same change, either to
+`.circleci/backend-exclude.txt` or to the shipped list above. Why: the list is an exclude
+list, so anything forgotten reaches the host by default.
+
+## Logs
+
+- `bin/check-config` reports which check failed, never a value (see
+  [architecture/configuration.md](../specs/architecture/configuration.md#bincheck-config)).
+- The deploy never prints the shared `.env` or any secret: the key files are written by
+  `generate_key_file`, and the `.env` is linked on the host, never read by CI.
+
+Why: CircleCI job output is visible to anyone with access to the project, and it is kept.
 
 ## Who can deploy
 
 Anyone who can push a semver tag to the repository. Today that is only the owner, the sole
 collaborator, so there is no GitHub tag ruleset.
+
+Why this is enough: the deploy chain runs only on semver tags, every deploy job requires every
+check job, and the `pidgey-deploy` context is available only to semver-tag pipelines (see
+[Context restriction](#context-restriction)). Pushing a branch, or editing `config.yml` on a
+branch, never reaches the host.

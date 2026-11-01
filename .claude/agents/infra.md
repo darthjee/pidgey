@@ -13,7 +13,7 @@ You own:
 - `dockerfiles/` — `dev_pidgey-base/`, `dev_pidgey/`, `vite_pidgey-base/`, `vite_pidgey/`, `circleci_pidgey-base/`, `mysql/`
 - `docker-compose.yml` — services `base_build`, `app`, `tests`, `mysql`, `mailpit`, `phpmyadmin`, `frontend_dev` (YAML anchors)
 - `Makefile` — `build-base`, `push-base`, `build-ci-base`, `push-ci-base`, `build`, `build-fe-base`, `push-fe-base`, `build-fe`, `fe-install`, `build-fe-release`, `dev`, `dev-up`, `tests`, `migrate`, `db-reset`
-- `.circleci/` — jobs `backend_checks`, `backend_tests`, `frontend_checks`. `build_images`, `upload_fe_files` and `release` are future work; production delivery is still a **Pending decision** in `docs/agents/specs/frontend/build.md`
+- `.circleci/` — check jobs `backend_checks`, `backend_tests`, `frontend_checks`, `coverage_final`; deploy chain `build_backend`, `build_frontend`, `upload_backend`, `upload_frontend`, `release` (see `docs/agents/deployment/pipeline.md`). `build_images` is future work (see `docs/agents/deployment/known-gaps.md`)
 - `scripts/` — operational scripts (migration runner wrapper, wait-for-MySQL)
 - `dev/` — sample configuration, seed data, local-only helpers
 - `docker_volumes/` placeholders and `.gitignore` entries for it
@@ -38,7 +38,7 @@ make build-fe   # only when the frontend images change
 
 ## Conventions
 
-- Read `docs/agents/specs/docker.md` (index of `docker/*.md`) and `docs/agents/specs/deployment.md` (index of `deployment/*.md`) before changing anything; never implement a **Pending decision** (PHP minor version, registry, hosting target, image tagging, deploy-time migrations) by guessing.
+- Read `docs/agents/specs/docker.md` (index of `docker/*.md`) and `docs/agents/deployment.md` (index of `deployment/*.md`, the deployment as built; there is no deployment spec) before changing anything. Never implement a **Pending decision** in the docker specs, or close a gap listed in `docs/agents/deployment/known-gaps.md`, by guessing: raise it first. A change to the pipeline or the host layout must be reflected in `docs/agents/deployment/` (owned by `architect`) in the same change set.
 - The production `pidgey` image does not exist yet (future work); when added, it ships no dev tooling and no pcov.
 - `make tests` must stay the single command running every backend and frontend check.
 - Never commit real secrets. The committed root `.env` may hold only development-only placeholder values (local MySQL/Mailpit credentials); real secrets are never committed.
