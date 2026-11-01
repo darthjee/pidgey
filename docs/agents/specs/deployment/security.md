@@ -116,6 +116,21 @@ for which entry point uses which user).
 
 The host already redirects HTTP to HTTPS.
 
+Decision (#110): `source/public/.htaccess` sends `Strict-Transport-Security: max-age=300` on
+HTTPS responses only.
+
+- It covers the API and the admin UI under `/admin/`, which is deployed into `public/admin/`
+  and so inherits the same `.htaccess`. Because it is set by the web server, static admin files
+  get it too.
+- It is sent only over HTTPS; plain-HTTP responses (including local docker and CI, which serve
+  plain HTTP) never carry it.
+- There is no `includeSubDomains` and no `preload`, because other subdomains on the domain are
+  not owned by Pidgey.
+- `max-age=300` is the first step of a staged rollout, so a misconfiguration can be undone
+  within minutes. #115 raises it to one year after the header is checked on the host.
+- Verification after a release: `curl -sI https://<domain>/health.json` and
+  `curl -sI https://<domain>/admin/` both show the header.
+
 ## Known gaps
 
 - **Auth rate limiting:** the shared host has no configurable reverse proxy, so the
@@ -124,8 +139,6 @@ The host already redirects HTTP to HTTPS.
 
 ## Pending decisions
 
-- **Pending decision — HSTS:** whether the app or host sends a `Strict-Transport-Security`
-  header. Left out for now.
 - **Pending decision — auth rate limiting:** the proxy rate limit is not available on this
   host; application-level throttling is pending in
   [api/pending.md](../api/pending.md). Until then, keep `USER_APPROVAL_REQUIRED=true` in

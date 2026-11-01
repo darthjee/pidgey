@@ -5,3 +5,10 @@ RewriteRule (^|/)\. - [R=404,L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
+
+# HSTS: sent over HTTPS only. Staged rollout with a short max-age;
+# raised to one year in #115. No includeSubDomains: other subdomains
+# of the parent domain are not ours.
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=300" "expr=%{HTTPS} == 'on'"
+</IfModule>

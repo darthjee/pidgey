@@ -26,11 +26,6 @@ dropping the schema. It does not protect against a file-read or code-execution f
 web app, which could read those credentials. Keeping them in a separate file that only the
 `bin/` schema commands load would close this; it is not tracked yet.
 
-## No HSTS header
-
-Neither the app nor the host sends `Strict-Transport-Security`. The host redirects HTTP to
-HTTPS, but a first plain-HTTP request is still possible. Tracked in #110.
-
 ## Every path returns `200 {"status":"ok"}`
 
 The router does not exist yet: `public/index.php` answers every request with the health
