@@ -12,7 +12,7 @@ use JsonSerializable;
  *
  * Keys are sent as given: handlers build camelCase keys themselves.
  */
-final class JsonResponse extends Response
+class JsonResponse extends Response
 {
     private const FLAGS = JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
 
