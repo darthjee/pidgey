@@ -22,6 +22,8 @@ final class CheckConfigTest extends TestCase
     private const DB_NAME = 'distinctive_db_name';
     private const DB_USER = 'distinctive_db_user';
     private const DB_PASSWORD = 'distinctive-db-password-91b2c3';
+    private const DB_MIGRATE_USER = 'distinctive_migrate_user';
+    private const DB_MIGRATE_PASSWORD = 'distinctive-migrate-password-4d5e6f';
 
     private string $root;
 
@@ -128,6 +130,53 @@ final class CheckConfigTest extends TestCase
         $this->assertNoValueLeaks($result);
         $this->assertStringNotContainsString('short-secret-value', $result['stderr']);
         $this->assertStringNotContainsString('short-previous-value', $result['stderr']);
+    }
+
+    /**
+     * @return array<string, array{array<string, string>, string}>
+     */
+    public static function unpairedMigrationUsers(): array
+    {
+        return [
+            'user without password' => [
+                ['DB_MIGRATE_USER' => self::DB_MIGRATE_USER],
+                'DB_MIGRATE_PASSWORD: missing',
+            ],
+            'password without user' => [
+                ['DB_MIGRATE_PASSWORD' => self::DB_MIGRATE_PASSWORD],
+                'DB_MIGRATE_USER: missing',
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string, string> $migration
+     */
+    #[DataProvider('unpairedMigrationUsers')]
+    public function testUnpairedMigrationUserFails(array $migration, string $expected): void
+    {
+        $result = $this->runCheckConfig([...self::validVariables(), ...$migration]);
+
+        $this->assertSame(1, $result['exit']);
+        $this->assertSame('', $result['stdout']);
+        $this->assertSame("{$expected}\n", $result['stderr']);
+        $this->assertNoValueLeaks($result);
+        $this->assertStringNotContainsString(self::DB_MIGRATE_USER, $result['stderr']);
+        $this->assertStringNotContainsString(self::DB_MIGRATE_PASSWORD, $result['stderr']);
+    }
+
+    public function testPairedMigrationUserPasses(): void
+    {
+        $result = $this->runCheckConfig([
+            ...self::validVariables(),
+            'DB_MIGRATE_USER' => self::DB_MIGRATE_USER,
+            'DB_MIGRATE_PASSWORD' => self::DB_MIGRATE_PASSWORD,
+        ]);
+
+        $this->assertSame(0, $result['exit'], $result['stderr']);
+        $this->assertSame("configuration OK\n", $result['stdout']);
+        $this->assertStringNotContainsString(self::DB_MIGRATE_USER, $result['stdout']);
+        $this->assertStringNotContainsString(self::DB_MIGRATE_PASSWORD, $result['stdout']);
     }
 
     public function testUnreadableEnvFileFails(): void
