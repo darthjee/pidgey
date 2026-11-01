@@ -77,6 +77,33 @@ the live release's `public/` is web-reachable. Any new top-level path in `source
 added to the exclude list or to this list in the same change (see
 [release.md](release.md#backend-upload-upload_backend)).
 
+## Database users
+
+Decision (#109): production uses **two MySQL users** on the same database, so the web app runs
+without DDL rights (see [architecture/database.md](../architecture/database.md#database-users)
+for which entry point uses which user).
+
+| User | Settings | Grants on the app database | Used by |
+| --- | --- | --- | --- |
+| Migration user | `DB_MIGRATE_USER` / `DB_MIGRATE_PASSWORD` | `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `DROP`, `INDEX`, `ALTER`, `REFERENCES` | `bin/migrate`, `bin/create-db`, `bin/drop-db` |
+| App user | `DB_USER` / `DB_PASSWORD` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` only | the web app, `bin/wait-for-db` |
+
+- `REFERENCES` is needed because migrations create foreign keys.
+- Both users' credentials live only in the shared `.env` (see [Shared `.env`](#shared-env));
+  nothing about them is committed.
+- The code supports the split from the release that ships #109 on. Until production is
+  switched over, `DB_MIGRATE_*` is unset and both entry-point groups use `DB_USER` through the
+  fallback.
+- **Switching production over is a manual step done by the owner**, after that release ships,
+  in this order:
+  1. Add `DB_MIGRATE_USER` / `DB_MIGRATE_PASSWORD` to the shared `.env`, with the existing
+     (DDL-capable) user's credentials.
+  2. Switch `DB_USER` / `DB_PASSWORD` to the data-only user.
+  3. Verify that the site and the next deploy's `bin/migrate` both work.
+
+  The order matters: switching `DB_USER` before `DB_MIGRATE_*` exists would make the next
+  deploy's migrations run as the data-only user and fail.
+
 ## Logs
 
 - `bin/check-config` reports which check failed, never a value (see
@@ -89,16 +116,12 @@ The host already redirects HTTP to HTTPS.
 
 ## Known gaps
 
-- **Database user:** v1 uses one database user with DDL rights for both migrations and the
-  app.
 - **Auth rate limiting:** the shared host has no configurable reverse proxy, so the
   `/auth/*.json` proxy rate limit recommended in [production.md](production.md) cannot be
   applied there. Production keeps `USER_APPROVAL_REQUIRED=true` to limit registration abuse.
 
 ## Pending decisions
 
-- **Pending decision — migration DB user:** whether to add a separate least-privilege DB user
-  (DDL rights for migrations only, data access only for the app). v1 uses one user.
 - **Pending decision — HSTS:** whether the app or host sends a `Strict-Transport-Security`
   header. Left out for now.
 - **Pending decision — auth rate limiting:** the proxy rate limit is not available on this

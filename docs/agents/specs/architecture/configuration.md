@@ -32,10 +32,21 @@ Purpose: list every environment variable the application reads, with its default
 | `DB_HOST` | required | MySQL host. |
 | `DB_PORT` | `3306` | MySQL port. |
 | `DB_NAME` | required | Database name. |
-| `DB_USER` | required | Database user. |
+| `DB_USER` | required | Database user of the web app and `bin/wait-for-db`; also used by the schema/admin commands when `DB_MIGRATE_USER` is unset. |
 | `DB_PASSWORD` | empty | Database password. |
+| `DB_MIGRATE_USER` | none (falls back to `DB_USER`) | Database user for the schema/admin commands `bin/migrate` (including `--status`), `bin/create-db` and `bin/drop-db` (see [database.md](database.md#database-users)). Must be set together with `DB_MIGRATE_PASSWORD`. |
+| `DB_MIGRATE_PASSWORD` | none (falls back to `DB_PASSWORD`) | Password of `DB_MIGRATE_USER`. Must be set together with `DB_MIGRATE_USER`. |
 | `DB_WAIT_TIMEOUT` | `60` | Seconds the database CLI waits for MySQL to accept connections. |
 | `MIGRATE_LOCK_TIMEOUT` | `60` | Seconds a migration run waits for the migration lock (see [database.md](database.md)). |
+
+- `DB_HOST`, `DB_PORT` and `DB_NAME` are shared by both users.
+- `DB_MIGRATE_USER` and `DB_MIGRATE_PASSWORD` are set **together or not at all**. When one is
+  set and the other is not (an empty value counts as unset, like every other key), boot is
+  refused (or the command exits non-zero). When neither is set, the schema/admin commands
+  fall back to `DB_USER` / `DB_PASSWORD`, so a single-user setup (Docker, CI, tests) needs no
+  change.
+- `bin/wait-for-db` and the web app always use `DB_USER` / `DB_PASSWORD`, whether or not the
+  `DB_MIGRATE_*` keys are set.
 
 ### SMTP (development and tests)
 
@@ -141,7 +152,8 @@ the staging folder before migrating and swapping (see
 
 - Loads the env file (as every `bin/*` does), then runs the same validation the app runs at
   boot: every rule on this page that refuses boot, including the `SECRET_KEY` and
-  `PREVIOUS_SECRET_KEYS` rules and the required `DB_*` settings.
+  `PREVIOUS_SECRET_KEYS` rules, the required `DB_*` settings and the `DB_MIGRATE_*` pairing
+  rule (see [Runtime and database](#runtime-and-database)).
 - Also checks that the running PHP is **8.4.x**, since production is pinned to PHP 8.4 (see
   [deployment/server.md](../deployment/server.md#host-requirements)). This catches a wrong
   `PHP_BIN` or a host change.
@@ -149,6 +161,11 @@ the staging folder before migrating and swapping (see
 - **Exit codes:** `0` when every check passes; `1` when one or more checks fail.
 - **Output:** names each failed check (e.g. `SECRET_KEY: too short`, `DB_HOST: missing`,
   `PHP version: not 8.4.x`, `env file: unreadable`), never a value, not even a partial one.
+  The `DB_MIGRATE_*` pairing rule reports:
+  - `DB_MIGRATE_PASSWORD: missing` when `DB_MIGRATE_USER` is set and `DB_MIGRATE_PASSWORD` is
+    not;
+  - `DB_MIGRATE_USER: missing` when `DB_MIGRATE_PASSWORD` is set and `DB_MIGRATE_USER` is not;
+  - nothing when neither is set (the fallback applies).
 - **Web boot refusal not wired yet:** for now, `public/index.php` only loads the env file; it
   does not run the validation, so the web app does not yet refuse to boot on an invalid
   configuration. Until it does, `bin/check-config`, run before every release, is what enforces
