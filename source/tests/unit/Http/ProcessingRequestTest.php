@@ -33,6 +33,27 @@ final class ProcessingRequestTest extends TestCase
         $this->assertSame('c=d', $processing->query());
     }
 
+    public function testReturnsACapturedParam(): void
+    {
+        $processing = new ProcessingRequest(new Request(['method' => 'GET', 'uri' => '/a/7.json']), ['id' => '7']);
+
+        $this->assertSame('7', $processing->param('id'));
+    }
+
+    public function testReturnsNullForAMissingParam(): void
+    {
+        $processing = new ProcessingRequest(new Request(['method' => 'GET', 'uri' => '/a/7.json']), ['id' => '7']);
+
+        $this->assertNull($processing->param('name'));
+    }
+
+    public function testHasNoParamsByDefault(): void
+    {
+        $processing = new ProcessingRequest(new Request(['method' => 'GET', 'uri' => '/']));
+
+        $this->assertNull($processing->param('id'));
+    }
+
     public function testHasNoResponseInitially(): void
     {
         $processing = new ProcessingRequest(new Request(['method' => 'GET', 'uri' => '/']));

@@ -36,11 +36,11 @@
         "coverage": "phpunit --coverage-clover coverage/clover.xml",
         "lint": [
             "phpcs",
-            "@php -d error_reporting=24575 vendor/bin/phpmd bin,lib,public,tests text phpmd_unusedcode.xml --suffixes php,"
+            "@php -d error_reporting=24575 vendor/bin/phpmd bin,config,lib,public,tests text phpmd_unusedcode.xml --suffixes php,"
         ],
         "lint:fix": [
             "phpcbf || [ $? -eq 1 ]",
-            "@php -d error_reporting=24575 vendor/bin/phpmd bin,lib,public,tests text phpmd_unusedcode.xml --suffixes php,"
+            "@php -d error_reporting=24575 vendor/bin/phpmd bin,config,lib,public,tests text phpmd_unusedcode.xml --suffixes php,"
         ],
         "docs": "phpdoc",
         "complexity": "@php -d error_reporting=24575 vendor/bin/phpmd lib html phpmd.xml --reportfile complexity.html --ignore-violations-on-exit",

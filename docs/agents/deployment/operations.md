@@ -20,6 +20,8 @@ Commands on the host run over SSH as the host user (see [variables.md](variables
    [pipeline.md](pipeline.md#deploy-chain)).
 4. Verify the release:
    - `https://<domain>/health.json` returns `200`;
+   - unknown paths return `404`:
+     `curl -s -o /dev/null -w '%{http_code}' https://<domain>/does-not-exist.json` prints `404`;
    - `https://<domain>/admin/` loads;
    - the HSTS header is sent: `curl -sI https://<domain>/health.json` and
      `curl -sI https://<domain>/admin/` both show `Strict-Transport-Security: max-age=300`;

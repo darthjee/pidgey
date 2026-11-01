@@ -26,13 +26,6 @@ dropping the schema. It does not protect against a file-read or code-execution f
 web app, which could read those credentials. Keeping them in a separate file that only the
 `bin/` schema commands load would close this; it is not tracked yet.
 
-## Every path returns `200 {"status":"ok"}`
-
-The router does not exist yet: `public/index.php` answers every request with the health
-handler, so any path (not only `/health.json`) returns `200 {"status":"ok"}`. A `200` from
-`/health.json` after a release therefore proves only that PHP serves the live release. The
-router with a `404` fallback is tracked in #111.
-
 ## `TRUSTED_PROXY_HOPS` not verified
 
 The shared `.env` sets `TRUSTED_PROXY_HOPS=0` because no reverse proxy sits in front of Apache
