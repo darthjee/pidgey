@@ -9,8 +9,11 @@ The flow these refer to is in [release.md](release.md).
 - **Leftover staging folders:** a workflow that fails before `release` leaves its
   `${SSH_REMOTE_TEMP_DIR}-<workspace id>` folder behind. After a successful swap, `cleanup`
   removes other staging folders older than one day; recent ones may belong to a deploy in
-  progress and are kept. Until `cleanup` is available (`darthjee/scripts:0.12.0`), stale
-  folders are removed by hand.
+  progress and are kept.
+- **`cleanup` fails:** the swap already happened, so the new release is live, but the
+  `release` job fails. Stale folders are then removed by hand with the runbook in
+  [deployment/operations.md](../../deployment/operations.md#removing-stale-staging-folders),
+  which is also the way to remove a dead folder younger than one day.
 - **Reruns:** supported. "Rerun from failed" keeps `CIRCLE_WORKFLOW_WORKSPACE_ID`, so it
   refills the same staging folder. `upload`, `link` (`ln -sfn`), `check-config` and `migrate`
   are safe to run again.

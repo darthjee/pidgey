@@ -27,13 +27,10 @@ Every context job (`upload_backend`, `upload_frontend`, `release`) uses the shar
 per-project copy), copied into the deploy images (see
 [docker/images.md](../docker/images.md#deploy-tooling)).
 
-- **Version:** `0.11.0`, which provides fail-fast behaviour, quoted paths, the per-workflow
+- **Version:** `0.12.0`, which provides fail-fast behaviour, quoted paths, the per-workflow
   staging folder, `DEPLOY_PATH`, optional `SSH_KNOWN_HOSTS`, `upload` with `EXCLUDE_FROM`,
   `build` with `BUILD_COMMAND`, `link` inside staging, the generic remote `run`, and a
-  `release` that refuses to run when staging is missing.
-- **`cleanup`** needs `0.12.0`. Pidgey targets `0.12.0`; if it is not released in time,
-  deploys start on `0.11.0` without the `cleanup` step and stale staging folders are removed
-  by hand until the upgrade.
+  `release` that refuses to run when staging is missing, and `cleanup`.
 
 Actions Pidgey uses (the script's `build` action is not used: building happens in the build
 jobs, without the deploy context):
@@ -124,8 +121,12 @@ All steps run against the staging folder, in this order. A failing step stops th
 4. **`release`**: checks that staging exists, then swaps it into the live folder: remove any
    old backup, move live aside, move staging to live, remove the old folder. No rollback copy
    is kept.
-5. **`cleanup`** (from `0.12.0`): removes other staging folders older than one day. Recent
-   ones may belong to a deploy in progress, so they are kept.
+5. **`cleanup`**: removes other staging folders (`${SSH_REMOTE_TEMP_DIR}-*`) older than one
+   day (the script's default age limit; Pidgey does not set `CLEANUP_MAX_AGE_MINUTES`). The
+   current workflow's folder is always kept, and recent ones may belong to a deploy in
+   progress, so they are kept too. If the parent folder is missing, it does nothing. It runs
+   last and is not tolerated: a cleanup failure fails the job, even though the release is
+   already live (see [edge-cases.md](edge-cases.md#staging-and-concurrency)).
 
 Scripts on the host always use `$PHP_BIN`, never a bare `php` (see
 [server.md](server.md#host-requirements)).
