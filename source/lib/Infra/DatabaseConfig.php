@@ -50,6 +50,34 @@ final readonly class DatabaseConfig
     }
 
     /**
+     * Reads the settings used by the schema commands (migrate, create-db, drop-db).
+     *
+     * Uses DB_MIGRATE_USER / DB_MIGRATE_PASSWORD when DB_MIGRATE_USER is set, and falls
+     * back to the DB_* settings of fromEnv() otherwise; host, port and name are shared.
+     *
+     * @return self
+     *
+     * @throws RuntimeException When a required variable is missing or DB_PORT is invalid.
+     */
+    public static function forMigrations(): self
+    {
+        $config = self::fromEnv();
+        $user = Env::get('DB_MIGRATE_USER');
+
+        if ($user === null) {
+            return $config;
+        }
+
+        return new self(
+            $config->host,
+            $config->port,
+            $config->name,
+            $user,
+            Env::get('DB_MIGRATE_PASSWORD', '') ?? '',
+        );
+    }
+
+    /**
      * Returns a copy of the settings pointing at another database.
      *
      * @param string $name Database name.
