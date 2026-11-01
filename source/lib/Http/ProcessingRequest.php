@@ -7,7 +7,7 @@ namespace Pidgey\Http;
 use LogicException;
 
 /**
- * Per-dispatch wrapper around the Request, carrying the early response.
+ * Per-dispatch wrapper around the Request, carrying the route params and the early response.
  */
 final class ProcessingRequest
 {
@@ -16,9 +16,10 @@ final class ProcessingRequest
     /**
      * Wraps the given request.
      *
-     * @param Request $request The request being dispatched.
+     * @param Request               $request The request being dispatched.
+     * @param array<string, string> $params  Params captured by the matched route, decoded.
      */
-    public function __construct(private readonly Request $request)
+    public function __construct(private readonly Request $request, private readonly array $params = [])
     {
     }
 
@@ -60,6 +61,18 @@ final class ProcessingRequest
     public function query(): string
     {
         return $this->request->query();
+    }
+
+    /**
+     * Returns the value captured for a ":name" param of the matched route, or null.
+     *
+     * @param string $name Param name, without the colon.
+     *
+     * @return string|null
+     */
+    public function param(string $name): ?string
+    {
+        return $this->params[$name] ?? null;
     }
 
     /**
