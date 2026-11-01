@@ -34,6 +34,7 @@
 
     <!-- Files to check -->
     <file>bin</file>
+    <file>config</file>
     <file>lib</file>
     <file>public</file>
     <file>tests</file>
