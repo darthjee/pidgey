@@ -70,7 +70,8 @@ To determine which checks to run:
 3. Run the corresponding local commands for each relevant job.
 
 Jobs defined in `.circleci/config.yml` (check jobs run on every branch and tag); `build_images`,
-still planned in [specs/deployment/pipeline.md](specs/deployment/pipeline.md), is marked *(planned)*.
+still future work (see [deployment/known-gaps.md](deployment/known-gaps.md#no-automated-image-builds)),
+is marked *(planned)*.
 The deploy jobs run only on semver tags, after the check jobs pass, and have no local equivalent:
 
 | Modified folder | Job | Local commands |
