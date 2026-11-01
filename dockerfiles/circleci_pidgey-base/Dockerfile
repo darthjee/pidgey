@@ -1,6 +1,6 @@
 # Deploy tooling (deploy_frontend.sh) comes from darthjee/scripts; bump
 # SCRIPTS_VERSION to pick up a new release.
-ARG SCRIPTS_VERSION=0.11.0
+ARG SCRIPTS_VERSION=0.12.0
 FROM darthjee/scripts:${SCRIPTS_VERSION} AS scripts
 
 FROM cimg/php:8.4

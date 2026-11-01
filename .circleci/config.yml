@@ -1,6 +1,6 @@
 version: 2.1
 
-ci_base_image: &ci_base_image darthjee/circleci_pidgey-base:0.0.2
+ci_base_image: &ci_base_image darthjee/circleci_pidgey-base:0.0.3
 
 executors:
   pidgey-base:
