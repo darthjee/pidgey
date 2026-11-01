@@ -1,7 +1,7 @@
 # Deployment
 
 Purpose: describe the production deployment **as implemented** (release `0.1.0`,
-`darthjee/scripts:0.11.0`). These docs replace the deployment specs as the reference; where
+`darthjee/scripts:0.12.0`). These docs replace the deployment specs as the reference; where
 the two differ, these docs describe what actually runs.
 
 | File | Content |

@@ -41,10 +41,3 @@ The shared `.env` sets `TRUSTED_PROXY_HOPS=0` because no reverse proxy sits in f
 on this host (see [server.md](server.md#shared-env)). That cannot be checked from outside until
 an endpoint shows the client IP the app resolved. If a proxy turns out to be there, the value
 is wrong and clients behind it all share the proxy's IP.
-
-## No `cleanup` action
-
-`darthjee/scripts:0.11.0` has no `cleanup` action; it arrives in `0.12.0`. Until the CI image
-is bumped (see [pipeline.md](pipeline.md#deploy-script)), staging folders left by failed
-workflows are removed by hand (see
-[operations.md](operations.md#removing-stale-staging-folders)).

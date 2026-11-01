@@ -46,6 +46,14 @@ host, then rerun the workflow instead.
 A failed migration stops at the first failing file; each file is atomic. Fix it with a **new**
 migration in a new tag, never by editing an applied one.
 
+## Failure in `Cleanup`
+
+When the `Cleanup` step fails, the swap already happened: the new release is live and the
+workflow is marked failed only so the leftover folders get noticed. Do not rerun the workflow
+from failed, since that reruns the whole `release` job and staging no longer exists. Read the
+job output, fix the cause, and remove the stale folders by hand (see
+[Removing stale staging folders](#removing-stale-staging-folders)).
+
 ## Broken swap
 
 `release` runs, in one SSH command:
@@ -68,8 +76,10 @@ After restoring, fix the cause and push a new tag (or rerun the workflow).
 
 ## Removing stale staging folders
 
-`darthjee/scripts:0.11.0` has no `cleanup` action, so a workflow that fails before the swap
-leaves its `${SSH_REMOTE_TEMP_DIR}-<workspace id>` folder behind. After a failed deploy:
+The `Cleanup` step of the `release` job removes staging folders older than one day after each
+successful swap (see [pipeline.md](pipeline.md#deploy-script)). Use this runbook as a fallback:
+when the `Cleanup` step failed, or to remove a folder younger than one day that is known to be
+dead (for example, left by a failed workflow you will not rerun).
 
 1. List them: `ls -d "$SSH_REMOTE_TEMP_DIR"-*` (with the variable's value).
 2. Check in CircleCI that no deploy workflow is running. Never remove a folder that belongs

@@ -29,7 +29,7 @@ does not.
 | `build_frontend` | None | `backend_checks`, `backend_tests`, `frontend_checks` | Keeps only `frontend/`, runs `yarn install --frozen-lockfile` and `yarn build`, persists the output as `frontend-dist/`. |
 | `upload_backend` | `pidgey-deploy` | `build_backend` | Attaches the workspace, runs `deploy_setup`, uploads `backend/` into the staging folder with the exclude list. |
 | `upload_frontend` | `pidgey-deploy` | `build_frontend`, `upload_backend` | Attaches the workspace, runs `deploy_setup`, uploads `frontend-dist/` into the staging folder's `public/admin/`. |
-| `release` | `pidgey-deploy` | `upload_backend`, `upload_frontend` | Runs `deploy_setup`, links the shared `.env`, runs `bin/check-config` and `bin/migrate` in staging, then swaps staging into live. |
+| `release` | `pidgey-deploy` | `upload_backend`, `upload_frontend` | Runs `deploy_setup`, links the shared `.env`, runs `bin/check-config` and `bin/migrate` in staging, swaps staging into live, then runs `cleanup` to remove stale staging folders. |
 
 Order:
 
@@ -94,7 +94,7 @@ Every context job starts with the `deploy_setup` command:
 
 ## Deploy script
 
-The context jobs use `deploy_frontend.sh` from `darthjee/scripts:0.11.0`. The version comes
+The context jobs use `deploy_frontend.sh` from `darthjee/scripts:0.12.0`. The version comes
 from the `SCRIPTS_VERSION` build argument of `dockerfiles/circleci_pidgey-base/Dockerfile`,
 which copies the script to `/usr/local/sbin/`; bumping the script means bumping that argument
 and rebuilding the CI image.
@@ -113,13 +113,15 @@ Actions used:
 | `run` | `release` | `COMMAND="$PHP_BIN bin/check-config"` | Runs the configuration checks inside staging. |
 | `run` | `release` | `COMMAND="$PHP_BIN bin/migrate"` | Applies pending migrations inside staging. |
 | `release` | `release` | none | Checks that staging exists, moves live aside to `<live>_old_<timestamp>`, moves staging to live, removes the old folder. |
+| `cleanup` | `release` | none (uses the SSH settings, `SSH_REMOTE_TEMP_DIR` and `CIRCLE_WORKFLOW_WORKSPACE_ID`) | Removes other `${SSH_REMOTE_TEMP_DIR}-*` staging folders older than one day (the default `CLEANUP_MAX_AGE_MINUTES=1440`, which Pidgey does not override). The current workflow's folder and younger folders, which may belong to a deploy in progress, are kept. |
 
 `upload_backend` checks out the repository only to read the exclude list; the files it
 uploads come from the workspace.
 
-**No `cleanup`:** `0.11.0` has no `cleanup` action (it arrives in `0.12.0`), so the `release`
-job ends with `deploy_frontend.sh release`. Staging folders left by failed workflows are
-removed by hand (see [operations.md](operations.md#removing-stale-staging-folders)).
+**Cleanup:** the `release` job ends with a `Cleanup` step (`deploy_frontend.sh cleanup`), run
+after the swap. It is a plain step: if it fails, the job and the workflow fail even though the
+new release is already live, so leftover folders get noticed. Fall back to removing them by
+hand (see [operations.md](operations.md#removing-stale-staging-folders)).
 
 ## Exclude list
 
