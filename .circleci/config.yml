@@ -210,6 +210,9 @@ jobs:
       - run:
           name: Release
           command: deploy_frontend.sh release
+      - run:
+          name: Cleanup
+          command: deploy_frontend.sh cleanup
 
 all_tags: &all_tags
   tags:
