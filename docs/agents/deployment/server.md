@@ -53,7 +53,7 @@ added.
 - The host redirects HTTP to HTTPS.
 - `public/.htaccess` returns `404` for any path segment starting with a dot, disables
   directory listings and routes every other non-file request to `index.php`.
-- `public/.htaccess` also sends `Strict-Transport-Security: max-age=300` (no
+- `public/.htaccess` also sends `Strict-Transport-Security: max-age=86400` (no
   `includeSubDomains`, no `preload`) on HTTPS responses only. `public/admin/` inherits it, so
   it covers both the API and `/admin/`. The decision is in
   [specs/deployment/security.md](../specs/deployment/security.md#https).

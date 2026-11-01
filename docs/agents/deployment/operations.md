@@ -24,7 +24,7 @@ Commands on the host run over SSH as the host user (see [variables.md](variables
      `curl -s -o /dev/null -w '%{http_code}' https://<domain>/does-not-exist.json` prints `404`;
    - `https://<domain>/admin/` loads;
    - the HSTS header is sent: `curl -sI https://<domain>/health.json` and
-     `curl -sI https://<domain>/admin/` both show `Strict-Transport-Security: max-age=300`;
+     `curl -sI https://<domain>/admin/` both show `Strict-Transport-Security: max-age=86400`;
    - the migrations are applied: `cd <live> && $PHP_BIN bin/migrate --status` lists no
      pending migration.
 

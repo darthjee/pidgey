@@ -118,8 +118,8 @@ for which entry point uses which user).
 
 The host already redirects HTTP to HTTPS.
 
-Decision (#110): `source/public/.htaccess` sends `Strict-Transport-Security: max-age=300` on
-HTTPS responses only.
+Decision (#110, raised in #115): `source/public/.htaccess` sends
+`Strict-Transport-Security: max-age=86400` on HTTPS responses only.
 
 - It covers the API and the admin UI under `/admin/`, which is deployed into `public/admin/`
   and so inherits the same `.htaccess`. Because it is set by the web server, static admin files
@@ -128,8 +128,9 @@ HTTPS responses only.
   plain HTTP) never carry it.
 - There is no `includeSubDomains` and no `preload`, because other subdomains on the domain are
   not owned by Pidgey.
-- `max-age=300` is the first step of a staged rollout, so a misconfiguration can be undone
-  within minutes. #115 raises it to one year after the header is checked on the host.
+- `max-age=86400` (one day) is the second step of a staged rollout (#115, after `max-age=300`
+  in #110 was checked on the host): it caps any lockout after an HTTPS failure (an expired
+  certificate, a host migration) at 24 hours. One year comes in a later step.
 - Verification after a release: `curl -sI https://<domain>/health.json` and
   `curl -sI https://<domain>/admin/` both show the header.
 
