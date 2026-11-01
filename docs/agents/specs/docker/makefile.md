@@ -24,7 +24,7 @@ One-off frontend commands (`tests` frontend half, `fe-install`, `build-fe-releas
 `frontend_dev` with `--no-deps`, so they don't start `app`/`mysql`.
 
 There are no `ci-*` wrapper targets: CircleCI calls composer directly inside the CI image
-(see [pipeline](../deployment/pipeline.md)).
+(see [pipeline](../../deployment/pipeline.md)).
 
 ## Variables
 

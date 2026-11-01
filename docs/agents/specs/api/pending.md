@@ -13,10 +13,8 @@ Purpose: track API concerns that are explicitly not decided yet.
   connection **test email** ([endpoints/pidgey-admin/smtp-connections.md](endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson)),
   which has no rate limit in v1 and opens an outbound SMTP connection per call. A per-username
   login lockout is rejected (it lets anyone lock a victim out and reveals that the username
-  exists). Until then, proxy-level rate limiting is recommended (see
-  [deployment/production.md](../deployment/production.md)); the current production host
-  cannot apply it, a known gap recorded in
-  [deployment/security.md](../deployment/security.md#known-gaps), so production keeps
+  exists). Until then, proxy-level rate limiting is recommended; the current production host cannot apply it, a known gap recorded in
+  [deployment/known-gaps.md](../../deployment/known-gaps.md#no-proxy-rate-limiting), so production keeps
   `USER_APPROVAL_REQUIRED=true`.
 - **Pending decision — size limits:** maximum request body size and maximum
   `subject`/`text`/`html` length.

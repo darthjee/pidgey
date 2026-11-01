@@ -115,12 +115,12 @@ sent through the system organization's active SMTP connection (see
 - Keys are never logged or returned by any endpoint.
 - `.env` ships a **clearly fake development key** (recognizable as such, never usable in
   production). Production keys are generated with a CSPRNG and stored only in the production
-  env file on the host (see [deployment/server.md](../deployment/server.md#shared-folder)).
+  env file on the host (see [deployment/server.md](../../deployment/server.md#folders)).
 
 ## Env file
 
 An optional env file supplies configuration where the process environment does not, as on the
-production host (see [deployment/server.md](../deployment/server.md#the-configenv-link)).
+production host (see [deployment/server.md](../../deployment/server.md#the-configenv-link)).
 
 - **Location:** `config/.env`, relative to the app root: `source/` in the repository, the
   release root on the server. `config/.env` is git-ignored; in production it is a symlink to
@@ -150,14 +150,14 @@ production host (see [deployment/server.md](../deployment/server.md#the-configen
 
 A CLI command that checks the configuration without starting the app; the deploy runs it in
 the staging folder before migrating and swapping (see
-[deployment/release.md](../deployment/release.md#release-release)).
+[deployment/pipeline.md](../../deployment/pipeline.md#deploy-script)).
 
 - Loads the env file (as every `bin/*` does), then runs the same validation the app runs at
   boot: every rule on this page that refuses boot, including the `SECRET_KEY` and
   `PREVIOUS_SECRET_KEYS` rules, the required `DB_*` settings and the `DB_MIGRATE_*` pairing
   rule (see [Runtime and database](#runtime-and-database)).
 - Also checks that the running PHP is **8.4.x**, since production is pinned to PHP 8.4 (see
-  [deployment/server.md](../deployment/server.md#host-requirements)). This catches a wrong
+  [deployment/server.md](../../deployment/server.md#host-requirements)). This catches a wrong
   `PHP_BIN` or a host change.
 - It does not connect to the database.
 - **Exit codes:** `0` when every check passes; `1` when one or more checks fail.

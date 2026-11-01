@@ -94,7 +94,7 @@ The production host has the same setup as oak, a DreamHost shared host. Verified
   - static files are served.
 - Without `CGIPassAuth On`, `HTTP_AUTHORIZATION` is null. With it, the token arrives, and a request with no header leaves it unset.
 
-The deployment specs describe this target: the release layout, the web directory pointing at the release's `public/` and the host requirements are in [deployment/server.md](../deployment/server.md). There is no production Docker image (see [docker/images.md](../docker/images.md)).
+The deployment docs describe this target: the release layout, the web directory pointing at the release's `public/` and the host requirements are in [deployment/server.md](../../deployment/server.md). There is no production Docker image (see [docker/images.md](../docker/images.md)).
 
 ## Security
 

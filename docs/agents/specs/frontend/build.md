@@ -30,8 +30,7 @@ build output never lives in git.
 (`vite build`, in the `build_frontend` job, without the deploy context) and uploads `dist/`
 into the staging release's `public/admin/`, in the same release as the backend (the
 `upload_frontend` job, see
-[deployment/pipeline.md](../deployment/pipeline.md#deploy-jobs) and
-[deployment/release.md](../deployment/release.md#frontend-upload-upload_frontend)). Both halves
+[deployment/pipeline.md](../../deployment/pipeline.md#deploy-chain)). Both halves
 come from the same tag and are swapped in together, so they stay in sync.
 
 Rejected options:
@@ -54,7 +53,7 @@ is needed. The front-controller rewrite skips existing files and directories (se
 
 `public/admin/.htaccess` exists only to send `Cache-Control: no-cache` for `index.html`, so
 browsers revalidate it after a release and pick up the new hashed asset names (see
-[deployment/edge-cases.md](../deployment/edge-cases.md#frontend)). Hashed Vite assets keep
+[deployment/server.md](../../deployment/server.md#web-directory)). Hashed Vite assets keep
 their default caching. The file is part of the frontend build output (kept in the Vite
 project's static `public/` folder, which Vite copies into `dist/`), so it reaches both
 `make build-fe-release` and the production upload while `source/public/admin/` stays
