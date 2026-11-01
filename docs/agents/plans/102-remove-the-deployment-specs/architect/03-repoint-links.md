@@ -6,9 +6,8 @@ Update every architect-owned reference to the removed specs, using the
 - `docs/agents/deployment/server.md`: the HSTS link to `../specs/deployment/security.md#https`
   becomes the new `#https` section.
 - `docs/agents/contributing.md`: `build_images` "still planned in specs/deployment/pipeline.md"
-  becomes a link to `deployment/known-gaps.md`. Also fix the existing broken relative link
-  `deployment/pipeline.md` in the `build_backend` row; it already points at the docs, so check
-  it resolves.
+  becomes a link to `deployment/known-gaps.md`. The `build_backend` row's
+  `deployment/pipeline.md` link already points at the docs and needs no change.
 - `.claude/agents/infra.md`: replace "read `docs/agents/specs/deployment.md` (index of
   `deployment/*.md`)" with `docs/agents/deployment.md`. Rewrite the Pending-decision list
   (PHP minor version, registry, hosting target, image tagging, deploy-time migrations), which
