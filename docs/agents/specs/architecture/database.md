@@ -41,11 +41,16 @@ Two database users can share the same `DB_HOST`, `DB_PORT` and `DB_NAME`:
 
 | Entry point | User |
 | --- | --- |
-| `bin/migrate` (including `--status`), `bin/create-db`, `bin/drop-db` | Migration user: `DB_MIGRATE_USER` / `DB_MIGRATE_PASSWORD`, falling back to `DB_USER` / `DB_PASSWORD` when neither is set. Its settings are loaded by `Pidgey\Infra\DatabaseConfig::forMigrations()`. |
+| `bin/migrate` (including `--status`), `bin/create-db`, `bin/drop-db` | Migration user: `DB_MIGRATE_USER` / `DB_MIGRATE_PASSWORD`, falling back to `DB_USER` / `DB_PASSWORD` when `DB_MIGRATE_USER` is unset. Its settings are loaded by `Pidgey\Infra\DatabaseConfig::forMigrations()`. |
 | `bin/wait-for-db`, the web app (`public/index.php`) | App user: always `DB_USER` / `DB_PASSWORD`, loaded by `DatabaseConfig::fromEnv()`. `bin/wait-for-db` only checks that the server accepts connections, so it needs no extra rights. |
 
-- Why: the web app then runs without DDL rights, so a flaw in it cannot alter or drop the
-  schema. The grants of each user in production are in
+- Why: the web app then connects without DDL rights, so SQL issued by the app (e.g. through
+  SQL injection) cannot alter or drop the schema. This does not protect against every flaw:
+  `DB_MIGRATE_PASSWORD` lives in the same shared `.env` that the web app loads on every
+  request, so a file-read or code-execution bug in the web app could still obtain the
+  migration credentials (see
+  [deployment/known-gaps.md](../../deployment/known-gaps.md#migration-credentials-in-the-shared-env)).
+  The grants of each user in production are in
   [deployment/security.md](../deployment/security.md#database-users).
 - Docker, CI and tests set no `DB_MIGRATE_*` and use one user through the fallback.
 

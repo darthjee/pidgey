@@ -35,16 +35,18 @@ Purpose: list every environment variable the application reads, with its default
 | `DB_USER` | required | Database user of the web app and `bin/wait-for-db`; also used by the schema/admin commands when `DB_MIGRATE_USER` is unset. |
 | `DB_PASSWORD` | empty | Database password. |
 | `DB_MIGRATE_USER` | none (falls back to `DB_USER`) | Database user for the schema/admin commands `bin/migrate` (including `--status`), `bin/create-db` and `bin/drop-db` (see [database.md](database.md#database-users)). Must be set together with `DB_MIGRATE_PASSWORD`. |
-| `DB_MIGRATE_PASSWORD` | none (falls back to `DB_PASSWORD`) | Password of `DB_MIGRATE_USER`. Must be set together with `DB_MIGRATE_USER`. |
+| `DB_MIGRATE_PASSWORD` | none (falls back to `DB_PASSWORD` when `DB_MIGRATE_USER` is unset) | Password of `DB_MIGRATE_USER`. Must be set together with `DB_MIGRATE_USER`. |
 | `DB_WAIT_TIMEOUT` | `60` | Seconds the database CLI waits for MySQL to accept connections. |
 | `MIGRATE_LOCK_TIMEOUT` | `60` | Seconds a migration run waits for the migration lock (see [database.md](database.md)). |
 
 - `DB_HOST`, `DB_PORT` and `DB_NAME` are shared by both users.
-- `DB_MIGRATE_USER` and `DB_MIGRATE_PASSWORD` are set **together or not at all**. When one is
-  set and the other is not (an empty value counts as unset, like every other key), boot is
-  refused (or the command exits non-zero). When neither is set, the schema/admin commands
-  fall back to `DB_USER` / `DB_PASSWORD`, so a single-user setup (Docker, CI, tests) needs no
-  change.
+- `DB_MIGRATE_USER` and `DB_MIGRATE_PASSWORD` are set **together or not at all**. The rule is
+  enforced by [`bin/check-config`](#bin-check-config), which runs before every
+  release: when one is set and the other is not (an empty value counts as unset, like every
+  other key), it exits non-zero. The schema/admin commands themselves do not enforce it: they
+  use the migration user whenever `DB_MIGRATE_USER` is set (with an empty password if
+  `DB_MIGRATE_PASSWORD` is unset) and otherwise fall back to `DB_USER` / `DB_PASSWORD`, so a
+  single-user setup (Docker, CI, tests) needs no change.
 - `bin/wait-for-db` and the web app always use `DB_USER` / `DB_PASSWORD`, whether or not the
   `DB_MIGRATE_*` keys are set.
 

@@ -89,6 +89,8 @@ for which entry point uses which user).
 | App user | `DB_USER` / `DB_PASSWORD` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` only | the web app, `bin/wait-for-db` |
 
 - `REFERENCES` is needed because migrations create foreign keys.
+- Because the migration user has `DROP`, **`bin/drop-db` must never be run in production**;
+  it exists only for development and test resets (`make db-reset`).
 - Both users' credentials live only in the shared `.env` (see [Shared `.env`](#shared-env));
   nothing about them is committed.
 - The code supports the split from the release that ships #109 on. Until production is
