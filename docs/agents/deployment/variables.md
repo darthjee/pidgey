@@ -33,6 +33,20 @@ not by the deploy.
 All variables except `SSH_PRIVATE_KEY` are not credentials, but they describe the host and are
 kept private all the same.
 
+Why the context and not project variables: project variables reach every job of every
+pipeline, including branch pipelines anyone with push access can start. The restricted context
+reaches only the context jobs of semver-tag pipelines.
+
+### Deploy key
+
+`SSH_PRIVATE_KEY` is the private half of a **dedicated** ed25519 key, used only for Pidgey's
+deploy and authorized only for Pidgey's own host user. Its `authorized_keys` entry starts with
+`restrict` (no port, agent or X11 forwarding, no pty). Rotation steps are in
+[operations.md](operations.md#rotate-the-deploy-key).
+
+Why: a leaked key can then reach only Pidgey's host user, and only to run commands and copy
+files. There is no `from=` restriction because CircleCI's IP addresses are not stable.
+
 ### `SSH_PRIVATE_KEY` format
 
 The CircleCI field is stored as **one line**: each newline of the key file is replaced by the
@@ -53,6 +67,11 @@ ssh-keyscan -t ed25519 -p <port> <host>
 
 Before saving it, check its fingerprint (`ssh-keygen -lf <file>`) against the one the host
 reports for its own key; a mismatch means the scan did not reach the real host.
+
+Why: `ssh-keyscan` trusts whatever answers on the network. Checking the fingerprint against the
+host's own is what makes the pinned key, and `StrictHostKeyChecking=yes`, worth anything. The
+value is not secret, but it is integrity-critical: replacing it would let a fake host receive
+the deploy.
 
 ## App settings are not CircleCI variables
 
