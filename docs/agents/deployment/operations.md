@@ -111,7 +111,7 @@ dead (for example, left by a failed workflow you will not rerun).
 
 One-time, manual step done by the owner, after the release that adds `DB_MIGRATE_USER` /
 `DB_MIGRATE_PASSWORD` (#109) is live. The grants of each user are in
-[server.md](server.md#host-requirements).
+[server.md](server.md#database-users).
 
 Edit the shared `.env` on the host (`$REMOTE_HOME/$SHARED_DIR/.env`), in this order:
 
