@@ -37,6 +37,8 @@ throwaway, so root carries no risk.
   repository-relative (`source/…`, `frontend/…`), because each job flattens its folder to the
   working directory's root.
 - `coverage_final` sends the Codacy `final` call once both partial reports are in.
+- Frontend coverage is therefore in Codacy, next to backend coverage (#75). This settles the
+  open question of whether `frontend_checks` should upload it.
 - The uploads use `CODACY_PROJECT_TOKEN`, a CircleCI **project** variable (see
   [variables.md](variables.md#where-they-live)); it is never committed.
 - Static-analysis exclusions live in `.codacy.yml` at the repository root (`exclude_paths`):
