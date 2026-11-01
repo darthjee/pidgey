@@ -72,10 +72,12 @@ Third-party code never runs next to the deploy key.
 
 The backend upload excludes tests, coverage, lint/phpdoc config, `phpunit.xml`, any `.env*`
 file and `.git` (list in [release.md](release.md#backend-upload-upload_backend)). Only runtime
-code, `vendor/`, `public/` (with the built admin UI) and migrations reach the host, and only
-the live release's `public/` is web-reachable. Any new top-level path in `source/` must be
-added to the exclude list or to this list in the same change (see
-[release.md](release.md#backend-upload-upload_backend)).
+code, `vendor/`, `public/` (with the built admin UI), `config/` and migrations reach the
+host, and only the live release's `public/` is web-reachable. `config/` holds the route files
+(`routes.php` and `routes/`, #111) and, added at release time, the `.env` link (see
+[Shared `.env`](#shared-env)); it is outside `public/`, so it is never web-reachable. Any new
+top-level path in `source/` must be added to the exclude list or to this list in the same
+change (see [release.md](release.md#backend-upload-upload_backend)).
 
 ## Database users
 

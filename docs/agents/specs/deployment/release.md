@@ -87,8 +87,9 @@ The exclude list keeps out of the release:
 - any `.env*` file;
 - `.git`.
 
-What ships: `bin/`, `lib/`, `migrations/`, `public/`, `vendor/`, `composer.json` and
-`composer.lock`. `config/` holds only the `.env` link, created in the `release` job.
+What ships: `bin/`, `config/`, `lib/`, `migrations/`, `public/`, `vendor/`, `composer.json`
+and `composer.lock`. `config/` holds the route files (`routes.php` and `routes/`, #111), and
+the `release` job adds the `.env` link to it.
 
 Any new top-level path in `source/` must, in the same change, be added either to
 `.circleci/backend-exclude.txt` or to the "What ships" list (here and in
