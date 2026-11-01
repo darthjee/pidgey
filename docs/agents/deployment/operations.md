@@ -21,6 +21,8 @@ Commands on the host run over SSH as the host user (see [variables.md](variables
 4. Verify the release:
    - `https://<domain>/health.json` returns `200`;
    - `https://<domain>/admin/` loads;
+   - the HSTS header is sent: `curl -sI https://<domain>/health.json` and
+     `curl -sI https://<domain>/admin/` both show `Strict-Transport-Security: max-age=300`;
    - the migrations are applied: `cd <live> && $PHP_BIN bin/migrate --status` lists no
      pending migration.
 

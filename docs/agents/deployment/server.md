@@ -48,6 +48,10 @@ loader reads `config/.env` from the release root (format in
 - The host redirects HTTP to HTTPS.
 - `public/.htaccess` returns `404` for any path segment starting with a dot, disables
   directory listings and routes every other non-file request to `index.php`.
+- `public/.htaccess` also sends `Strict-Transport-Security: max-age=300` (no
+  `includeSubDomains`, no `preload`) on HTTPS responses only. `public/admin/` inherits it, so
+  it covers both the API and `/admin/`. The decision is in
+  [specs/deployment/security.md](../specs/deployment/security.md#https).
 - `public/admin/.htaccess` (from `frontend/public/.htaccess`) serves `index.html` with
   `Cache-Control: no-cache`, so browsers pick up new hashed asset names after a release;
   hashed Vite assets stay cacheable.
