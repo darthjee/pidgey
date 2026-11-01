@@ -109,7 +109,7 @@ Actions used:
 | `generate_key_file` | every context job | `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` | Writes the key and known-hosts files (see above). |
 | `upload` | `upload_backend` | `SOURCE=/tmp/workspace/backend/`, `EXCLUDE_FROM=.circleci/backend-exclude.txt` | Creates the staging folder and rsyncs `SOURCE` into it, skipping the excluded paths. |
 | `upload` | `upload_frontend` | `SOURCE=/tmp/workspace/frontend-dist/`, `DEPLOY_PATH=public/admin/` | Rsyncs the built admin UI into staging's `public/admin/`. |
-| `link` | `release` | `SOURCE="$REMOTE_HOME/$SHARED_DIR/.env"`, `DEPLOY_PATH=config/.env` | Creates `config/` in staging and a symlink `config/.env` → the shared `.env` (`ln -sfn`). |
+| `link` | `release` | `SOURCE="$REMOTE_HOME/$SHARED_DIR/.env"`, `DEPLOY_PATH=config/.env` | Runs `mkdir -p config` in staging (it already holds the route files) and adds a symlink `config/.env` → the shared `.env` (`ln -sfn`). |
 | `run` | `release` | `COMMAND="$PHP_BIN bin/check-config"` | Runs the configuration checks inside staging. |
 | `run` | `release` | `COMMAND="$PHP_BIN bin/migrate"` | Applies pending migrations inside staging. |
 | `release` | `release` | none | Checks that staging exists, moves live aside to `<live>_old_<timestamp>`, moves staging to live, removes the old folder. |
@@ -135,7 +135,8 @@ release:
 - any `.env*` file;
 - `.git`.
 
-Everything else under `source/` ships: `bin/`, `lib/`, `migrations/`, `public/`, `vendor/`
+Everything else under `source/` ships: `bin/`, `config/` (route files), `lib/`, `migrations/`,
+`public/`, `vendor/`
 (production dependencies only), `composer.json` and `composer.lock`. A new top-level path in
 `source/` ships too unless it is added to the exclude list.
 

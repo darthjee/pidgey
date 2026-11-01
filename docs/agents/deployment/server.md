@@ -27,7 +27,8 @@ placeholders: `<live>` for the live folder, `<domain>` for Pidgey's domain.
 
 ## The `config/.env` link
 
-`release`'s `link` step creates `config/` in staging and a symlink inside it:
+`config/` already exists in staging after `upload_backend`: it ships the route files
+(`routes.php` and `routes/`). `release`'s `link` step adds a symlink beside them:
 
 ```
 config/.env -> $REMOTE_HOME/$SHARED_DIR/.env
@@ -38,6 +39,10 @@ created before `bin/check-config` and `bin/migrate` run, and it moves to live wi
 staging. `config/` is outside `public/`, so the file is never web-reachable. The app's env-file
 loader reads `config/.env` from the release root (format in
 [architecture/configuration.md](../specs/architecture/configuration.md#env-file)).
+
+The `link` step runs `mkdir -p` on the parent folder before `ln -sfn` (checked in the
+darthjee/scripts 0.11.0 source), so an existing `config/` is kept and only the `.env` link is
+added.
 
 ## Web directory
 
