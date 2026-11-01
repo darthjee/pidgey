@@ -26,6 +26,8 @@ final class ConfigValidatorTest extends TestCase
         'DB_NAME',
         'DB_USER',
         'DB_PASSWORD',
+        'DB_MIGRATE_USER',
+        'DB_MIGRATE_PASSWORD',
         'DB_WAIT_TIMEOUT',
         'MIGRATE_LOCK_TIMEOUT',
         'ACCESS_TOKEN_TTL',
@@ -178,6 +180,56 @@ final class ConfigValidatorTest extends TestCase
 
         $this->assertSame([$expected], $failures);
         $this->assertNoValueLeaks($failures, $value);
+    }
+
+    /**
+     * @return array<string, array{string|null, string|null, list<string>}>
+     */
+    public static function migrationUserPairings(): array
+    {
+        return [
+            'neither set' => [null, null, []],
+            'both set' => ['distinctive_migrator', 'distinctive-migrate-secret', []],
+            'user without password' => [
+                'distinctive_migrator',
+                null,
+                ['DB_MIGRATE_PASSWORD: missing'],
+            ],
+            'user with empty password' => [
+                'distinctive_migrator',
+                '',
+                ['DB_MIGRATE_PASSWORD: missing'],
+            ],
+            'password without user' => [
+                null,
+                'distinctive-migrate-secret',
+                ['DB_MIGRATE_USER: missing'],
+            ],
+            'password with empty user' => [
+                '',
+                'distinctive-migrate-secret',
+                ['DB_MIGRATE_USER: missing'],
+            ],
+        ];
+    }
+
+    /**
+     * @param list<string> $expected
+     */
+    #[DataProvider('migrationUserPairings')]
+    public function testMigrationUserAndPasswordAreSetTogether(
+        ?string $user,
+        ?string $password,
+        array $expected,
+    ): void {
+        putenv($user === null ? 'DB_MIGRATE_USER' : "DB_MIGRATE_USER={$user}");
+        putenv($password === null ? 'DB_MIGRATE_PASSWORD' : "DB_MIGRATE_PASSWORD={$password}");
+
+        $failures = (new ConfigValidator())->validate();
+
+        $this->assertSame($expected, $failures);
+        $this->assertNoValueLeaks($failures, $user);
+        $this->assertNoValueLeaks($failures, $password);
     }
 
     public function testPreviousKeyFailuresAreReportedOnceEach(): void

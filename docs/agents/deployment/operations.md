@@ -87,6 +87,29 @@ dead (for example, left by a failed workflow you will not rerun).
    failed.
 3. Remove the rest with `rm -rf`.
 
+## Switch to separate DB users
+
+One-time, manual step done by the owner, after the release that adds `DB_MIGRATE_USER` /
+`DB_MIGRATE_PASSWORD` (#109) is live. The grants of each user are in
+[server.md](server.md#host-requirements).
+
+Edit the shared `.env` on the host (`$REMOTE_HOME/$SHARED_DIR/.env`), in this order:
+
+1. Add `DB_MIGRATE_USER` / `DB_MIGRATE_PASSWORD` with the **current** `DB_USER` /
+   `DB_PASSWORD` values (the user with DDL rights). Check the file:
+   `cd <live> && $PHP_BIN bin/check-config`, then `$PHP_BIN bin/migrate --status`.
+2. Switch `DB_USER` / `DB_PASSWORD` to the data-only app user. Check the file again with
+   `bin/check-config`, then check that `https://<domain>/health.json` returns `200` and
+   `https://<domain>/admin/` loads.
+3. On the next deploy, check that the `release` job's `bin/migrate` succeeds and that
+   `cd <live> && $PHP_BIN bin/migrate --status` lists no pending migration.
+
+The order matters: if `DB_USER` is switched before `DB_MIGRATE_*` exists, `bin/migrate` falls
+back to the data-only user and the next deploy's migrations fail.
+
+To roll back, set `DB_USER` / `DB_PASSWORD` back to the migration user's values; no deploy is
+needed, since `public/index.php` loads `config/.env` on every request.
+
 ## Rotate the deploy key
 
 1. Generate a new ed25519 key: `ssh-keygen -t ed25519 -N '' -f <new key>`.

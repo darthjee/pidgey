@@ -10,6 +10,12 @@ settings) are in [architecture/database.md](../architecture/database.md#access).
 The connection is built by the existing `Pidgey\Infra\PdoFactory` (implementing
 `Pidgey\Infra\ConnectionFactory`) from `Pidgey\Infra\DatabaseConfig::fromEnv()`.
 
+- The web app always uses `fromEnv()` (`DB_USER` / `DB_PASSWORD`). The schema/admin database
+  scripts (`bin/migrate`, `bin/create-db`, `bin/drop-db`) use
+  `DatabaseConfig::forMigrations()` instead, which reads `DB_MIGRATE_USER` /
+  `DB_MIGRATE_PASSWORD` and falls back to `DB_USER` / `DB_PASSWORD` when neither is set;
+  `bin/wait-for-db` uses `fromEnv()` (see
+  [architecture/database.md](../architecture/database.md#database-users)).
 - `create(DatabaseConfig)` connects to `DB_NAME`; `createServer(DatabaseConfig)` connects with
   no database selected (used only by the database scripts).
 - Options, on every connection:

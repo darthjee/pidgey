@@ -40,15 +40,17 @@ final class DatabaseCommand
     /**
      * Builds the commands.
      *
-     * @param Closure  $configLoader    Closure(): DatabaseConfig, loads the settings.
-     * @param Closure  $serverFactory   Closure(DatabaseConfig): DatabaseServer.
-     * @param Closure  $migratorFactory Closure(DatabaseConfig): Migrator.
-     * @param Closure  $waitTimeout     Closure(): int, seconds to wait for the server.
-     * @param resource $stdout          Stream for normal output.
-     * @param resource $stderr          Stream for error output.
+     * @param Closure  $configLoader          Closure(): DatabaseConfig, loads the app user's settings.
+     * @param Closure  $migrationConfigLoader Closure(): DatabaseConfig, loads the migration user's settings.
+     * @param Closure  $serverFactory         Closure(DatabaseConfig): DatabaseServer.
+     * @param Closure  $migratorFactory       Closure(DatabaseConfig): Migrator.
+     * @param Closure  $waitTimeout           Closure(): int, seconds to wait for the server.
+     * @param resource $stdout                Stream for normal output.
+     * @param resource $stderr                Stream for error output.
      */
     public function __construct(
         private readonly Closure $configLoader,
+        private readonly Closure $migrationConfigLoader,
         private readonly Closure $serverFactory,
         private readonly Closure $migratorFactory,
         private readonly Closure $waitTimeout,
@@ -60,7 +62,10 @@ final class DatabaseCommand
     }
 
     /**
-     * Builds the commands from the environment (DB_*, DB_WAIT_TIMEOUT, MIGRATE_LOCK_TIMEOUT).
+     * Builds the commands from the environment (DB_*, DB_MIGRATE_*, DB_WAIT_TIMEOUT, MIGRATE_LOCK_TIMEOUT).
+     *
+     * wait-for-db connects as the app user (DB_USER); create-db, drop-db and migrate connect as
+     * the migration user (DB_MIGRATE_USER, falling back to DB_USER).
      *
      * @param string   $migrationsDirectory Migrations directory.
      * @param resource $stdout              Stream for normal output.
@@ -74,6 +79,7 @@ final class DatabaseCommand
 
         return new self(
             static fn (): DatabaseConfig => DatabaseConfig::fromEnv(),
+            static fn (): DatabaseConfig => DatabaseConfig::forMigrations(),
             static fn (DatabaseConfig $config): DatabaseServer => new DatabaseServer($factory, $config),
             static fn (DatabaseConfig $config): Migrator => new MigrationRunner(
                 $factory->create($config),
@@ -109,7 +115,7 @@ final class DatabaseCommand
     public function createDb(): int
     {
         return $this->guard(function (): void {
-            $config = ($this->configLoader)();
+            $config = ($this->migrationConfigLoader)();
             $this->server($config)->createDatabase($config->name);
             $this->write("Database {$config->name} is ready.");
         });
@@ -123,7 +129,7 @@ final class DatabaseCommand
     public function dropDb(): int
     {
         return $this->guard(function (): void {
-            $config = ($this->configLoader)();
+            $config = ($this->migrationConfigLoader)();
             $this->server($config)->dropDatabase($config->name);
             $this->write("Database {$config->name} dropped.");
         });
@@ -147,7 +153,7 @@ final class DatabaseCommand
         $showStatus = $arguments === ['--status'];
 
         return $this->guard(function () use ($showStatus): void {
-            $migrator = ($this->migratorFactory)(($this->configLoader)());
+            $migrator = ($this->migratorFactory)(($this->migrationConfigLoader)());
 
             if ($showStatus) {
                 $this->printStatus($migrator->status());

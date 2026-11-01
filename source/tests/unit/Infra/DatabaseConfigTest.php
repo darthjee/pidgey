@@ -15,7 +15,10 @@ use RuntimeException;
 #[CoversClass(Env::class)]
 final class DatabaseConfigTest extends TestCase
 {
-    private const VARIABLES = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+    private const VARIABLES = [
+        'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
+        'DB_MIGRATE_USER', 'DB_MIGRATE_PASSWORD',
+    ];
 
     /** @var array<string, string|false> */
     private array $saved = [];
@@ -31,6 +34,8 @@ final class DatabaseConfigTest extends TestCase
         putenv('DB_NAME=pidgey_example_test');
         putenv('DB_USER=someone');
         putenv('DB_PASSWORD=secret');
+        putenv('DB_MIGRATE_USER');
+        putenv('DB_MIGRATE_PASSWORD');
     }
 
     protected function tearDown(): void
@@ -111,6 +116,66 @@ final class DatabaseConfigTest extends TestCase
             'too large' => ['65536'],
             'decimal' => ['33.06'],
         ];
+    }
+
+    public function testForMigrationsFallsBackToAppCredentialsWhenUnset(): void
+    {
+        $config = DatabaseConfig::forMigrations();
+
+        $this->assertSame('someone', $config->user);
+        $this->assertSame('secret', $config->password);
+    }
+
+    public function testForMigrationsFallsBackWhenMigrateUserIsEmpty(): void
+    {
+        putenv('DB_MIGRATE_USER=');
+        putenv('DB_MIGRATE_PASSWORD=ignored');
+
+        $config = DatabaseConfig::forMigrations();
+
+        $this->assertSame('someone', $config->user);
+        $this->assertSame('secret', $config->password);
+    }
+
+    public function testForMigrationsUsesMigrationCredentialsWhenSet(): void
+    {
+        putenv('DB_MIGRATE_USER=migrator');
+        putenv('DB_MIGRATE_PASSWORD=schema-secret');
+
+        $config = DatabaseConfig::forMigrations();
+
+        $this->assertSame('migrator', $config->user);
+        $this->assertSame('schema-secret', $config->password);
+    }
+
+    public function testForMigrationsDefaultsPasswordToEmpty(): void
+    {
+        putenv('DB_MIGRATE_USER=migrator');
+
+        $this->assertSame('', DatabaseConfig::forMigrations()->password);
+    }
+
+    public function testForMigrationsSharesHostPortAndName(): void
+    {
+        putenv('DB_MIGRATE_USER=migrator');
+        putenv('DB_MIGRATE_PASSWORD=schema-secret');
+
+        $config = DatabaseConfig::forMigrations();
+
+        $this->assertSame('db.example', $config->host);
+        $this->assertSame(3307, $config->port);
+        $this->assertSame('pidgey_example_test', $config->name);
+    }
+
+    public function testFromEnvIgnoresMigrationCredentials(): void
+    {
+        putenv('DB_MIGRATE_USER=migrator');
+        putenv('DB_MIGRATE_PASSWORD=schema-secret');
+
+        $config = DatabaseConfig::fromEnv();
+
+        $this->assertSame('someone', $config->user);
+        $this->assertSame('secret', $config->password);
     }
 
     public function testWithNameReplacesOnlyTheName(): void

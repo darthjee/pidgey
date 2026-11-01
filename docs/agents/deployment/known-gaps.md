@@ -16,12 +16,15 @@ applied. To limit registration abuse, production keeps `USER_APPROVAL_REQUIRED=t
 Application-level throttling is an open decision owned by
 [api/pending.md](../specs/api/pending.md) (rate limits).
 
-## One database user
+## Migration credentials in the shared `.env`
 
-Migrations and the app use the same database user, which therefore holds DDL rights (`CREATE`,
-`ALTER`, `INDEX`, `REFERENCES`) at runtime. The host supports a second user, so a
-least-privilege split (DDL for migrations only, data access only for the app) is possible; it
-is tracked in #109.
+`DB_MIGRATE_USER` / `DB_MIGRATE_PASSWORD` live in the same shared `.env` as the app settings
+(see [server.md](server.md#shared-env)). `public/index.php` loads that file on every request,
+so the web process has the migration user's credentials in its environment. The split
+between the two users stops SQL issued by the app (e.g. SQL injection) from altering or
+dropping the schema. It does not protect against a file-read or code-execution flaw in the
+web app, which could read those credentials. Keeping them in a separate file that only the
+`bin/` schema commands load would close this; it is not tracked yet.
 
 ## No HSTS header
 

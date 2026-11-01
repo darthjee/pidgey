@@ -35,7 +35,7 @@ obvious placeholders such as `<live>`.
 
 - Mode `700`; the production `.env` inside it is mode `600`. Both are owned by the host user,
   which is the user PHP runs as.
-- The `.env` holds every app setting (`SECRET_KEY`, `DB_*`, `PHP_ENV`,
+- The `.env` holds every app setting (`SECRET_KEY`, `DB_*` including `DB_MIGRATE_*`, `PHP_ENV`,
   `USER_APPROVAL_REQUIRED`, `TRUSTED_PROXY_HOPS`, …) in the format defined in
   [architecture/configuration.md](../architecture/configuration.md#env-file). It is the only
   place these settings exist; they are never CircleCI variables.
@@ -75,8 +75,17 @@ release root (see [architecture/configuration.md](../architecture/configuration.
 - **OPcache** with `opcache.validate_timestamps` on (the default): release paths do not
   change on a swap, so PHP must notice the new files.
 - **MySQL 8+**, on its own hostname, reachable from the SSH host (migrations run there over
-  SSH). The DB user needs `CREATE`, `ALTER`, `INDEX` and `REFERENCES` in addition to data
-  access; `GET_LOCK` needs no privilege.
+  SSH), with two users on the app database (see
+  [security.md](security.md#database-users)):
+  - the **migration user** (`DB_MIGRATE_USER`, used by `bin/migrate`) needs data access
+    (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) plus `CREATE`, `DROP`, `INDEX`, `ALTER` and
+    `REFERENCES`;
+  - the **app user** (`DB_USER`, used by the web app and `bin/wait-for-db`) needs data access
+    only: `SELECT`, `INSERT`, `UPDATE`, `DELETE`.
+
+  `GET_LOCK` needs no privilege. Until the owner switches production over (see
+  [security.md](security.md#database-users)), `DB_MIGRATE_*` is unset and `DB_USER` is the
+  DDL-capable user.
 - **No Composer** is needed on the host: `vendor/` ships with the release.
 
 ## To confirm
@@ -93,7 +102,8 @@ decisions.
 - [ ] Whether a reverse proxy sits in front of Apache, and how many `X-Forwarded-For` hops
   it adds; `TRUSTED_PROXY_HOPS` in the shared `.env` is set to match (`0` if none).
 - [ ] The MySQL server version (`SELECT VERSION()`) is 8 or newer.
-- [ ] The DB user's grants (`SHOW GRANTS`) include the rights listed above.
+- [ ] Each DB user's grants (`SHOW GRANTS`) match the rights listed above: DDL plus
+  `REFERENCES` for the migration user, data access only for the app user.
 - [ ] OPcache has `validate_timestamps` on.
 - [ ] The final domain.
 

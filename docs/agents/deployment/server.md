@@ -66,6 +66,7 @@ Keys it must hold:
 | --- | --- |
 | `PHP_ENV` | `production` |
 | `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (and `DB_PORT` when not `3306`) | The production database. `DB_HOST`, `DB_NAME` and `DB_USER` are required by `bin/check-config`. |
+| `DB_MIGRATE_USER`, `DB_MIGRATE_PASSWORD` | Optional. The migration user, used by `bin/migrate` (and `bin/create-db` / `bin/drop-db`). When neither is set, those commands fall back to `DB_USER` / `DB_PASSWORD`. If one is set, both must be (`bin/check-config`). See [operations.md](operations.md#switch-to-separate-db-users). |
 | `SECRET_KEY` | At least 32 CSPRNG bytes, hex-encoded (e.g. `openssl rand -hex 32`). Required by `bin/check-config`. |
 | `USER_APPROVAL_REQUIRED` | `true` (see [known-gaps.md](known-gaps.md#no-proxy-rate-limiting)). |
 | `TRUSTED_PROXY_HOPS` | `0`: no reverse proxy sits in front of Apache on this host (see [known-gaps.md](known-gaps.md#trusted_proxy_hops-not-verified)). |
@@ -85,9 +86,15 @@ Confirmed on the host during the first release (#100):
   - The CLI has `pdo_mysql` and `sodium`.
 - **Apache** with `.htaccess` support and `mod_rewrite`.
 - **MySQL 8 or newer**, on its own hostname, reachable from the SSH host (migrations run there
-  over SSH). The DB user has `CREATE`, `ALTER`, `INDEX` and `REFERENCES` in addition to data
-  access (`SELECT`, `INSERT`, `UPDATE`, `DELETE`). The same user serves migrations and the app
-  (see [known-gaps.md](known-gaps.md#one-database-user)).
+  over SSH). Two users on the same database:
+  - the **migration user** (`DB_MIGRATE_USER`), used by `bin/migrate`, has `SELECT`, `INSERT`,
+    `UPDATE`, `DELETE`, `CREATE`, `DROP`, `INDEX`, `ALTER` and `REFERENCES`;
+  - the **app user** (`DB_USER`), used by the web app and `bin/wait-for-db`, has `SELECT`,
+    `INSERT`, `UPDATE` and `DELETE` only.
+
+  Until the owner switches production over (see
+  [operations.md](operations.md#switch-to-separate-db-users)), `DB_MIGRATE_*` is unset and the
+  original user, which holds both sets of rights, serves migrations and the app.
 - **OPcache** with `opcache.validate_timestamps` on (the default). Release paths do not change
   on a swap, so PHP must notice the new files.
 - **No Composer** on the host: `vendor/` ships with the release.

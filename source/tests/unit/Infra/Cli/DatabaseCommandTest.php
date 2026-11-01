@@ -43,6 +43,9 @@ final class DatabaseCommandTest extends TestCase
 
     private DatabaseConfig $config;
 
+    /** @var list<DatabaseConfig> Configs passed to the server and migrator factories. */
+    private array $received = [];
+
     protected function setUp(): void
     {
         $this->stdout = fopen('php://memory', 'w+');
@@ -109,12 +112,54 @@ final class DatabaseCommandTest extends TestCase
 
     public function testConfigurationErrorsAreReported(): void
     {
-        $command = $this->command(configLoader: static function (): DatabaseConfig {
+        $command = $this->command(migrationConfigLoader: static function (): DatabaseConfig {
             throw new RuntimeException('Missing required environment variable: DB_HOST');
         });
 
         $this->assertSame(1, $command->dropDb());
         $this->assertSame("Missing required environment variable: DB_HOST\n", $this->read($this->stderr));
+    }
+
+    public function testWaitForDbUsesTheAppUser(): void
+    {
+        $command = $this->routingCommand(server: $this->server($this->createStub(PDO::class)));
+
+        $this->assertSame(0, $command->waitForDb());
+        $this->assertReceivedUser('app');
+    }
+
+    public function testCreateDbUsesTheMigrationUser(): void
+    {
+        $command = $this->routingCommand(server: $this->server($this->createStub(PDO::class)));
+
+        $this->assertSame(0, $command->createDb());
+        $this->assertReceivedUser('migrator');
+    }
+
+    public function testDropDbUsesTheMigrationUser(): void
+    {
+        $command = $this->routingCommand(server: $this->server($this->createStub(PDO::class)));
+
+        $this->assertSame(0, $command->dropDb());
+        $this->assertReceivedUser('migrator');
+    }
+
+    public function testMigrateUsesTheMigrationUser(): void
+    {
+        $migrator = $this->createStub(Migrator::class);
+        $migrator->method('migrate')->willReturn(new MigrationResult([]));
+
+        $this->assertSame(0, $this->routingCommand(migrator: $migrator)->migrate([]));
+        $this->assertReceivedUser('migrator');
+    }
+
+    public function testStatusUsesTheMigrationUser(): void
+    {
+        $migrator = $this->createStub(Migrator::class);
+        $migrator->method('status')->willReturn([]);
+
+        $this->assertSame(0, $this->routingCommand(migrator: $migrator)->migrate(['--status']));
+        $this->assertReceivedUser('migrator');
     }
 
     public function testMigratePrintsAppliedFiles(): void
@@ -233,17 +278,49 @@ final class DatabaseCommandTest extends TestCase
         ?DatabaseServer $server = null,
         ?Migrator $migrator = null,
         int $waitTimeout = 5,
+        ?\Closure $migrationConfigLoader = null,
     ): DatabaseCommand {
         $config = $this->config;
 
         return new DatabaseCommand(
             $configLoader ?? static fn (): DatabaseConfig => $config,
-            static fn (): DatabaseServer => $server ?? throw new RuntimeException('no server'),
-            static fn (): Migrator => $migrator ?? throw new RuntimeException('no migrator'),
+            $migrationConfigLoader ?? static fn (): DatabaseConfig => $config,
+            function (DatabaseConfig $received) use ($server): DatabaseServer {
+                $this->received[] = $received;
+
+                return $server ?? throw new RuntimeException('no server');
+            },
+            function (DatabaseConfig $received) use ($migrator): Migrator {
+                $this->received[] = $received;
+
+                return $migrator ?? throw new RuntimeException('no migrator');
+            },
             static fn (): int => $waitTimeout,
             $this->stdout,
             $this->stderr,
         );
+    }
+
+    /**
+     * Builds a command whose app and migration loaders return configs with different users.
+     */
+    private function routingCommand(?DatabaseServer $server = null, ?Migrator $migrator = null): DatabaseCommand
+    {
+        $app = new DatabaseConfig('db.example', 3307, 'pidgey_test', 'app', 'app-secret');
+        $migration = new DatabaseConfig('db.example', 3307, 'pidgey_test', 'migrator', 'schema-secret');
+
+        return $this->command(
+            configLoader: static fn (): DatabaseConfig => $app,
+            server: $server,
+            migrator: $migrator,
+            migrationConfigLoader: static fn (): DatabaseConfig => $migration,
+        );
+    }
+
+    private function assertReceivedUser(string $user): void
+    {
+        $this->assertCount(1, $this->received);
+        $this->assertSame($user, $this->received[0]->user);
     }
 
     private function server(?PDO $pdo): DatabaseServer

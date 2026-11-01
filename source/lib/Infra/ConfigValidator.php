@@ -55,6 +55,7 @@ final class ConfigValidator
             ...$this->checkSecretKey(),
             ...$this->checkPreviousSecretKeys(),
             ...$this->checkRequired(),
+            ...$this->checkMigrationUser(),
             ...$this->checkIntegers(),
             ...$this->checkTokenTtls(),
         ];
@@ -126,6 +127,27 @@ final class ConfigValidator
         }
 
         return $failures;
+    }
+
+    /**
+     * Checks that `DB_MIGRATE_USER` and `DB_MIGRATE_PASSWORD` are set together, or not at all.
+     *
+     * @return list<string>
+     */
+    private function checkMigrationUser(): array
+    {
+        $hasUser = Env::get('DB_MIGRATE_USER') !== null;
+        $hasPassword = Env::get('DB_MIGRATE_PASSWORD') !== null;
+
+        if ($hasUser && !$hasPassword) {
+            return ['DB_MIGRATE_PASSWORD: missing'];
+        }
+
+        if ($hasPassword && !$hasUser) {
+            return ['DB_MIGRATE_USER: missing'];
+        }
+
+        return [];
     }
 
     /**
