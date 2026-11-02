@@ -32,13 +32,11 @@ Why each line is there:
 
 ## Paths that bypass PHP
 
-Unlike Tent, existing files and directories are not sent to PHP. Apache serves them directly:
+Unlike Tent, existing files and directories under `source/public/` are not sent to PHP: Apache serves them directly. `source/public/` holds only `index.php` and the `.htaccess` (see [Security](#security)), so in practice nothing but `index.php` itself bypasses the rule.
 
-- `/admin/` (the built UI's `index.html`, through `DirectoryIndex`);
-- `/admin/assets/*` (the built UI's static assets);
-- `/admin` → `/admin/`, a redirect produced by `mod_dir`.
+The frontend **does not** bypass PHP. Its build lives in `source/static/`, outside the web root, and is served at `/` by the PHP static-file handler ([static-files.md](static-files.md)), which owns its headers, allow-list and rejections. The UI no longer lives in a web-root subfolder: no `DirectoryIndex` serving, no `mod_dir` redirect and no nested `.htaccess` are involved in serving it.
 
-`*.json` paths always reach PHP, anywhere in the tree, including under `/admin/`, because the UI never ships `.json` files. The routing rules live in [architecture/backend.md](../architecture/backend.md#entry-point); the built UI layout lives in [frontend/build.md](../frontend/build.md).
+`*.json` paths always reach PHP, anywhere in the tree, because the web root ships no `.json` files. Other `GET` paths belong to the frontend. The routing rules live in [architecture/backend.md](../architecture/backend.md#entry-point); the built UI layout lives in [frontend/build.md](../frontend/build.md).
 
 ## `Authorization` header
 
@@ -89,9 +87,10 @@ The production host has the same setup as oak, a DreamHost shared host. Verified
 - **There is no vhost access.** `.htaccess` is the only lever: every rule must live in `source/public/.htaccess`, and vhost-only directives (`AllowEncodedSlashes`, moving the rules into the vhost) are not available.
 - Every directive in the `.htaccess` above is accepted, with no 500: `CGIPassAuth`, `Options -Indexes`, the dotfile rule and the front-controller rule.
 - Results match dev:
-  - non-file paths and `*.json` under `/admin/` reach `index.php` with the original `REQUEST_URI`;
-  - `/admin` gets a 301 to `/admin/`;
-  - static files are served.
+  - non-file paths and `*.json` paths reach `index.php` with the original `REQUEST_URI`;
+  - existing files under the web root are served by Apache.
+
+  The probe ran against the earlier layout, with the UI in a web-root subfolder served by Apache (including a `mod_dir` 301 to add the trailing slash). That part no longer applies: the UI is served by PHP at `/` ([static-files.md](static-files.md)), so it needs no Apache feature beyond the front-controller rule verified above.
 - Without `CGIPassAuth On`, `HTTP_AUTHORIZATION` is null. With it, the token arrives, and a request with no header leaves it unset.
 
 The deployment docs describe this target: the release layout, the web directory pointing at the release's `public/` and the host requirements are in [deployment/server.md](../../deployment/server.md). There is no production Docker image (see [docker/images.md](../docker/images.md)).
@@ -103,15 +102,16 @@ The deployment docs describe this target: the release layout, the web directory 
   - PHP never runs for scanner noise.
   - This blocks `/.well-known/` too. Nothing needs it today, because TLS is terminated outside the app. A future ACME setup must carve it out.
   - Rejected: routing dotfiles to `index.php` for a JSON 404. It is more consistent, but runs PHP for every probe.
-- **Directory listing** is disabled explicitly with `Options -Indexes`. The dev image's `docker-php.conf` already sets it (verified: `/admin/assets/` → 403), but the rule must not depend on the image.
-- **Only `index.php` runs.** `source/public/` holds only `index.php` and static assets. All PHP code lives outside the web root. Any other `.php` file placed in `public/` would execute (verified), so this is a layout rule stated here, not an `.htaccess` rule.
+- **Directory listing** is disabled explicitly with `Options -Indexes`. The dev image's `docker-php.conf` already sets it (verified: an existing directory without an index → 403), but the rule must not depend on the image.
+- **Only `index.php` runs.** `source/public/` holds only `index.php` and the `.htaccess`; the frontend build lives in `source/static/`, outside the web root. All PHP code lives outside the web root. Any other `.php` file placed in `public/` would execute (verified), so this is a layout rule stated here, not an `.htaccess` rule.
 
 ## Edge cases
 
 Observed on `php:8.4-apache` with the rules above. They are documented behavior; no extra rules are added for them.
 
-- **`/index.php`** reaches PHP with `REQUEST_URI=/index.php`. No route matches it, so it gets the 404 fallback ([routing.md](routing.md#no-match)).
-- **`/admin/` on a fresh clone** (no frontend build) is not an existing directory, so it falls through to PHP and gets a JSON 404. See [frontend/build.md](../frontend/build.md).
+- **`/index.php`** reaches PHP with `REQUEST_URI=/index.php`. No route matches it, and its last segment has an extension, so it gets the JSON 404, not the GET fallback ([routing.md](routing.md#get-fallback)).
+- **`/` on a fresh clone** (no frontend build in `source/static/`) reaches PHP, and the static-file handler answers a JSON 404 ([static-files.md](static-files.md#edge-cases)).
+- **Dotfile segments** still get Apache's 404 before PHP runs, whatever the frontend routes are ([Security](#security)).
 - **Trailing slashes** (`/foo/`) are passed through unchanged. Matching is strict, so `/foo/` does not match a `/foo` route ([routing.md](routing.md#edge-cases)).
 - **Percent-encoding** (`/a%20b`) is passed through raw in `REQUEST_URI`. Decoding is the `Request`'s job, decided in [request-response.md](request-response.md).
 - **Encoded slashes (`%2F`)** get an HTML 404 from Apache itself, before the rewrite runs, because of `AllowEncodedSlashes Off` (vhost-only, cannot be changed in `.htaccess`). Accepted: no route needs a `/` inside a `:param`. Path params never contain `/` ([routing.md](routing.md#edge-cases)), and these requests do not get the JSON error envelope.
@@ -133,7 +133,6 @@ Note only:
 - `/` stops being the health check. `GET /health.json` ([api/endpoints/operational.md](../api/endpoints/operational.md)) takes that role, with the same payload, once the front controller ([front-controller.md](front-controller.md)) lands. `/` is the document-root directory, so the rule does not rewrite it; it reaches `index.php` through `DirectoryIndex`, and the router decides what it returns.
 - If the `.htaccess` ships before the real front controller, every non-file path answers 200 `{"status":"ok"}`. This only happens in dev, so the implementation issues may ship them together or in either order.
 - The Vite dev proxy's `*.json` requests start reaching PHP instead of Apache's 404. That is the intended change.
-- Updating the "stub `index.php`" wording in `architecture/repository-layout.md` belongs to the front-controller work ([front-controller.md](front-controller.md)), not here.
 
 ## Verification
 

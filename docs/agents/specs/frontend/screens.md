@@ -256,7 +256,10 @@ modal has these modes:
 
 ## Pending decisions
 
-- **Content-Security-Policy:** a strict CSP on `/admin/` (infra) to reduce the XSS exposure of
-  the stored refresh token.
+- **Content-Security-Policy:** a strict CSP on `index.html` at `/` (sent by the static-file
+  handler) to reduce the XSS exposure of the stored refresh token. Only
+  `frame-ancestors 'none'` is already decided
+  ([request-handler/static-files.md](../request-handler/static-files.md#response-headers)); the
+  rest of the policy is open.
 - **`HttpOnly` refresh cookie** instead of `localStorage`; tracked in
   [api/authentication/sessions.md](../api/authentication/sessions.md#pending-decisions).

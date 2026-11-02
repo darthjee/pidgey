@@ -16,7 +16,7 @@ Rows marked "Future work" are kept as the target design but are not part of the 
 setup.
 
 There is no volume for the built frontend: `make build-fe-release` writes it to
-`source/public/admin`, which `app` already serves at `/admin/` through the `./source` mount
+`source/static/`, which `app` already serves at `/` through the `./source` mount
 (see [frontend/build.md](../frontend/build.md)).
 
 `docker_volumes/` is git-ignored except for placeholder files keeping the folders.

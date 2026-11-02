@@ -20,10 +20,10 @@ order shared by every API endpoint.
 
 - Every API path is **root-relative and ends in `.json`**, with no `/api` or `/v1` prefix:
   `/auth/login.json`, `/admin/users/search.json`, `/health.json`.
-- **`*.json` always reaches the API**, anywhere in the path tree, including under `/admin/`.
-  Non-`.json` paths under `/admin/` belong to the admin UI, which never ships `.json` files
-  there (see [architecture/backend.md](../../architecture/backend.md) and
-  [frontend/development.md](../../frontend/development.md)).
+- **`*.json` always reaches the API**, anywhere in the path tree. Other `GET` paths belong to
+  the frontend, served at `/` by the static-file handler, which never serves `.json` files
+  (see [architecture/backend.md](../../architecture/backend.md#entry-point) and
+  [request-handler/static-files.md](../../request-handler/static-files.md)).
 - **Exception:** the public sending API keeps its own `/v1` contract, `POST /v1/messages`
   (Bearer token with scopes, see [authentication.md](../authentication.md)).
 - Many reads are `POST` on purpose: request bodies never go in query strings.

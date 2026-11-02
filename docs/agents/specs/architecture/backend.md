@@ -13,18 +13,25 @@ Purpose: define how the plain PHP backend is structured.
 ## Entry point
 
 A single **front controller** (`source/public/index.php`) receives every dynamic
-request: Apache [rewrites](../request-handler/rewrite.md) requests that are not existing files or directories to it, so
-static files never reach PHP. How a request flows from the rewrite to the response
-(bootstrap, routing, request handlers, middlewares) is specified in
-[request-handler.md](../request-handler.md), the source of truth for the request flow.
+request: Apache [rewrites](../request-handler/rewrite.md) requests that are not existing files or directories to it.
+The web root holds no frontend files, so in practice every request but a dotfile reaches PHP. How a
+request flows from the rewrite to the response (bootstrap, routing, request handlers,
+middlewares) is specified in [request-handler.md](../request-handler.md), the source of truth
+for the request flow.
 
-The built frontend lives under `admin/` in the web root and is served at `/admin/` by
-Apache directly (see [frontend/build.md](../frontend/build.md)). Non-`.json` paths under
-`/admin/` are reserved for the UI; `*.json` paths are always routed to the API, anywhere in
-the tree, including under `/admin/` (e.g. `/admin/users/search.json`). The UI never ships
-`.json` files under `/admin/`, so no rewrite change is needed. API paths are root-relative
-with no prefix; `POST /v1/messages` is the only prefixed route (see
-[api/conventions/format.md](../api/conventions/format.md#paths)).
+Routing rule, shared by development and production:
+
+- **`*.json` is the API**, anywhere in the path tree (e.g. `/admin/users/search.json`).
+- **`POST /v1/messages`** is the only non-`.json` API route (see
+  [api/conventions/format.md](../api/conventions/format.md#paths)). API paths are otherwise
+  root-relative with no prefix.
+- **Other `GET` paths are the frontend.** The built single-page application lives in
+  `source/static/`, outside the web root, and is served at `/` by the PHP static-file handler:
+  `GET /` → `index.html`, `GET /assets/*` → the hashed bundles, and any other extensionless
+  `GET` outside `/v1/` → `302` to `/#<path>` (see
+  [request-handler/static-files.md](../request-handler/static-files.md) and
+  [request-handler/routing.md](../request-handler/routing.md#get-fallback)). The build itself
+  is described in [frontend/build.md](../frontend/build.md).
 
 ## Layers
 
