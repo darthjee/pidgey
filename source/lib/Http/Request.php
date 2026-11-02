@@ -4,19 +4,30 @@ declare(strict_types=1);
 
 namespace Pidgey\Http;
 
+use JsonException;
+use stdClass;
+
 /**
  * Immutable view of one HTTP request, read from the PHP globals.
  *
  * Every value can be overridden through constructor options, so tests need no web server.
- * The method, raw URI, path, query and headers are read for now; cookies and the body come later.
+ * The method, raw URI, path, query, headers and body are read for now; cookies come later.
  * Headers are read only from $_SERVER, never from getallheaders().
  *
- * Pending: a decoded NUL byte in the path must answer 400 (BadRequestException), which needs
- * the error wrapper from a later issue; path() does not reject it yet.
+ * The raw body and the decoded JSON body are read lazily, on the first call, and cached.
  */
 final readonly class Request
 {
+    /** Largest accepted request body, in bytes (1 MiB). */
+    public const MAX_BODY_BYTES = 1048576;
+
     private const DEFAULT_METHOD = 'GET';
+
+    private const JSON_MEDIA_TYPE = 'application/json';
+
+    private const JSON_CHARSET = 'utf-8';
+
+    private const JSON_DEPTH = 64;
 
     private const UNPREFIXED_HEADERS = ['CONTENT_TYPE', 'CONTENT_LENGTH'];
 
@@ -29,12 +40,18 @@ final readonly class Request
     /** @var array<string, string> Request headers keyed by their $_SERVER key. */
     private array $headers;
 
+    /** Raw body; left uninitialized until first read, unless given as an option. */
+    private string $body;
+
+    /** @var array<string, mixed> Decoded JSON body; left uninitialized until json() first runs. */
+    private array $json;
+
     /**
      * Builds the request from the PHP globals, with optional overrides.
      *
-     * @param array{method?: string, uri?: string, headers?: array<string, string>} $options Overrides for
-     *        REQUEST_METHOD (method), REQUEST_URI (uri) and the request headers in $_SERVER (headers,
-     *        keyed by header name or $_SERVER key).
+     * @param array{method?: string, uri?: string, headers?: array<string, string>, body?: string} $options Overrides
+     *        for REQUEST_METHOD (method), REQUEST_URI (uri), the request headers in $_SERVER (headers, keyed by
+     *        header name or $_SERVER key) and php://input (body).
      */
     public function __construct(array $options = [])
     {
@@ -46,6 +63,10 @@ final readonly class Request
         $this->headers = array_key_exists('headers', $options)
             ? self::normalizeHeaderOverrides($options['headers'])
             : self::serverHeaders();
+
+        if (array_key_exists('body', $options)) {
+            $this->body = (string) $options['body'];
+        }
     }
 
     /**
@@ -72,6 +93,8 @@ final readonly class Request
      * Returns the percent-decoded path, or "/" when the URI is missing, unparsable or has no path.
      *
      * @return string
+     *
+     * @throws BadRequestException When the decoded path contains a NUL byte.
      */
     public function path(): string
     {
@@ -81,7 +104,13 @@ final readonly class Request
             return '/';
         }
 
-        return rawurldecode($path);
+        $decoded = rawurldecode($path);
+
+        if (str_contains($decoded, "\0")) {
+            throw new BadRequestException();
+        }
+
+        return $decoded;
     }
 
     /**
@@ -110,6 +139,152 @@ final readonly class Request
     public function header(string $name, ?string $default = null): ?string
     {
         return $this->headers[self::serverKey($name)] ?? $default;
+    }
+
+    /**
+     * Returns the raw request body, read once from php://input and capped at MAX_BODY_BYTES + 1 bytes.
+     *
+     * @return string
+     */
+    public function body(): string
+    {
+        if (!isset($this->body)) {
+            $read = file_get_contents('php://input', false, null, 0, self::MAX_BODY_BYTES + 1);
+            $this->body = is_string($read) ? $read : '';
+        }
+
+        return $this->body;
+    }
+
+    /**
+     * Returns the decoded JSON object body, parsed on the first call and cached.
+     *
+     * An empty body gives []. Unknown fields are kept; nested objects become arrays.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws UnsupportedMediaTypeException When a non-empty body is not UTF-8 application/json.
+     * @throws PayloadTooLargeException      When the body is larger than MAX_BODY_BYTES.
+     * @throws BadRequestException           When the body is not valid JSON or not a JSON object.
+     */
+    public function json(): array
+    {
+        if (!isset($this->json)) {
+            $this->json = $this->parseJson();
+        }
+
+        return $this->json;
+    }
+
+    /**
+     * Applies the JSON body rules: empty body, media type, size, syntax, then top-level object.
+     *
+     * A Content-Length over the limit means a non-empty body, so it is rejected without reading it.
+     *
+     * @return array<string, mixed>
+     */
+    private function parseJson(): array
+    {
+        $announcedTooLarge = $this->contentLengthExceedsLimit();
+
+        if (!$announcedTooLarge && $this->body() === '') {
+            return [];
+        }
+
+        if (!$this->isJsonMediaType()) {
+            throw new UnsupportedMediaTypeException();
+        }
+
+        if ($announcedTooLarge || strlen($this->body()) > self::MAX_BODY_BYTES) {
+            throw new PayloadTooLargeException();
+        }
+
+        try {
+            $decoded = json_decode($this->body(), false, self::JSON_DEPTH, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw new BadRequestException();
+        }
+
+        if (!$decoded instanceof stdClass) {
+            throw new BadRequestException();
+        }
+
+        return self::objectToArray($decoded);
+    }
+
+    /**
+     * Tells whether a numeric Content-Length header announces more than MAX_BODY_BYTES.
+     *
+     * @return boolean
+     */
+    private function contentLengthExceedsLimit(): bool
+    {
+        $length = trim((string) $this->header('Content-Length', ''));
+
+        if (!ctype_digit($length)) {
+            return false;
+        }
+
+        $digits = ltrim($length, '0');
+
+        return strlen($digits) > strlen((string) self::MAX_BODY_BYTES) || (int) $digits > self::MAX_BODY_BYTES;
+    }
+
+    /**
+     * Tells whether Content-Type is application/json, with no charset other than utf-8 (both ignoring case).
+     *
+     * @return boolean
+     */
+    private function isJsonMediaType(): bool
+    {
+        $parts = explode(';', (string) $this->header('Content-Type', ''));
+
+        if (strcasecmp(trim(array_shift($parts)), self::JSON_MEDIA_TYPE) !== 0) {
+            return false;
+        }
+
+        foreach ($parts as $parameter) {
+            [$name, $value] = array_pad(explode('=', $parameter, 2), 2, '');
+            $isCharset = strcasecmp(trim($name), 'charset') === 0;
+
+            if ($isCharset && strcasecmp(trim(trim($value), '"'), self::JSON_CHARSET) !== 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Converts a decoded JSON object to an array, recursively turning nested objects into arrays.
+     *
+     * @param stdClass $object The decoded object.
+     *
+     * @return array<string, mixed>
+     */
+    private static function objectToArray(stdClass $object): array
+    {
+        return self::objectsToArrays(get_object_vars($object));
+    }
+
+    /**
+     * Converts nested objects of a decoded JSON array to arrays.
+     *
+     * @param array<mixed> $values Decoded values.
+     *
+     * @return array<mixed>
+     */
+    private static function objectsToArrays(array $values): array
+    {
+        foreach ($values as $key => $value) {
+            if ($value instanceof stdClass) {
+                $values[$key] = self::objectToArray($value);
+            } elseif (is_array($value)) {
+                $values[$key] = self::objectsToArrays($value);
+            }
+        }
+
+        return $values;
     }
 
     /**
