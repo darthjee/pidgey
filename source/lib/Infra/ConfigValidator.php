@@ -14,6 +14,9 @@ final class ConfigValidator
 {
     public const SECRET_KEY_MIN_BYTES = 32;
 
+    /** The shipped development key, refused outside development and test. */
+    public const DEVELOPMENT_SECRET_KEY = 'pidgey-development-only-insecure-secret-key-0000';
+
     /** Settings that must be set and non-empty. */
     private const REQUIRED = ['DB_HOST', 'DB_NAME', 'DB_USER'];
 
@@ -62,6 +65,7 @@ final class ConfigValidator
             ...$this->checkIntegers(),
             ...$this->checkTokenTtls(),
             ...$this->checkAllowedOrigins(),
+            ...$this->checkDevelopmentKey(),
         ];
     }
 
@@ -241,6 +245,33 @@ final class ConfigValidator
         ksort($failures);
 
         return array_values($failures);
+    }
+
+    /**
+     * Checks that the development key is used neither as `SECRET_KEY` nor as a
+     * `PREVIOUS_SECRET_KEYS` entry, unless PHP_ENV is development or test.
+     *
+     * @return list<string>
+     */
+    private function checkDevelopmentKey(): array
+    {
+        if ($this->isDevelopmentOrTest()) {
+            return [];
+        }
+
+        $failures = [];
+
+        if (Env::get('SECRET_KEY') === self::DEVELOPMENT_SECRET_KEY) {
+            $failures[] = 'SECRET_KEY: development key';
+        }
+
+        $previous = explode(',', (string) Env::get('PREVIOUS_SECRET_KEYS', ''));
+
+        if (in_array(self::DEVELOPMENT_SECRET_KEY, array_map('trim', $previous), true)) {
+            $failures[] = 'PREVIOUS_SECRET_KEYS: development key';
+        }
+
+        return $failures;
     }
 
     /**

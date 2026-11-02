@@ -11,7 +11,7 @@ use stdClass;
  * Immutable view of one HTTP request, read from the PHP globals.
  *
  * Every value can be overridden through constructor options, so tests need no web server.
- * The method, raw URI, path, query, headers and body are read for now; cookies come later.
+ * The method, raw URI, path, query, headers, cookies and body are read.
  * Headers are read only from $_SERVER, never from getallheaders().
  *
  * The raw body and the decoded JSON body are read lazily, on the first call, and cached.
@@ -40,6 +40,9 @@ final readonly class Request
     /** @var array<string, string> Request headers keyed by their $_SERVER key. */
     private array $headers;
 
+    /** @var array<string, mixed> Request cookies, as parsed by PHP into $_COOKIE. */
+    private array $cookies;
+
     /** Raw body; left uninitialized until first read, unless given as an option. */
     private string $body;
 
@@ -49,9 +52,9 @@ final readonly class Request
     /**
      * Builds the request from the PHP globals, with optional overrides.
      *
-     * @param array{method?: string, uri?: string, headers?: array<string, string>, body?: string} $options Overrides
-     *        for REQUEST_METHOD (method), REQUEST_URI (uri), the request headers in $_SERVER (headers, keyed by
-     *        header name or $_SERVER key) and php://input (body).
+     * @param array{method?: string, uri?: string, headers?: string[], cookies?: array, body?: string} $options Values
+     *        overriding REQUEST_METHOD (method), REQUEST_URI (uri), the request headers in $_SERVER (headers, keyed by
+     *        header name or $_SERVER key), $_COOKIE (cookies) and php://input (body).
      */
     public function __construct(array $options = [])
     {
@@ -63,6 +66,7 @@ final readonly class Request
         $this->headers = array_key_exists('headers', $options)
             ? self::normalizeHeaderOverrides($options['headers'])
             : self::serverHeaders();
+        $this->cookies = $options['cookies'] ?? $_COOKIE;
 
         if (array_key_exists('body', $options)) {
             $this->body = (string) $options['body'];
@@ -139,6 +143,24 @@ final readonly class Request
     public function header(string $name, ?string $default = null): ?string
     {
         return $this->headers[self::serverKey($name)] ?? $default;
+    }
+
+    /**
+     * Returns the value of a cookie, or the default when it is missing or not a string.
+     *
+     * An array value (e.g. `access_token[x]=…`) gives the default, so an array never reaches
+     * the code that reads the cookie.
+     *
+     * @param string      $name    Cookie name, as parsed by PHP.
+     * @param string|null $default Value returned when the cookie is missing or an array.
+     *
+     * @return string|null
+     */
+    public function cookie(string $name, ?string $default = null): ?string
+    {
+        $value = $this->cookies[$name] ?? null;
+
+        return is_string($value) ? $value : $default;
     }
 
     /**

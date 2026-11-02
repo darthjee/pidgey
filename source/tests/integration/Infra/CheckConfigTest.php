@@ -108,6 +108,10 @@ final class CheckConfigTest extends TestCase
                 'PREVIOUS_SECRET_KEYS: entry too short',
             ],
             'missing db host' => ["DB_HOST=\n", 'DB_HOST: missing'],
+            'development secret key' => [
+                "SECRET_KEY=pidgey-development-only-insecure-secret-key-0000\n",
+                'SECRET_KEY: development key',
+            ],
         ];
     }
 

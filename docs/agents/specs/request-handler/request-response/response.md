@@ -32,7 +32,7 @@ PHP's `setcookie()` is **never** used: it writes the header directly, skips the 
 
 - A cookie is one more `Set-Cookie:` line in `Response::headers()`. The sender emits each line with `header($line, false)`, so several cookies survive.
 - The **`SetCookie`** value object builds that line from name, value, `Path`, `Max-Age`, `Expires`, `HttpOnly`, `Secure` and `SameSite`.
-- **`clear()`** builds the logout form: `access_token=; Path=/; Max-Age=0; Expires=<past date>`, plus the same attributes as in [api/authentication/access-token.md](../../api/authentication/access-token.md#cookie).
+- **`clear()`** builds the logout form: `access_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT` (the same attributes as in [api/authentication/access-token.md](../../api/authentication/access-token.md#cookie), an empty value and a fixed past date).
 - It **rejects CR, LF, `;` and `,`** in names and values.
 
 Reading cookies is covered in [request.md](request.md#cookies).

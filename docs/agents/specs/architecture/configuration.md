@@ -133,8 +133,9 @@ sent through the system organization's active SMTP connection (see
 - The shipped development key is exactly:
   `pidgey-development-only-insecure-secret-key-0000`.
   It is 48 bytes (so it passes the length rule), contains no `,`, and is recognizable as fake.
-- The `.env` line (`SECRET_KEY=<development key>`) and a code constant holding the same value
-  land with the access-token work (#128). Both must hold exactly this value.
+- It lives in two places, which must both hold exactly this value:
+  - the root `.env` used by docker compose (`SECRET_KEY=<development key>`);
+  - the code constant `ConfigValidator::DEVELOPMENT_SECRET_KEY`, used for recognition.
 - **Recognition:** an **exact byte comparison** against that value, for `SECRET_KEY` and for
   each trimmed `PREVIOUS_SECRET_KEYS` entry. There is no prefix or marker matching: a
   different key of the same length is not the development key.
@@ -209,11 +210,13 @@ the staging folder before migrating and swapping (see
     not;
   - `DB_MIGRATE_USER: missing` when `DB_MIGRATE_PASSWORD` is set and `DB_MIGRATE_USER` is not;
   - nothing when neither is set (the fallback applies).
-- **Web boot refusal not wired yet:** for now, `public/index.php` only loads the env file; it
-  does not run the validation, so the web app does not yet refuse to boot on an invalid
-  configuration. Until it does, `bin/check-config`, run before every release, is what enforces
-  the rules on this page. The web boot refusal lands with the authentication work that first
-  reads `SECRET_KEY`.
+- **Web boot refusal:** the web boot runs the same validation (without the PHP version check)
+  before routing. On any failure it refuses through the invalid-configuration path (the
+  failure names, never values, are logged and a `500 INTERNAL_ERROR` envelope is answered, see
+  [request-handler/front-controller.md](../request-handler/front-controller.md#failures-outside-the-wrapper)).
+  Every request, static files included, therefore needs a valid configuration.
+  `bin/check-config` still runs before every release, so an invalid configuration is caught
+  before it goes live.
 
 ## Pending decisions
 
