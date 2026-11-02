@@ -15,7 +15,10 @@ use Pidgey\Http\ErrorResponse;
 use Pidgey\Http\HttpException;
 use Pidgey\Http\JsonResponse;
 use Pidgey\Http\NotFoundException;
+use Pidgey\Http\PayloadTooLargeException;
 use Pidgey\Http\Response;
+use Pidgey\Http\UnsupportedMediaTypeException;
+use Pidgey\Http\ValidationFailedException;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\WallClock;
 
@@ -24,8 +27,11 @@ use Pidgey\Infra\WallClock;
 #[UsesClass(HttpException::class)]
 #[UsesClass(JsonResponse::class)]
 #[UsesClass(NotFoundException::class)]
+#[UsesClass(PayloadTooLargeException::class)]
 #[UsesClass(Response::class)]
 #[UsesClass(SystemWallClock::class)]
+#[UsesClass(UnsupportedMediaTypeException::class)]
+#[UsesClass(ValidationFailedException::class)]
 final class ErrorFormatterTest extends TestCase
 {
     /** @var list<string> */
@@ -100,6 +106,50 @@ final class ErrorFormatterTest extends TestCase
         $this->assertSame($status, $response->status());
         $this->assertSame(['code' => $code, 'message' => $message], $this->decode($response)['error']);
         $this->assertSame($status, $this->decode($response)['statusCode']);
+    }
+
+    public function testFormatsValidationFailed(): void
+    {
+        $details = ['username should not be empty', 'password must not contain a NUL byte'];
+        $response = $this->formatter->format(new ValidationFailedException($details));
+
+        $this->assertSame(400, $response->status());
+        $this->assertSame(
+            [
+                'error' => [
+                    'code' => 'VALIDATION_FAILED',
+                    'message' => 'username should not be empty; password must not contain a NUL byte',
+                    'details' => $details,
+                ],
+                'statusCode' => 400,
+                'timestamp' => '2026-10-25T12:00:00.000Z',
+            ],
+            $this->decode($response),
+        );
+    }
+
+    public function testFormatsPayloadTooLarge(): void
+    {
+        $response = $this->formatter->format(new PayloadTooLargeException());
+
+        $this->assertSame(413, $response->status());
+        $this->assertSame(
+            '{"error":{"code":"HTTP_413","message":"Content Too Large"},'
+            . '"statusCode":413,"timestamp":"2026-10-25T12:00:00.000Z"}',
+            $response->body(),
+        );
+    }
+
+    public function testFormatsUnsupportedMediaType(): void
+    {
+        $response = $this->formatter->format(new UnsupportedMediaTypeException());
+
+        $this->assertSame(415, $response->status());
+        $this->assertSame(
+            '{"error":{"code":"HTTP_415","message":"Unsupported Media Type"},'
+            . '"statusCode":415,"timestamp":"2026-10-25T12:00:00.000Z"}',
+            $response->body(),
+        );
     }
 
     public function testAnyOtherThrowableIsAnInternalErrorAndIsLogged(): void

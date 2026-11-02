@@ -14,6 +14,37 @@ Purpose: define how request bodies are validated and how validation messages are
   rule (envelope in [errors.md](errors.md)). This replaces the former
   `422 validation_error`.
 
+## Field evaluation
+
+Each declared field is evaluated on its own:
+
+1. **Absent or `null`** → `<field> should not be empty`. No further rule runs for that field.
+2. **Wrong type** (a number, array, object or boolean for a string field) →
+   `<field> must be a string`. No further rule runs for that field.
+3. **Trimming**, when the field opts in (see
+   [endpoints/auth.md](../endpoints/auth.md#trimming)). Passwords and tokens are never
+   trimmed.
+4. **Not empty** is checked **after trimming**: `""` (or whitespace only, for a trimmed field)
+   → `<field> should not be empty`. No further rule runs for that field.
+5. Otherwise **every** other rule declared for the field runs, and each failure adds its
+   message.
+
+So a missing, `null`, empty or wrong-type field gets **exactly one** message, while a field that
+passes those checks gets every failed rule. `details` lists fields in the order the endpoint
+declares them, then each field's messages in the order its rules are declared.
+
+### Rule semantics
+
+- **Email:** the trimmed value must pass PHP's `filter_var($value, FILTER_VALIDATE_EMAIL)`.
+  IDN and Unicode local parts are not accepted in v1. The max-length rule is a separate rule
+  with its own message.
+- **Lengths:** "N characters" counts **UTF-8 code points** (`mb_strlen`); "N bytes" counts
+  **bytes** (`strlen`).
+- **Invalid UTF-8** never reaches validation: the JSON body parser already rejects it with
+  `400 BAD_REQUEST` ([request-handler/request-response/request.md](../../request-handler/request-response/request.md#json-body)).
+- **Validated output:** only the declared fields are kept (with their trimmed values), which is
+  how unknown fields are dropped.
+
 ## Message templates
 
 `<field>` is the `camelCase` property name.

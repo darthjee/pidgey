@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use Pidgey\Http\BadRequestException;
 use Pidgey\Http\BaseMiddleware;
 use Pidgey\Http\ErrorFormatter;
 use Pidgey\Http\ErrorResponse;
@@ -37,6 +38,7 @@ use Pidgey\Tests\Support\SecondTraceMiddleware;
 use Pidgey\Tests\Support\ThrowingHandler;
 
 #[CoversClass(FrontController::class)]
+#[UsesClass(BadRequestException::class)]
 #[UsesClass(BaseMiddleware::class)]
 #[UsesClass(ErrorFormatter::class)]
 #[UsesClass(ErrorResponse::class)]
@@ -185,6 +187,19 @@ final class FrontControllerTest extends TestCase
             . '"statusCode":409,"timestamp":"' . self::TIMESTAMP . '"}',
             $response->body(),
         );
+    }
+
+    public function testANulByteInThePathAnswersTheJson400(): void
+    {
+        $response = $this->handle('GET', '/health%00.json');
+
+        $this->assertSame(400, $response->status());
+        $this->assertSame(
+            '{"error":{"code":"BAD_REQUEST","message":"Bad Request"},'
+            . '"statusCode":400,"timestamp":"' . self::TIMESTAMP . '"}',
+            $response->body(),
+        );
+        $this->assertSame([], $this->logged);
     }
 
     public function testAnyOtherThrowableGives500WithoutLeaking(): void

@@ -153,7 +153,31 @@ Integer ids are read with a **protected method on `RequestHandler`**:
 - Body validation runs **inside `process()`**, through a `Validator` the handler calls. It is **not a middleware**, so the guards (the request hooks) always run first: step 4 of the [guard order](../api/conventions/format.md#guard-order).
 - It collects every field error and throws `ValidationFailedException(list<string> $details)` ([request-response/errors.md](request-response/errors.md#exceptions)).
 - Unknown fields are dropped, and messages follow [api/conventions/validation.md](../api/conventions/validation.md).
-- The `Validator` API and its rule set are left to the implementation issue. There is no separate spec: [api/conventions/validation.md](../api/conventions/validation.md) already fixes the observable behaviour.
+- There is no separate spec: [api/conventions/validation.md](../api/conventions/validation.md#field-evaluation) fixes the observable behaviour (one message for a missing, `null`, empty or wrong-type field; every failed rule otherwise; email and length semantics).
+
+### `Validator` API
+
+`Pidgey\Http\Validator` is a small fluent, per-field builder:
+
+- **`new Validator(array $body)`**, built from the decoded body (`$request->json()`, see [request-response/request.md](request-response/request.md#json-body)).
+- **`string(string $field)`** declares a string field and returns a fluent builder of rules. Each rule method returns the builder:
+  - `trim()` — trim the value before validation (opt-in per field);
+  - `notEmpty()` — `<field> should not be empty`, checked after trimming;
+  - `email()` — `<field> must be an email`;
+  - `minLength(int $n)` / `maxLength(int $n)` — in UTF-8 characters;
+  - `maxBytes(int $n)` — in bytes;
+  - `noNulByte()` — `<field> must not contain a NUL byte`.
+- **`validated(): array<string, string>`** evaluates every declared field and either returns **only the declared fields** (trimmed when `trim()` was declared), or throws `ValidationFailedException` with every message, in declaration order.
+- **Out of v1:** "one of a set", integer and other rules. Each is added when an endpoint first needs it.
+
+Illustrative:
+
+```php
+$v = new Validator($request->json());
+$v->string('username')->trim()->notEmpty()->maxLength(255);
+$v->string('password')->notEmpty()->minLength(8)->maxBytes(72)->noNulByte();
+$data = $v->validated();
+```
 
 ## Errors
 

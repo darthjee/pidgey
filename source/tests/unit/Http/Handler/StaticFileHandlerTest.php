@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use Pidgey\Http\BadRequestException;
 use Pidgey\Http\Handler\StaticFileHandler;
 use Pidgey\Http\HttpException;
 use Pidgey\Http\NotFoundException;
@@ -17,6 +18,7 @@ use Pidgey\Http\RequestHandler;
 use Pidgey\Http\Response;
 
 #[CoversClass(StaticFileHandler::class)]
+#[UsesClass(BadRequestException::class)]
 #[UsesClass(HttpException::class)]
 #[UsesClass(NotFoundException::class)]
 #[UsesClass(ProcessingRequest::class)]
@@ -144,20 +146,16 @@ final class StaticFileHandlerTest extends TestCase
         $this->assertStringNotContainsString("\r", $this->logged[0]);
     }
 
-    public function testRejectsANulByteWithTheJsonNotFound(): void
+    public function testANulByteIsABadRequestBeforeAnyFileLookup(): void
     {
         try {
             $this->serve('/assets/app.js%00.txt');
-            $this->fail('Expected a NotFoundException.');
-        } catch (NotFoundException $error) {
-            $this->assertSame("Cannot GET /assets/app.js\0.txt", $error->getMessage());
-            $this->assertSame(404, $error->status());
+            $this->fail('Expected a BadRequestException.');
+        } catch (BadRequestException $error) {
+            $this->assertSame(400, $error->status());
         }
 
-        $this->assertSame(
-            ['StaticFileHandler: not served: ' . $this->fixture . '/assets/app.js\\000.txt'],
-            $this->logged,
-        );
+        $this->assertSame([], $this->logged);
     }
 
     public function testRejectsASymlinkEscapingTheBaseFolder(): void
