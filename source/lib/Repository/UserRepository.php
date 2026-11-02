@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pidgey\Repository;
 
+use DateTimeImmutable;
 use LogicException;
 use PDO;
 use PDOException;
@@ -21,6 +22,10 @@ final class UserRepository
 {
     private const COLUMNS = 'id, organization_id, username, email, password_digest, is_admin, status, '
         . 'created_at, updated_at';
+
+    /** COLUMNS qualified with the `u` alias, for joins. */
+    private const JOINED_COLUMNS = 'u.id, u.organization_id, u.username, u.email, u.password_digest, u.is_admin, '
+        . 'u.status, u.created_at, u.updated_at';
 
     /**
      * Creates the repository on the request's connection.
@@ -145,6 +150,39 @@ final class UserRepository
         return $this->fetchOne(
             'SELECT ' . self::COLUMNS . ' FROM users WHERE organization_id = :organization_id AND id = :id',
             ['organization_id' => $organizationId, 'id' => $id],
+        );
+    }
+
+    /**
+     * Finds the approved user behind a live session, in one query (the gate's lookup).
+     *
+     * Joins `users` to `refresh_tokens`: the session must have an unrevoked, unexpired row
+     * (rotated rows are revoked, so at most one row is live), its user must be `approved` and
+     * must be the given user. Unscoped on purpose: the gate resolves the user, and so the
+     * organization, from the token (see api/authentication/gate.md).
+     *
+     * @param integer           $userId      The token's `sub`.
+     * @param string            $sessionUuid The token's `sid`.
+     * @param DateTimeImmutable $now         Current time, from the WallClock (never the database's).
+     *
+     * @return User|null Null when no approved user of that id has a live session with this UUID.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function findApprovedBySession(int $userId, string $sessionUuid, DateTimeImmutable $now): ?User
+    {
+        return $this->fetchOne(
+            'SELECT ' . self::JOINED_COLUMNS . ' FROM users u '
+            . 'JOIN refresh_tokens rt ON rt.user_id = u.id '
+            . 'WHERE rt.session_uuid = :session_uuid AND rt.revoked_at IS NULL AND rt.expires_at > :now '
+            . 'AND u.status = :status AND u.id = :id '
+            . 'LIMIT 1',
+            [
+                'session_uuid' => $sessionUuid,
+                'now' => Sql::dateTime($now),
+                'status' => UserStatus::Approved->value,
+                'id' => $userId,
+            ],
         );
     }
 
