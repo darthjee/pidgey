@@ -143,10 +143,11 @@ final class ValidatorTest extends TestCase
 
     public function testUntrimmedFieldKeepsSurroundingSpaces(): void
     {
-        $validator = new Validator(['password' => '  secret  ']);
+        $password = '  ' . str_repeat('a', 8) . '  ';
+        $validator = new Validator(['password' => $password]);
         $validator->string('password')->notEmpty()->minLength(8)->maxBytes(72)->noNulByte();
 
-        $this->assertSame(['password' => '  secret  '], $validator->validated());
+        $this->assertSame(['password' => $password], $validator->validated());
     }
 
     public function testWhitespaceOnlyUntrimmedFieldIsNotEmpty(): void
@@ -225,12 +226,13 @@ final class ValidatorTest extends TestCase
 
     public function testRegisterBodyPassesAndDropsUnknownFields(): void
     {
+        $password = str_repeat('a', 10);
         $validator = new Validator([
             'username' => 'bob',
             'email' => 'bob@example.com',
-            'password' => 's3cretpass',
+            'password' => $password,
             'organizationName' => "Bob's Shop",
-            'password_confirmation' => 's3cretpass',
+            'password_confirmation' => $password,
             'isAdmin' => true,
         ]);
         $validator->string('username')->trim()->notEmpty()->maxLength(255);
@@ -242,7 +244,7 @@ final class ValidatorTest extends TestCase
             [
                 'username' => 'bob',
                 'email' => 'bob@example.com',
-                'password' => 's3cretpass',
+                'password' => $password,
                 'organizationName' => "Bob's Shop",
             ],
             $validator->validated(),
