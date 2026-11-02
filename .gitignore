@@ -12,4 +12,4 @@ source/.phpdoc
 frontend/dist/
 frontend/.nyc_output/
 frontend/coverage/
-source/public/admin/
+source/static/

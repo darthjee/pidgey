@@ -12,7 +12,7 @@ CI_BASE_IMAGE=$(DOCKER_ID_USER)/circleci_$(PROJECT)-base
 FE_BASE_VERSION=0.0.1
 FE_BASE_IMAGE=$(DOCKER_ID_USER)/vite_$(PROJECT)-base
 FE_IMAGE=$(DOCKER_ID_USER)/vite_$(PROJECT)
-FE_RELEASE_DIR?=source/public/admin
+FE_RELEASE_DIR?=source/static
 
 .PHONY: build-base push-base build-ci-base push-ci-base build dev dev-up tests migrate db-reset \
 	build-fe-base push-fe-base build-fe fe-install build-fe-release
