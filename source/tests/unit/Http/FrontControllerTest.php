@@ -12,11 +12,13 @@ use PHPUnit\Framework\TestCase;
 use Pidgey\Http\BaseMiddleware;
 use Pidgey\Http\ErrorFormatter;
 use Pidgey\Http\ErrorResponse;
+use Pidgey\Http\ForbiddenException;
 use Pidgey\Http\FrontController;
 use Pidgey\Http\Handler\HealthHandler;
 use Pidgey\Http\HttpException;
 use Pidgey\Http\JsonResponse;
 use Pidgey\Http\NotFoundException;
+use Pidgey\Http\OriginCheck;
 use Pidgey\Http\ProcessingRequest;
 use Pidgey\Http\Request;
 use Pidgey\Http\RequestHandler;
@@ -24,6 +26,9 @@ use Pidgey\Http\Response;
 use Pidgey\Http\Route;
 use Pidgey\Http\RouteMatch;
 use Pidgey\Http\Router;
+use Pidgey\Http\TrustedOrigins;
+use Pidgey\Infra\Env;
+use Pidgey\Infra\OriginParser;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\WallClock;
 use Pidgey\Tests\Support\FirstTraceMiddleware;
@@ -35,10 +40,14 @@ use Pidgey\Tests\Support\ThrowingHandler;
 #[UsesClass(BaseMiddleware::class)]
 #[UsesClass(ErrorFormatter::class)]
 #[UsesClass(ErrorResponse::class)]
+#[UsesClass(Env::class)]
+#[UsesClass(ForbiddenException::class)]
 #[UsesClass(HealthHandler::class)]
 #[UsesClass(HttpException::class)]
 #[UsesClass(JsonResponse::class)]
 #[UsesClass(NotFoundException::class)]
+#[UsesClass(OriginCheck::class)]
+#[UsesClass(OriginParser::class)]
 #[UsesClass(ProcessingRequest::class)]
 #[UsesClass(Request::class)]
 #[UsesClass(RequestHandler::class)]
@@ -47,6 +56,7 @@ use Pidgey\Tests\Support\ThrowingHandler;
 #[UsesClass(RouteMatch::class)]
 #[UsesClass(Router::class)]
 #[UsesClass(SystemWallClock::class)]
+#[UsesClass(TrustedOrigins::class)]
 final class FrontControllerTest extends TestCase
 {
     public const TIMESTAMP = '2026-10-25T12:00:00.000Z';
@@ -189,6 +199,28 @@ final class FrontControllerTest extends TestCase
         );
         $this->assertCount(1, $this->logged);
         $this->assertStringContainsString(ThrowingHandler::SECRET, $this->logged[0]);
+    }
+
+    public function testOriginCheckRejectsACrossSitePost(): void
+    {
+        $router = new Router([OriginCheck::class]);
+        $router->get('/health.json', HealthHandler::class);
+        $router->post('/health.json', HealthHandler::class);
+        $controller = new FrontController($router, $this->formatter);
+        $headers = ['Origin' => 'https://evil.example', 'Host' => 'pidgey.example'];
+
+        $post = $controller->handle(new Request(['method' => 'POST', 'uri' => '/health.json', 'headers' => $headers]));
+        $get = $controller->handle(new Request(['method' => 'GET', 'uri' => '/health.json', 'headers' => $headers]));
+
+        $this->assertSame(403, $post->status());
+        $this->assertSame(
+            '{"error":{"code":"FORBIDDEN","message":"Cross-site request rejected"},'
+            . '"statusCode":403,"timestamp":"' . self::TIMESTAMP . '"}',
+            $post->body(),
+        );
+        $this->assertSame(200, $get->status());
+        $this->assertSame('{"status":"ok"}', $get->body());
+        $this->assertSame([], $this->logged);
     }
 
     public function testDefaultsToTheStandardErrorFormatter(): void

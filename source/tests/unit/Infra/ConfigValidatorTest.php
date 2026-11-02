@@ -10,9 +10,11 @@ use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\Env;
+use Pidgey\Infra\OriginParser;
 
 #[CoversClass(ConfigValidator::class)]
 #[UsesClass(Env::class)]
+#[UsesClass(OriginParser::class)]
 final class ConfigValidatorTest extends TestCase
 {
     private const VALID_KEY = 'test-secret-value-not-a-real-secret-valid';
@@ -43,6 +45,8 @@ final class ConfigValidatorTest extends TestCase
         'PASSWORD_RESET_COOLDOWN',
         'ACCOUNT_EDIT_MAX_ATTEMPTS',
         'ACCOUNT_EDIT_LOCK_TTL',
+        'ALLOWED_ORIGINS',
+        'PHP_ENV',
     ];
 
     /** @var array<string, string|false> */
@@ -243,6 +247,103 @@ final class ConfigValidatorTest extends TestCase
         $this->assertNoValueLeaks($failures, 'short-two');
     }
 
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function validAllowedOrigins(): array
+    {
+        return [
+            'single https' => ['https://admin.example.com'],
+            'several with port' => ['https://admin.example.com, https://other.example:8443'],
+            'ipv6' => ['https://[::1]:8443'],
+            'blank entries' => [' , https://admin.example.com ,,'],
+            'only blank entries' => [' , '],
+            'empty' => [''],
+        ];
+    }
+
+    #[DataProvider('validAllowedOrigins')]
+    public function testValidAllowedOriginsPass(string $value): void
+    {
+        putenv('ALLOWED_ORIGINS=' . $value);
+
+        $this->assertSame([], (new ConfigValidator())->validate());
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function invalidAllowedOrigins(): array
+    {
+        return [
+            'path' => ['https://admin.example.com/admin'],
+            'trailing slash' => ['https://admin.example.com/'],
+            'query' => ['https://admin.example.com?x=1'],
+            'fragment' => ['https://admin.example.com#x'],
+            'user info' => ['https://user@admin.example.com'],
+            'no scheme' => ['admin.example.com'],
+            'ftp scheme' => ['ftp://admin.example.com'],
+            'wildcard' => ['*'],
+            'null' => ['null'],
+            'port 0' => ['https://admin.example.com:0'],
+            'one bad among good' => ['https://good.example,https://admin.example.com/'],
+        ];
+    }
+
+    #[DataProvider('invalidAllowedOrigins')]
+    public function testInvalidAllowedOriginsFail(string $value): void
+    {
+        putenv('ALLOWED_ORIGINS=' . $value);
+
+        $failures = (new ConfigValidator())->validate();
+
+        $this->assertSame(['ALLOWED_ORIGINS: invalid origin'], $failures);
+        $this->assertNoOriginLeaks($failures, $value);
+    }
+
+    /**
+     * @return array<string, array{string|null, list<string>}>
+     */
+    public static function httpAllowedOrigins(): array
+    {
+        return [
+            'production' => ['production', ['ALLOWED_ORIGINS: not https']],
+            'unset' => [null, ['ALLOWED_ORIGINS: not https']],
+            'empty' => ['', ['ALLOWED_ORIGINS: not https']],
+            'other case' => ['Development', ['ALLOWED_ORIGINS: not https']],
+            'staging' => ['staging', ['ALLOWED_ORIGINS: not https']],
+            'development' => ['development', []],
+            'test' => ['test', []],
+        ];
+    }
+
+    /**
+     * @param list<string> $expected
+     */
+    #[DataProvider('httpAllowedOrigins')]
+    public function testHttpAllowedOriginsNeedADevelopmentEnvironment(?string $environment, array $expected): void
+    {
+        putenv('ALLOWED_ORIGINS=http://localhost:5173');
+        putenv($environment === null ? 'PHP_ENV' : "PHP_ENV={$environment}");
+
+        $failures = (new ConfigValidator())->validate();
+
+        $this->assertSame($expected, $failures);
+        $this->assertNoOriginLeaks($failures, 'http://localhost:5173');
+    }
+
+    public function testAllowedOriginFailuresAreReportedOnceEach(): void
+    {
+        $value = 'http://one.example,https://two.example/,http://three.example,ftp://four.example';
+        putenv('ALLOWED_ORIGINS=' . $value);
+        putenv('PHP_ENV=production');
+
+        $failures = (new ConfigValidator())->validate();
+
+        $this->assertSame(['ALLOWED_ORIGINS: invalid origin', 'ALLOWED_ORIGINS: not https'], $failures);
+        $this->assertNoOriginLeaks($failures, $value);
+    }
+
     public function testDbPortIsNotChecked(): void
     {
         putenv('DB_PORT=not-a-port');
@@ -279,6 +380,17 @@ final class ConfigValidatorTest extends TestCase
         );
         $this->assertNoValueLeaks($failures, 'short-secret');
         $this->assertNoValueLeaks($failures, 'zero');
+    }
+
+    /**
+     * @param list<string> $failures
+     */
+    private function assertNoOriginLeaks(array $failures, string $value): void
+    {
+        foreach (explode(',', $value) as $entry) {
+            $this->assertNoValueLeaks($failures, $entry);
+            $this->assertNoValueLeaks($failures, (string) preg_replace('#^[a-z]+://#', '', trim($entry)));
+        }
     }
 
     /**

@@ -80,7 +80,8 @@ Tests for the env-file loader and `bin/check-config` (see
   `PREVIOUS_SECRET_KEYS: entry too short`, `SECRET_KEY: development key`,
   `PREVIOUS_SECRET_KEYS: development key`, `DB_HOST: missing`,
   `<NAME>: not a positive integer`, `TRUSTED_PROXY_HOPS: not a non-negative integer`,
-  `ACCESS_TOKEN_TTL: not less than REFRESH_TOKEN_TTL`), never with a value. The
+  `ACCESS_TOKEN_TTL: not less than REFRESH_TOKEN_TTL`, `ALLOWED_ORIGINS: invalid origin`,
+  `ALLOWED_ORIGINS: not https`), never with a value. The
   [development-key rule](../architecture/configuration.md#development-key) has these cases:
   - the development key as `SECRET_KEY` under `PHP_ENV=production`, under an unset
     `PHP_ENV` and under `PHP_ENV=Production` → `SECRET_KEY: development key`;
@@ -88,6 +89,16 @@ Tests for the env-file loader and `bin/check-config` (see
     under a non-development `PHP_ENV` → `PREVIOUS_SECRET_KEYS: development key`;
   - the development key under `PHP_ENV=development` and under `PHP_ENV=test` → passes;
   - a different key of the same length under `PHP_ENV=production` → passes.
+  The [`ALLOWED_ORIGINS` rules](../architecture/configuration.md#origins) have these cases:
+  - a valid `https` entry (with and without a port, with surrounding whitespace and empty
+    entries) under `PHP_ENV=production` → passes;
+  - an entry with a path, or with only a trailing `/` → `ALLOWED_ORIGINS: invalid origin`;
+  - an entry without a scheme (`admin.example.com`) → `ALLOWED_ORIGINS: invalid origin`;
+  - an `ftp://` entry → `ALLOWED_ORIGINS: invalid origin`;
+  - an `http` entry under `PHP_ENV=production` → `ALLOWED_ORIGINS: not https`;
+  - an `http` entry under `PHP_ENV=development` and under `PHP_ENV=test` → passes;
+  - an `http` entry under an unset `PHP_ENV` → `ALLOWED_ORIGINS: not https`;
+  - several failing entries → each failure reported once.
 - **`bin/check-config` PHP version check, unit tests**: the PHP version is passed in rather
   than read from the running binary, so no second PHP binary is needed:
   - a version other than 8.4.x (e.g. `8.3.0`, `8.5.0`) fails with `PHP version: not 8.4.x`;
