@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Pidgey\Http\Handler\HashRedirectHandler;
 use Pidgey\Http\Handler\HealthHandler;
 use Pidgey\Http\Handler\StaticFileHandler;
+use Pidgey\Http\OriginCheck;
 use Pidgey\Http\Request;
 use Pidgey\Http\Router;
 
@@ -81,9 +82,9 @@ final class RoutesTest extends TestCase
         $this->assertSame(StaticFileHandler::class, $match->handlerClass);
     }
 
-    public function testHasNoGlobalMiddlewaresYet(): void
+    public function testOriginCheckIsTheOnlyGlobalMiddleware(): void
     {
-        $this->assertSame([], $this->router->globalMiddlewares());
+        $this->assertSame([OriginCheck::class], $this->router->globalMiddlewares());
     }
 
     /**

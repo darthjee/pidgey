@@ -10,10 +10,10 @@
 declare(strict_types=1);
 
 use Pidgey\Http\Handler\HashRedirectHandler;
+use Pidgey\Http\OriginCheck;
 use Pidgey\Http\Router;
 
-// The global middleware list is empty until OriginCheck lands.
-$router = new Router();
+$router = new Router([OriginCheck::class]);
 
 require __DIR__ . '/routes/frontend.php';
 require __DIR__ . '/routes/operational.php';
