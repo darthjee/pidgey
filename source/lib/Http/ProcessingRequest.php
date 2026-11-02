@@ -44,6 +44,16 @@ final class ProcessingRequest
     }
 
     /**
+     * Returns the raw request URI, never decoded.
+     *
+     * @return string
+     */
+    public function uri(): string
+    {
+        return $this->request->uri();
+    }
+
+    /**
      * Returns the percent-decoded request path.
      *
      * @return string

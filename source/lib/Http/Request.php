@@ -8,7 +8,7 @@ namespace Pidgey\Http;
  * Immutable view of one HTTP request, read from the PHP globals.
  *
  * Every value can be overridden through constructor options, so tests need no web server.
- * Only the method, path and query are read for now; headers, cookies and the body come later.
+ * Only the method, raw URI, path and query are read for now; headers, cookies and the body come later.
  *
  * Pending: a decoded NUL byte in the path must answer 400 (BadRequestException), which needs
  * the error wrapper from a later issue; path() does not reject it yet.
@@ -44,6 +44,16 @@ final readonly class Request
     public function method(): string
     {
         return $this->method;
+    }
+
+    /**
+     * Returns the raw REQUEST_URI exactly as received, or "/" when it is missing.
+     *
+     * @return string
+     */
+    public function uri(): string
+    {
+        return $this->uri ?? '/';
     }
 
     /**
