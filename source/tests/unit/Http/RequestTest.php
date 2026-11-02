@@ -117,4 +117,29 @@ final class RequestTest extends TestCase
     {
         $this->assertSame('', (new Request(['uri' => 'http:///']))->query());
     }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function rawUriProvider(): array
+    {
+        return [
+            'encoded CRLF and query' => ['/foo%0D%0A?x=1'],
+            'protocol-relative' => ['//evil.com'],
+            'trailing slash' => ['/foo/'],
+        ];
+    }
+
+    #[DataProvider('rawUriProvider')]
+    public function testUriIsReturnedUnchanged(string $uri): void
+    {
+        $this->assertSame($uri, (new Request(['uri' => $uri]))->uri());
+    }
+
+    public function testUriDefaultsToRootWithoutUri(): void
+    {
+        unset($_SERVER['REQUEST_URI']);
+
+        $this->assertSame('/', (new Request())->uri());
+    }
 }

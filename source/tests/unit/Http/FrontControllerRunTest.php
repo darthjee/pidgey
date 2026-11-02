@@ -33,9 +33,11 @@ final class FrontControllerRunTest extends TestCase
     public function testSendsTheNotFoundEnvelope(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['REQUEST_URI'] = '/';
+        $_SERVER['REQUEST_URI'] = '/nope.json';
 
-        $this->expectOutputRegex('/^\{"error":\{"code":"NOT_FOUND","message":"Cannot GET \/"\},"statusCode":404,/');
+        $this->expectOutputRegex(
+            '/^\{"error":\{"code":"NOT_FOUND","message":"Cannot GET \/nope\.json"\},"statusCode":404,/',
+        );
 
         FrontController::run();
     }

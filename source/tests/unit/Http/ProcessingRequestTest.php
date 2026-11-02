@@ -29,6 +29,7 @@ final class ProcessingRequestTest extends TestCase
         $processing = new ProcessingRequest(new Request(['method' => 'post', 'uri' => '/a%20b?c=d']));
 
         $this->assertSame('POST', $processing->method());
+        $this->assertSame('/a%20b?c=d', $processing->uri());
         $this->assertSame('/a b', $processing->path());
         $this->assertSame('c=d', $processing->query());
     }
