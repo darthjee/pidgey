@@ -53,6 +53,19 @@ final class RouteTest extends TestCase
         $this->assertSame('/a/:id.json', $route->pattern());
     }
 
+    public function testExposesHandlerClassAndMiddlewares(): void
+    {
+        $route = new Route('GET', '/a.json', StubHandler::class, ['B', 'A']);
+
+        $this->assertSame(StubHandler::class, $route->handlerClass());
+        $this->assertSame(['B', 'A'], $route->middlewares());
+    }
+
+    public function testHasNoMiddlewaresByDefault(): void
+    {
+        $this->assertSame([], (new Route('GET', '/a.json', StubHandler::class))->middlewares());
+    }
+
     public function testNormalizesParamNames(): void
     {
         $route = new Route('GET', '/a/:id/b/:x.json', StubHandler::class);

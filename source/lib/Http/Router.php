@@ -51,6 +51,27 @@ final class Router
     }
 
     /**
+     * Returns the registered routes, in registration order; the GET fallback is not a Route, see
+     * fallbackHandlerClass().
+     *
+     * @return list<Route>
+     */
+    public function routes(): array
+    {
+        return $this->routes;
+    }
+
+    /**
+     * Returns the handler class of the GET fallback, or null when none is registered.
+     *
+     * @return string|null
+     */
+    public function fallbackHandlerClass(): ?string
+    {
+        return $this->fallbackHandlerClass;
+    }
+
+    /**
      * Registers one route.
      *
      * @param string   $method       HTTP method; upper-cased when stored.

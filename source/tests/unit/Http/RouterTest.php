@@ -34,6 +34,41 @@ final class RouterTest extends TestCase
         $this->assertSame(['B', 'A'], (new Router(['B', 'A']))->globalMiddlewares());
     }
 
+    public function testHasNoRoutesAndNoFallbackInitially(): void
+    {
+        $router = new Router();
+
+        $this->assertSame([], $router->routes());
+        $this->assertNull($router->fallbackHandlerClass());
+    }
+
+    public function testListsTheRoutesInRegistrationOrder(): void
+    {
+        $router = new Router();
+        $router->post('/b.json', StubHandler::class, [RecordingMiddleware::class]);
+        $router->get('/a.json', HealthHandler::class);
+        $router->fallback(StubHandler::class);
+
+        $routes = $router->routes();
+
+        $this->assertSame(
+            [
+                ['POST', '/b.json', StubHandler::class, [RecordingMiddleware::class]],
+                ['GET', '/a.json', HealthHandler::class, []],
+            ],
+            array_map(
+                static fn (Route $route): array => [
+                    $route->method(),
+                    $route->pattern(),
+                    $route->handlerClass(),
+                    $route->middlewares(),
+                ],
+                $routes,
+            ),
+        );
+        $this->assertSame(StubHandler::class, $router->fallbackHandlerClass());
+    }
+
     public function testMatchesARegisteredRoute(): void
     {
         $router = new Router();
