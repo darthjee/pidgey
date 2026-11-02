@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Pidgey\Http;
 
+use Closure;
+use Pidgey\Infra\ConfigValidator;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -29,15 +32,24 @@ final class FrontController
     }
 
     /**
-     * Production entry point: builds the Request and the Router, dispatches, then sends the response.
+     * Production entry point: validates the configuration, builds the Request and the Router,
+     * dispatches, then sends the response.
+     *
+     * An invalid configuration is logged (failure names only, never values) and answered with
+     * the 500 INTERNAL_ERROR envelope.
+     *
+     * @param Closure|null $validator Closure(): list<string>, returns the configuration failures;
+     *                                defaults to ConfigValidator::validate().
      *
      * @return void
      */
-    public static function run(): void
+    public static function run(?Closure $validator = null): void
     {
         $errorFormatter = new ErrorFormatter();
+        $validator ??= static fn (): array => (new ConfigValidator())->validate();
 
         try {
+            self::assertValidConfiguration($validator);
             $request = new Request();
             $response = (new self(self::loadRouter(self::ROUTES_FILE), $errorFormatter))->handle($request);
         } catch (Throwable $error) {
@@ -75,6 +87,24 @@ final class FrontController
             return $handler->handle($processing, $middlewares);
         } catch (Throwable $error) {
             return $this->errorFormatter->format($error);
+        }
+    }
+
+    /**
+     * Throws when the configuration validation reports any failure.
+     *
+     * @param Closure $validator Closure(): list<string>, returns the configuration failures.
+     *
+     * @return void
+     *
+     * @throws RuntimeException When the configuration is invalid; the message lists the failure names.
+     */
+    private static function assertValidConfiguration(Closure $validator): void
+    {
+        $failures = $validator();
+
+        if ($failures !== []) {
+            throw new RuntimeException('Invalid configuration: ' . implode(', ', $failures));
         }
     }
 
