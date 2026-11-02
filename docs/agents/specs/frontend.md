@@ -9,5 +9,5 @@ Purpose: index of the specs describing the React admin UI.
 | [screens.md](frontend/screens.md) | Authentication, routing and screens. |
 | [api-compatibility.md](frontend/api-compatibility.md) | Matrix of the API endpoints the UI calls, their client methods and their compatibility status. |
 | [testing.md](frontend/testing.md) | Jasmine, c8, ESLint, yarn scripts. |
-| [development.md](frontend/development.md) | Dev environment: images, `frontend_dev`, Vite proxy, first run. |
-| [build.md](frontend/build.md) | Build and release: `/admin/`, production delivery. |
+| [development.md](frontend/development.md) | Dev environment: images, `frontend_dev`, Vite proxy, first run, dev/production differences. |
+| [build.md](frontend/build.md) | Build and release: `/`, production delivery. |
