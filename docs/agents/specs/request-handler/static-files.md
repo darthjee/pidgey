@@ -113,7 +113,7 @@ The GET fallback ([routing.md](routing.md#get-fallback)) turns a deep link into 
 
 ## Rejected
 
-- **Apache-only serving from the web root** (the build in `public/admin/`, `DirectoryIndex`, a nested `.htaccess` for `no-cache`): the UI could not live at `/` without Apache shadowing the API's routing rules, and the headers would depend on per-folder `.htaccess` files.
+- **Apache-only serving from the web root** (the build in a web-root subfolder, `DirectoryIndex`, a nested `.htaccess` for `no-cache`): the UI could not live at `/` without Apache shadowing the API's routing rules, and the headers would depend on per-folder `.htaccess` files.
 - **Serving `index.html` for every unknown path** (a history-router fallback): unknown API paths and browsers' automatic requests (`/favicon.ico`) would get an HTML `200`. The single-page application uses hash routing, so a `302` to `/#<path>` is enough.
 - **Oak's `FRONTEND_DEV_MODE` PHP proxy to Vite:** see [frontend/development.md](../frontend/development.md#rejected-alternatives).
 
