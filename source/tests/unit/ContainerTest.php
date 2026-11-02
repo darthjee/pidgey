@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace Pidgey\Tests\Unit;
 
+use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use Pidgey\Auth\AccessToken;
+use Pidgey\Auth\AccessTokenClaims;
+use Pidgey\Auth\Base64Url;
+use Pidgey\Auth\SecretKeys;
 use Pidgey\Container;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
+use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\Transaction;
+use Pidgey\Infra\WallClock;
 use Pidgey\Repository\AccountEditLockoutRepository;
 use Pidgey\Repository\ApiTokenRepository;
 use Pidgey\Repository\AuthorizationRequestRepository;
@@ -24,6 +31,11 @@ use Pidgey\Repository\UserRepository;
 use RuntimeException;
 
 #[CoversClass(Container::class)]
+#[UsesClass(AccessToken::class)]
+#[UsesClass(AccessTokenClaims::class)]
+#[UsesClass(Base64Url::class)]
+#[UsesClass(SecretKeys::class)]
+#[UsesClass(SystemWallClock::class)]
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(Transaction::class)]
@@ -37,7 +49,18 @@ use RuntimeException;
 #[UsesClass(SmtpConnectionRepository::class)]
 final class ContainerTest extends TestCase
 {
-    private const VARIABLES = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+    private const VARIABLES = [
+        'DB_HOST',
+        'DB_PORT',
+        'DB_NAME',
+        'DB_USER',
+        'DB_PASSWORD',
+        'SECRET_KEY',
+        'PREVIOUS_SECRET_KEYS',
+        'ACCESS_TOKEN_TTL',
+    ];
+
+    private const SECRET_KEY = 'container-test-secret-key-0123456789abcdef';
 
     /** @var array<string, string|false> */
     private array $saved = [];
@@ -53,6 +76,9 @@ final class ContainerTest extends TestCase
         putenv('DB_NAME=pidgey_example_test');
         putenv('DB_USER=someone');
         putenv('DB_PASSWORD=secret');
+        putenv('SECRET_KEY=' . self::SECRET_KEY);
+        putenv('PREVIOUS_SECRET_KEYS');
+        putenv('ACCESS_TOKEN_TTL');
     }
 
     protected function tearDown(): void
@@ -231,5 +257,88 @@ final class ContainerTest extends TestCase
         $this->assertSame($repository, $container->smtpConnectionRepository());
         $container->organizationRepository();
         $container->pdo();
+    }
+
+    public function testWallClockDefaultsToTheSystemClockAndIsMemoized(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $clock = $container->wallClock();
+
+        $this->assertInstanceOf(SystemWallClock::class, $clock);
+        $this->assertSame($clock, $container->wallClock());
+    }
+
+    public function testWallClockCanBeInjected(): void
+    {
+        $clock = $this->fixedClock(1_800_000_000);
+
+        $this->assertSame($clock, (new Container($this->unusedConnections(), $clock))->wallClock());
+    }
+
+    public function testAccessTokenIsMemoizedAndOpensNoConnection(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $accessToken = $container->accessToken();
+
+        $this->assertInstanceOf(AccessToken::class, $accessToken);
+        $this->assertSame($accessToken, $container->accessToken());
+    }
+
+    public function testAccessTokenUsesTheSecretKeyTheDefaultTtlAndTheContainerClock(): void
+    {
+        $container = new Container($this->unusedConnections(), $this->fixedClock(1_800_000_000));
+
+        $token = $container->accessToken()->issue(7, '0b8f2c3e-1d4a-4b6c-9e7f-a1b2c3d4e5f6', 'alice', false);
+        $claims = (new AccessToken(new SecretKeys(self::SECRET_KEY), 900, $this->fixedClock(1_800_000_000)))
+            ->verify($token);
+
+        $this->assertNotNull($claims);
+        $this->assertSame(1_800_000_000, $claims->issuedAt);
+        $this->assertSame(1_800_000_900, $claims->expiresAt);
+    }
+
+    public function testAccessTokenReadsTheTtlFromTheEnvironment(): void
+    {
+        putenv('ACCESS_TOKEN_TTL=60');
+        $container = new Container($this->unusedConnections(), $this->fixedClock(1_800_000_000));
+
+        $token = $container->accessToken()->issue(7, '0b8f2c3e-1d4a-4b6c-9e7f-a1b2c3d4e5f6', 'alice', false);
+
+        $this->assertSame(1_800_000_060, $container->accessToken()->verify($token)?->expiresAt);
+    }
+
+    public function testAccessTokenReportsAMissingSecretKey(): void
+    {
+        putenv('SECRET_KEY');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('SECRET_KEY');
+
+        (new Container($this->unusedConnections()))->accessToken();
+    }
+
+    private function unusedConnections(): ConnectionFactory
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->never())->method('create');
+        $factory->expects($this->never())->method('createServer');
+
+        return $factory;
+    }
+
+    private function fixedClock(int $timestamp): WallClock
+    {
+        return new class ($timestamp) implements WallClock {
+            public function __construct(private readonly int $timestamp)
+            {
+            }
+
+            public function now(): DateTimeImmutable
+            {
+                return (new DateTimeImmutable())->setTimestamp($this->timestamp);
+            }
+        };
     }
 }

@@ -17,6 +17,9 @@ final class ConfigValidator
     /** The shipped development key, refused outside development and test. */
     public const DEVELOPMENT_SECRET_KEY = 'pidgey-development-only-insecure-secret-key-0000';
 
+    /** Default `ACCESS_TOKEN_TTL`, in seconds. */
+    public const DEFAULT_ACCESS_TOKEN_TTL = 900;
+
     /** Settings that must be set and non-empty. */
     private const REQUIRED = ['DB_HOST', 'DB_NAME', 'DB_USER'];
 
@@ -41,7 +44,6 @@ final class ConfigValidator
     /** Counts that may be zero: non-negative integers when set. */
     private const NON_NEGATIVE_INTEGERS = ['TRUSTED_PROXY_HOPS'];
 
-    private const DEFAULT_ACCESS_TOKEN_TTL = '900';
     private const DEFAULT_REFRESH_TOKEN_TTL = '604800';
 
     /** PHP_ENV values that are not production; any other value, or none, counts as production. */
@@ -189,7 +191,7 @@ final class ConfigValidator
      */
     private function checkTokenTtls(): array
     {
-        $access = (string) Env::get('ACCESS_TOKEN_TTL', self::DEFAULT_ACCESS_TOKEN_TTL);
+        $access = (string) Env::get('ACCESS_TOKEN_TTL', (string) self::DEFAULT_ACCESS_TOKEN_TTL);
         $refresh = (string) Env::get('REFRESH_TOKEN_TTL', self::DEFAULT_REFRESH_TOKEN_TTL);
 
         if (

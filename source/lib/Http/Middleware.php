@@ -4,11 +4,22 @@ declare(strict_types=1);
 
 namespace Pidgey\Http;
 
+use Pidgey\Container;
+
 /**
  * Request and response hooks run around a handler by RequestHandler::handle().
  */
 interface Middleware
 {
+    /**
+     * Builds the middleware for one request, taking its dependencies from the container.
+     *
+     * @param Container $container The request's container.
+     *
+     * @return static
+     */
+    public static function build(Container $container): static;
+
     /**
      * Request hook: may attach data, answer early with respond(), or throw for any error.
      *

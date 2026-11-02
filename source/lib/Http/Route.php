@@ -70,6 +70,26 @@ final class Route
     }
 
     /**
+     * Returns the RequestHandler subclass built on a match.
+     *
+     * @return string
+     */
+    public function handlerClass(): string
+    {
+        return $this->handlerClass;
+    }
+
+    /**
+     * Returns the route middleware class names, in order (the global ones are not included).
+     *
+     * @return string[]
+     */
+    public function middlewares(): array
+    {
+        return $this->middlewares;
+    }
+
+    /**
      * Returns the pattern with every param name replaced by ":", so "/a/:id" and "/a/:x" compare equal.
      *
      * @return string

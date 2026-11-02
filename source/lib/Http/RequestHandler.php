@@ -4,11 +4,29 @@ declare(strict_types=1);
 
 namespace Pidgey\Http;
 
+use Pidgey\Container;
+
 /**
  * Base class for handlers: runs the middleware hooks around process().
  */
 abstract class RequestHandler
 {
+    /**
+     * Builds the handler for one request, taking its dependencies from the container.
+     *
+     * Defaults to `new static()`; a subclass with constructor arguments must override it.
+     *
+     * @param Container $container The request's container (unused by default).
+     *
+     * @return static
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+     */
+    public static function build(Container $container): static
+    {
+        return new static();
+    }
+
     /**
      * Runs the request hooks, then the early response or process(), then every response hook.
      *

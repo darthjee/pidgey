@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pidgey\Auth;
 
+use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\WallClock;
 use SensitiveParameter;
 use stdClass;
@@ -16,7 +17,7 @@ use stdClass;
  */
 final class AccessToken
 {
-    public const DEFAULT_TTL = 900;
+    public const DEFAULT_TTL = ConfigValidator::DEFAULT_ACCESS_TOKEN_TTL;
 
     private const HEADER = '{"alg":"HS256","typ":"JWT"}';
 

@@ -5,10 +5,16 @@ declare(strict_types=1);
 namespace Pidgey;
 
 use PDO;
+use Pidgey\Auth\AccessToken;
+use Pidgey\Auth\SecretKeys;
+use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
+use Pidgey\Infra\Env;
 use Pidgey\Infra\PdoFactory;
+use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\Transaction;
+use Pidgey\Infra\WallClock;
 use Pidgey\Repository\AccountEditLockoutRepository;
 use Pidgey\Repository\ApiTokenRepository;
 use Pidgey\Repository\AuthorizationRequestRepository;
@@ -47,13 +53,46 @@ final class Container
 
     private ?SmtpConnectionRepository $smtpConnectionRepository = null;
 
+    private ?AccessToken $accessToken = null;
+
     /**
      * Creates an empty container; nothing is built yet.
      *
      * @param ConnectionFactory $connectionFactory Opens the database connection (swappable in tests).
+     * @param WallClock|null    $wallClock         Wall clock (swappable in tests); defaults to the
+     *                                             system clock, built on first use.
      */
-    public function __construct(private readonly ConnectionFactory $connectionFactory = new PdoFactory())
+    public function __construct(
+        private readonly ConnectionFactory $connectionFactory = new PdoFactory(),
+        private ?WallClock $wallClock = null,
+    ) {
+    }
+
+    /**
+     * Returns the request's wall clock.
+     *
+     * @return WallClock
+     */
+    public function wallClock(): WallClock
     {
+        return $this->wallClock ??= new SystemWallClock();
+    }
+
+    /**
+     * Returns the access-token service, built from `SECRET_KEY`, `PREVIOUS_SECRET_KEYS` and
+     * `ACCESS_TOKEN_TTL` on the first call.
+     *
+     * @return AccessToken
+     *
+     * @throws RuntimeException When `SECRET_KEY` is missing or `ACCESS_TOKEN_TTL` is invalid.
+     */
+    public function accessToken(): AccessToken
+    {
+        return $this->accessToken ??= new AccessToken(
+            SecretKeys::fromEnv(),
+            Env::integer('ACCESS_TOKEN_TTL', ConfigValidator::DEFAULT_ACCESS_TOKEN_TTL),
+            $this->wallClock(),
+        );
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pidgey\Http;
 
 use Closure;
+use Pidgey\Container;
 use Pidgey\Infra\ConfigValidator;
 use RuntimeException;
 use Throwable;
@@ -12,23 +13,33 @@ use Throwable;
 /**
  * Dispatches one request: route match, handler and middlewares, with every error formatted.
  *
- * Later steps plug in here: the CORS step (before routing and on the final response), request
- * logging, the HandlerFactory and the per-request Container.
+ * Each handle() call creates one fresh Container and builds the handler and the middlewares
+ * through a HandlerFactory over it. The container is lazy, so a route that needs no service
+ * (e.g. /health.json or the static files) opens no database connection.
+ *
+ * Later steps plug in here: the CORS step (before routing and on the final response) and
+ * request logging.
  */
 final class FrontController
 {
     private const ROUTES_FILE = __DIR__ . '/../../config/routes.php';
 
+    private readonly Closure $containerFactory;
+
     /**
      * Builds the front controller.
      *
-     * @param Router         $router         Routes to dispatch to.
-     * @param ErrorFormatter $errorFormatter Turns any error into the JSON error envelope.
+     * @param Router         $router           Routes to dispatch to.
+     * @param ErrorFormatter $errorFormatter   Turns any error into the JSON error envelope.
+     * @param Closure|null   $containerFactory Closure(): Container, called once per request;
+     *                                         defaults to `new Container()`.
      */
     public function __construct(
         private readonly Router $router,
         private readonly ErrorFormatter $errorFormatter = new ErrorFormatter(),
+        ?Closure $containerFactory = null,
     ) {
+        $this->containerFactory = $containerFactory ?? static fn (): Container => new Container();
     }
 
     /**
@@ -78,11 +89,9 @@ final class FrontController
             }
 
             $processing = new ProcessingRequest($request, $match->params);
-            $handler = new ($match->handlerClass)();
-            $middlewares = array_map(
-                static fn (string $class): Middleware => new $class(),
-                [...$this->router->globalMiddlewares(), ...$match->middlewares],
-            );
+            $factory = new HandlerFactory(($this->containerFactory)());
+            $handler = $factory->handler($match->handlerClass);
+            $middlewares = $factory->middlewares([...$this->router->globalMiddlewares(), ...$match->middlewares]);
 
             return $handler->handle($processing, $middlewares);
         } catch (Throwable $error) {
