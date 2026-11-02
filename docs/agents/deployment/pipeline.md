@@ -57,7 +57,7 @@ does not.
 | `build_backend` | None | `backend_checks`, `backend_tests`, `frontend_checks` | Renames `source/` to `backend/`, runs `composer install --no-dev --optimize-autoloader`, persists `backend/` to the workspace. |
 | `build_frontend` | None | `backend_checks`, `backend_tests`, `frontend_checks` | Keeps only `frontend/`, runs `yarn install --frozen-lockfile` and `yarn build`, persists the output as `frontend-dist/`. |
 | `upload_backend` | `pidgey-deploy` | `build_backend` | Attaches the workspace, runs `deploy_setup`, uploads `backend/` into the staging folder with the exclude list. |
-| `upload_frontend` | `pidgey-deploy` | `build_frontend`, `upload_backend` | Attaches the workspace, runs `deploy_setup`, uploads `frontend-dist/` into the staging folder's `public/admin/`. |
+| `upload_frontend` | `pidgey-deploy` | `build_frontend`, `upload_backend` | Attaches the workspace, runs `deploy_setup`, uploads `frontend-dist/` into the staging folder's `static/`. |
 | `release` | `pidgey-deploy` | `upload_backend`, `upload_frontend` | Runs `deploy_setup`, links the shared `.env`, runs `bin/check-config` and `bin/migrate` in staging, swaps staging into live, then runs `cleanup` to remove stale staging folders. |
 
 Order:
@@ -73,7 +73,7 @@ A tag on a red commit deploys nothing: every deploy job depends, directly or thr
 jobs, on all three check jobs.
 
 No production image is built: a release is identified by its git semver tag, and the host runs
-the uploaded files. The deploy chain builds the admin UI and uploads it into `public/admin/`
+the uploaded files. The deploy chain builds the UI and uploads it into `static/`
 (the frontend delivery decision in
 [frontend/build.md](../specs/frontend/build.md#production-delivery)).
 
@@ -152,7 +152,7 @@ Actions used:
 | --- | --- | --- | --- |
 | `generate_key_file` | every context job | `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` | Writes the key and known-hosts files (see above). |
 | `upload` | `upload_backend` | `SOURCE=/tmp/workspace/backend/`, `EXCLUDE_FROM=.circleci/backend-exclude.txt` | Creates the staging folder and rsyncs `SOURCE` into it, skipping the excluded paths. |
-| `upload` | `upload_frontend` | `SOURCE=/tmp/workspace/frontend-dist/`, `DEPLOY_PATH=public/admin/` | Rsyncs the built admin UI into staging's `public/admin/`. |
+| `upload` | `upload_frontend` | `SOURCE=/tmp/workspace/frontend-dist/`, `DEPLOY_PATH=static/` | Rsyncs the built UI into staging's `static/`. |
 | `link` | `release` | `SOURCE="$REMOTE_HOME/$SHARED_DIR/.env"`, `DEPLOY_PATH=config/.env` | Runs `mkdir -p config` in staging (it already holds the route files) and adds a symlink `config/.env` → the shared `.env` (`ln -sfn`). |
 | `run` | `release` | `COMMAND="$PHP_BIN bin/check-config"` | Runs the configuration checks inside staging. |
 | `run` | `release` | `COMMAND="$PHP_BIN bin/migrate"` | Applies pending migrations inside staging. |
@@ -185,9 +185,11 @@ release:
 - `.git`.
 
 Everything else under `source/` ships: `bin/`, `config/` (route files; the `release` job adds
-the `.env` link), `lib/`, `migrations/`, `public/` (with the built admin UI), `vendor/`
-(production dependencies only), `composer.json` and `composer.lock`. Only the live release's
-`public/` is web-reachable (see [server.md](server.md#web-directory)).
+the `.env` link), `lib/`, `migrations/`, `public/`, `vendor/`
+(production dependencies only), `composer.json` and `composer.lock`. Next to `public/`, the
+release also holds `static/`: the built frontend, uploaded by `upload_frontend`, not by
+`upload_backend`. Only the live release's `public/` is web-reachable; `static/` is not, and its
+files are served through `public/index.php` (see [server.md](server.md#web-directory)).
 
 A new top-level path in `source/` ships too unless it is added to the exclude list. Rule: any
 change that adds a top-level path to `source/` adds it, in the same change, either to

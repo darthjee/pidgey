@@ -192,7 +192,7 @@ jobs:
       - deploy_setup
       - run:
           name: Upload frontend
-          command: SOURCE=/tmp/workspace/frontend-dist/ DEPLOY_PATH=public/admin/ deploy_frontend.sh upload
+          command: SOURCE=/tmp/workspace/frontend-dist/ DEPLOY_PATH=static/ deploy_frontend.sh upload
 
   release:
     executor: pidgey-base
