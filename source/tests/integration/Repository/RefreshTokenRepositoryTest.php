@@ -163,6 +163,154 @@ final class RefreshTokenRepositoryTest extends RepositoryTestCase
         $this->assertSame('2026-03-02 10:00:00', $token?->revokedAt?->format('Y-m-d H:i:s'));
     }
 
+    public function testRevokeIfActiveRevokesAnActiveRow(): void
+    {
+        $id = $this->fixtures->refreshToken(expiresAt: '2026-03-08 10:00:00');
+
+        $affected = $this->repository->revokeIfActive(
+            $id,
+            RevokedReason::Rotated,
+            $this->utc('2026-03-02 10:00:00'),
+        );
+
+        $token = $this->repository->findById($id);
+        $this->assertSame(1, $affected);
+        $this->assertSame(RevokedReason::Rotated, $token?->revokedReason);
+        $this->assertSame('2026-03-02 10:00:00', $token?->revokedAt?->format('Y-m-d H:i:s'));
+    }
+
+    public function testRevokeIfActiveKeepsAnAlreadyRevokedRow(): void
+    {
+        $id = $this->fixtures->refreshToken(
+            expiresAt: '2026-03-08 10:00:00',
+            revokedAt: '2026-03-01 12:00:00',
+            revokedReason: RevokedReason::Logout->value,
+        );
+
+        $affected = $this->repository->revokeIfActive(
+            $id,
+            RevokedReason::Rotated,
+            $this->utc('2026-03-02 10:00:00'),
+        );
+
+        $token = $this->repository->findById($id);
+        $this->assertSame(0, $affected);
+        $this->assertSame(RevokedReason::Logout, $token?->revokedReason);
+        $this->assertSame('2026-03-01 12:00:00', $token?->revokedAt?->format('Y-m-d H:i:s'));
+    }
+
+    public function testRevokeIfActiveIgnoresAnExpiredRow(): void
+    {
+        $id = $this->fixtures->refreshToken(issuedAt: '2026-03-01 10:00:00', expiresAt: '2026-03-02 10:00:00');
+
+        $affected = $this->repository->revokeIfActive(
+            $id,
+            RevokedReason::Rotated,
+            $this->utc('2026-03-02 10:00:00'),
+        );
+
+        $token = $this->repository->findById($id);
+        $this->assertSame(0, $affected);
+        $this->assertNull($token?->revokedAt);
+        $this->assertNull($token?->revokedReason);
+    }
+
+    public function testRevokeActiveForUserRevokesEveryActiveRow(): void
+    {
+        $userId = $this->fixtures->user();
+        $first = $this->fixtures->refreshToken(userId: $userId);
+        $second = $this->fixtures->refreshToken(userId: $userId);
+
+        $affected = $this->repository->revokeActiveForUser(
+            $userId,
+            RevokedReason::ReplayDetected,
+            $this->utc('2026-03-02 10:00:00'),
+        );
+
+        $this->assertSame(2, $affected);
+        $this->assertRevoked($first, RevokedReason::ReplayDetected, '2026-03-02 10:00:00');
+        $this->assertRevoked($second, RevokedReason::ReplayDetected, '2026-03-02 10:00:00');
+    }
+
+    public function testRevokeActiveForUserKeepsAlreadyRevokedRows(): void
+    {
+        $userId = $this->fixtures->user();
+        $revoked = $this->fixtures->refreshToken(
+            userId: $userId,
+            revokedAt: '2026-03-01 12:00:00',
+            revokedReason: RevokedReason::Rotated->value,
+        );
+
+        $affected = $this->repository->revokeActiveForUser(
+            $userId,
+            RevokedReason::PasswordReset,
+            $this->utc('2026-03-02 10:00:00'),
+        );
+
+        $this->assertSame(0, $affected);
+        $this->assertRevoked($revoked, RevokedReason::Rotated, '2026-03-01 12:00:00');
+    }
+
+    public function testRevokeActiveForUserLeavesOtherUsersUntouched(): void
+    {
+        $userId = $this->fixtures->user();
+        $other = $this->fixtures->refreshToken(userId: $this->fixtures->user());
+        $this->fixtures->refreshToken(userId: $userId);
+
+        $this->repository->revokeActiveForUser($userId, RevokedReason::AdminDenied, $this->utc('2026-03-02 10:00:00'));
+
+        $this->assertNull($this->repository->findById($other)?->revokedAt);
+    }
+
+    public function testRevokeActiveForSessionRevokesOnlyThatSession(): void
+    {
+        $userId = $this->fixtures->user();
+        $current = $this->fixtures->refreshToken(userId: $userId, sessionUuid: self::SESSION_UUID);
+        $alreadyRotated = $this->fixtures->refreshToken(
+            userId: $userId,
+            sessionUuid: self::SESSION_UUID,
+            revokedAt: '2026-03-01 12:00:00',
+            revokedReason: RevokedReason::Rotated->value,
+        );
+        $otherSession = $this->fixtures->refreshToken(userId: $userId);
+
+        $affected = $this->repository->revokeActiveForSession(
+            $userId,
+            self::SESSION_UUID,
+            RevokedReason::Logout,
+            $this->utc('2026-03-02 10:00:00'),
+        );
+
+        $this->assertSame(1, $affected);
+        $this->assertRevoked($current, RevokedReason::Logout, '2026-03-02 10:00:00');
+        $this->assertRevoked($alreadyRotated, RevokedReason::Rotated, '2026-03-01 12:00:00');
+        $this->assertNull($this->repository->findById($otherSession)?->revokedAt);
+    }
+
+    public function testRevokeActiveForSessionIgnoresTheSameSessionUuidOfAnotherUser(): void
+    {
+        $userId = $this->fixtures->user();
+        $foreign = $this->fixtures->refreshToken(userId: $this->fixtures->user(), sessionUuid: self::SESSION_UUID);
+        $this->fixtures->refreshToken(userId: $userId, sessionUuid: self::SESSION_UUID);
+
+        $this->repository->revokeActiveForSession(
+            $userId,
+            self::SESSION_UUID,
+            RevokedReason::Logout,
+            $this->utc('2026-03-02 10:00:00'),
+        );
+
+        $this->assertNull($this->repository->findById($foreign)?->revokedAt);
+    }
+
+    private function assertRevoked(int $id, RevokedReason $reason, string $revokedAt): void
+    {
+        $token = $this->repository->findById($id);
+
+        $this->assertSame($reason, $token?->revokedReason);
+        $this->assertSame($revokedAt, $token?->revokedAt?->format('Y-m-d H:i:s'));
+    }
+
     private function createToken(string $tokenHash, int $userId): RefreshToken
     {
         return $this->repository->create(
