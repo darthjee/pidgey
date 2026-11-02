@@ -28,7 +28,7 @@ make fe-install                      # frontend dependencies into docker_volumes
 make dev-up   # or: docker compose up app
 ```
 
-After `make dev-up`, the admin UI (Vite dev server) is at `http://localhost:8030/admin/`. See the
+After `make dev-up`, the admin UI (Vite dev server) is at `http://localhost:8030/`. See the
 [First run](docs/agents/specs/frontend/development.md#first-run) section of the frontend
 development spec for details (Vite proxy, ports, dependencies).
 
