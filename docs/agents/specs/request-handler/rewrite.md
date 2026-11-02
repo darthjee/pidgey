@@ -133,7 +133,6 @@ Note only:
 - `/` stops being the health check. `GET /health.json` ([api/endpoints/operational.md](../api/endpoints/operational.md)) takes that role, with the same payload, once the front controller ([front-controller.md](front-controller.md)) lands. `/` is the document-root directory, so the rule does not rewrite it; it reaches `index.php` through `DirectoryIndex`, and the router decides what it returns.
 - If the `.htaccess` ships before the real front controller, every non-file path answers 200 `{"status":"ok"}`. This only happens in dev, so the implementation issues may ship them together or in either order.
 - The Vite dev proxy's `*.json` requests start reaching PHP instead of Apache's 404. That is the intended change.
-- Updating the "stub `index.php`" wording in `architecture/repository-layout.md` belongs to the front-controller work ([front-controller.md](front-controller.md)), not here.
 
 ## Verification
 

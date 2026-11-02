@@ -24,7 +24,8 @@ Purpose: define the top-level folders of the repository and their responsibiliti
 | `source/composer.json` | Dependencies and composer scripts (see [testing](../testing.md)). |
 | `source/lib/` | PSR-4 root for namespace `Pidgey\`. |
 | `source/bin/` | Executable PHP CLI entry points (`wait-for-db`, `create-db`, `drop-db`, `migrate`), backed by `Pidgey\Infra`. See [database.md](database.md#database-scripts). |
-| `source/public/` | Apache document root (web root): `index.php` front controller; the built frontend is released under `admin/` here and served at `/admin/` (see [frontend/build.md](../frontend/build.md)). Initially a stub `index.php` returning a JSON health response (no routing yet). The front controller is specified in [request-handler/front-controller.md](../request-handler/front-controller.md). |
+| `source/public/` | Apache document root (web root): only the `index.php` front controller and the `.htaccess` ([request-handler/rewrite.md](../request-handler/rewrite.md)). The front controller is specified in [request-handler/front-controller.md](../request-handler/front-controller.md). No frontend files live here. |
+| `source/static/` | The built frontend (`index.html` and `assets/`), outside the web root. Git-ignored; filled by `make build-fe-release` in dev and uploaded with the release in production ([frontend/build.md](../frontend/build.md)). Served at `/` by `StaticFileHandler` ([request-handler/static-files.md](../request-handler/static-files.md)). |
 | `source/config/` | Runtime configuration. In production it holds `config/.env`, a symlink to the shared env file on the host (see [configuration.md](configuration.md#env-file) and [deployment/server.md](../../deployment/server.md#the-configenv-link)). `config/.env` is git-ignored. |
 | `source/migrations/` | Plain SQL migration files. See [database.md](database.md). |
 | `source/tests/unit/`, `source/tests/integration/` | PHPUnit suites. |

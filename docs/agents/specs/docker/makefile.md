@@ -38,7 +38,7 @@ There are no `ci-*` wrapper targets: CircleCI calls composer directly inside the
 | `FE_BASE_VERSION` | Version tag of `vite_pidgey-base` to build, push and build from (`0.0.1`). |
 | `FE_BASE_IMAGE` | Frontend base image name, `$(DOCKER_ID_USER)/vite_$(PROJECT)-base`. |
 | `FE_IMAGE` | Frontend image name, `$(DOCKER_ID_USER)/vite_$(PROJECT)`. |
-| `FE_RELEASE_DIR` | Release folder for the built frontend, `source/public/admin`. |
+| `FE_RELEASE_DIR` | Release folder for the built frontend, `source/static` (outside the web root, see [frontend/build.md](../frontend/build.md#release)). |
 | `BASE_SUFFIX` | Architecture tag suffix: empty for amd64, `-arm64` for arm64. Defaults to `-arm64` when `uname -m` is `arm64`/`aarch64`, empty otherwise; an explicit `BASE_SUFFIX=` overrides. |
 
 ## First run
@@ -55,7 +55,7 @@ make dev-up   # or: docker compose up app
 ```
 
 The API is then at `http://localhost:8080` and the frontend dev server at
-`http://localhost:8030/admin/` (see [frontend/development.md](../frontend/development.md#first-run)).
+`http://localhost:8030/` (see [frontend/development.md](../frontend/development.md#first-run)).
 
 Notes:
 
