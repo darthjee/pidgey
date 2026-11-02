@@ -28,7 +28,7 @@ Purpose: list every environment variable the application reads, with its default
 
 | Setting | Default | Effect |
 | --- | --- | --- |
-| `PHP_ENV` | none | Runtime environment (`development`, `test`, `production`); set by docker-compose. Any value other than exactly `development` or `test` (including unset, empty or a different case such as `Production`) is treated as production by the [development-key rule](#development-key). |
+| `PHP_ENV` | none | Runtime environment (`development`, `test`, `production`); set by docker-compose. Any value other than exactly `development` or `test` (including unset, empty or a different case such as `Production`) is treated as production by the [development-key rule](#development-key) and the [`ALLOWED_ORIGINS` https rule](#origins). |
 | `DB_HOST` | required | MySQL host. |
 | `DB_PORT` | `3306` | MySQL port. |
 | `DB_NAME` | required | Database name. |
@@ -85,6 +85,18 @@ Used by [api/conventions/origin-check.md](../api/conventions/origin-check.md).
 | --- | --- | --- |
 | `ALLOWED_ORIGINS` | empty | Comma-separated bare origins (e.g. `https://admin.example.com`) trusted by the origin check and CORS; exact match only. |
 | `FRONTEND_BASE_URL` | empty | Fallback trusted origin when `ALLOWED_ORIGINS` is empty; base URL of links in emails. When empty, system emails (password recovery) are not sent, since their link would be broken (see [recovery.md](../api/endpoints/auth/recovery.md#recovery-email)). |
+
+- `ALLOWED_ORIGINS` is split on `,`; each entry is trimmed and empty entries are dropped (see
+  [origin-check.md](../api/conventions/origin-check.md#trusted-origins-and-cors)).
+- **Bare-origin rule:** each entry must be a bare `scheme://host[:port]` origin with an `http`
+  or `https` scheme: no path (not even a trailing `/`), query, fragment or user info.
+  Otherwise boot is refused with `ALLOWED_ORIGINS: invalid origin`.
+- **`https` rule:** an `http` entry refuses boot with `ALLOWED_ORIGINS: not https`, unless
+  `PHP_ENV` is exactly `development` or `test`. This is the same environment rule as the
+  [development key](#development-key): unset, empty or any other value counts as production.
+- Each failure is reported at most once, however many entries fail, and never with a value.
+- When `ALLOWED_ORIGINS` has no entries, only the `scheme://host[:port]` part of
+  `FRONTEND_BASE_URL` is trusted.
 
 ### Password recovery and account edit
 
@@ -177,8 +189,9 @@ the staging folder before migrating and swapping (see
 
 - Loads the env file (as every `bin/*` does), then runs the same validation the app runs at
   boot: every rule on this page that refuses boot, including the `SECRET_KEY` and
-  `PREVIOUS_SECRET_KEYS` rules, the required `DB_*` settings and the `DB_MIGRATE_*` pairing
-  rule (see [Runtime and database](#runtime-and-database)).
+  `PREVIOUS_SECRET_KEYS` rules, the required `DB_*` settings, the `DB_MIGRATE_*` pairing
+  rule (see [Runtime and database](#runtime-and-database)) and the `ALLOWED_ORIGINS` rules
+  (see [Origins](#origins)).
 - Also checks that the running PHP is **8.4.x**, since production is pinned to PHP 8.4 (see
   [deployment/server.md](../../deployment/server.md#host-requirements)). This catches a wrong
   `PHP_BIN` or a host change.
@@ -189,6 +202,8 @@ the staging folder before migrating and swapping (see
   `env file: unreadable`), never a value, not even a partial one. A development key in
   `PREVIOUS_SECRET_KEYS` follows the same naming: `PREVIOUS_SECRET_KEYS: development key`
   (see [Development key](#development-key)).
+  The [`ALLOWED_ORIGINS` rules](#origins) report `ALLOWED_ORIGINS: invalid origin` and
+  `ALLOWED_ORIGINS: not https`.
   The `DB_MIGRATE_*` pairing rule reports:
   - `DB_MIGRATE_PASSWORD: missing` when `DB_MIGRATE_USER` is set and `DB_MIGRATE_PASSWORD` is
     not;
