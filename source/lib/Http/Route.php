@@ -9,11 +9,15 @@ use LogicException;
 /**
  * One registered route: method, path pattern with ":name" params, handler and middlewares.
  *
- * The regex is compiled the first time the route is tried.
+ * A pattern ending in "/*" is a prefix route: "/assets/*" matches "/assets/" followed by anything,
+ * including further "/"; nothing is captured for the rest. The regex is compiled the first time
+ * the route is tried.
  */
 final class Route
 {
     private const PARAM = '/:([a-zA-Z_][a-zA-Z0-9_]*)/';
+
+    private const PREFIX_SUFFIX = '/*';
 
     private ?string $regex = null;
 
@@ -25,7 +29,7 @@ final class Route
      * @param string   $handlerClass RequestHandler subclass to build on a match.
      * @param string[] $middlewares  Route middleware class names, in order.
      *
-     * @throws LogicException When the pattern repeats a param name.
+     * @throws LogicException When the pattern repeats a param name or has a "*" other than a final "/*".
      */
     public function __construct(
         private readonly string $method,
@@ -38,6 +42,10 @@ final class Route
 
         if (count($names) !== count(array_unique($names))) {
             throw new LogicException("Route {$method} {$pattern} repeats a param name.");
+        }
+
+        if (str_contains($pattern, '*') && (substr_count($pattern, '*') > 1 || !$this->isPrefix())) {
+            throw new LogicException("Route {$method} {$pattern} may only use \"*\" as a final \"/*\".");
         }
     }
 
@@ -72,7 +80,8 @@ final class Route
     }
 
     /**
-     * Returns the compiled regex, e.g. "#^/smtp\-connections/(?<id>[^/]+)/test\.json$#".
+     * Returns the compiled regex, e.g. "#^/smtp\-connections/(?<id>[^/]+)/test\.json$#",
+     * or "#^/assets/.*$#" for the prefix route "/assets/*".
      *
      * @return string
      */
@@ -104,19 +113,35 @@ final class Route
     }
 
     /**
+     * Tells whether the pattern is a prefix route, i.e. ends with "/*".
+     *
+     * @return bool
+     */
+    private function isPrefix(): bool
+    {
+        return str_ends_with($this->pattern, self::PREFIX_SUFFIX);
+    }
+
+    /**
      * Compiles the pattern: literals quoted, each param a named group, the whole anchored.
+     *
+     * A prefix route compiles the part before "*" and ends with ".*" instead.
      *
      * @return string
      */
     private function compile(): string
     {
-        $parts = preg_split(self::PARAM, $this->pattern, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $isPrefix = $this->isPrefix();
+        $pattern = $isPrefix ? substr($this->pattern, 0, -1) : $this->pattern;
+        $parts = preg_split(self::PARAM, $pattern, -1, PREG_SPLIT_DELIM_CAPTURE);
         $regex = '';
 
         foreach ($parts as $index => $part) {
             $regex .= $index % 2 === 0 ? preg_quote($part, '#') : "(?<{$part}>[^/]+)";
         }
 
-        return "#^{$regex}$#";
+        $tail = $isPrefix ? '.*' : '';
+
+        return "#^{$regex}{$tail}$#";
     }
 }
