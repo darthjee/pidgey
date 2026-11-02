@@ -22,9 +22,16 @@ Commands on the host run over SSH as the host user (see [variables.md](variables
    - `https://<domain>/health.json` returns `200`;
    - unknown paths return `404`:
      `curl -s -o /dev/null -w '%{http_code}' https://<domain>/does-not-exist.json` prints `404`;
-   - `https://<domain>/admin/` loads;
+   - `https://<domain>/` loads;
+   - an unknown extensionless path redirects into the UI:
+     `curl -sI https://<domain>/does-not-exist` shows `302` and
+     `Location: /#/does-not-exist`;
+   - the UI assets are compressed:
+     `curl -sI -H 'Accept-Encoding: gzip' https://<domain>/assets/<bundle>.js` (a bundle name
+     taken from the built `index.html`) shows `Content-Encoding: gzip`. If it does not, record
+     it in [known-gaps.md](known-gaps.md);
    - the HSTS header is sent: `curl -sI https://<domain>/health.json` and
-     `curl -sI https://<domain>/admin/` both show `Strict-Transport-Security: max-age=86400`;
+     `curl -sI https://<domain>/` both show `Strict-Transport-Security: max-age=86400`;
    - the migrations are applied: `cd <live> && $PHP_BIN bin/migrate --status` lists no
      pending migration;
    - `bin/`, `vendor/` and `config/` are not web-reachable (for example
@@ -120,7 +127,7 @@ Edit the shared `.env` on the host (`$REMOTE_HOME/$SHARED_DIR/.env`), in this or
    `cd <live> && $PHP_BIN bin/check-config`, then `$PHP_BIN bin/migrate --status`.
 2. Switch `DB_USER` / `DB_PASSWORD` to the data-only app user. Check the file again with
    `bin/check-config`, then check that `https://<domain>/health.json` returns `200` and
-   `https://<domain>/admin/` loads.
+   `https://<domain>/` loads.
 3. On the next deploy, check that the `release` job's `bin/migrate` succeeds and that
    `cd <live> && $PHP_BIN bin/migrate --status` lists no pending migration.
 

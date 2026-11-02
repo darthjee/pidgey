@@ -16,7 +16,7 @@ the hosting account for an attacker, and they change without any code change.
 
 | Folder | Location | Content | Lifetime |
 | --- | --- | --- | --- |
-| Live | `$SSH_REMOTE_DIR` (`<live>`) | The current release root: the content of `source/` (minus the [exclude list](pipeline.md#exclude-list)), with `vendor/` and the built `public/admin/`. | Replaced on every release by the swap. |
+| Live | `$SSH_REMOTE_DIR` (`<live>`) | The current release root: the content of `source/` (minus the [exclude list](pipeline.md#exclude-list)), with `vendor/` and the built frontend in `static/`. | Replaced on every release by the swap. |
 | Staging | `${SSH_REMOTE_TEMP_DIR}-${CIRCLE_WORKFLOW_WORKSPACE_ID}` | The release one workflow is preparing. | Created by `upload_backend`, renamed to live by `release`. A workflow that fails before the swap leaves it behind until removed by hand (see [operations.md](operations.md#removing-stale-staging-folders)). |
 | Old live | `<live>_old_<ts>` (`<ts>` is a Unix timestamp) | The previous release, moved aside during the swap. | Exists only for the duration of the swap; removed right after it. No rollback copy is kept. |
 | Shared | `$REMOTE_HOME/$SHARED_DIR` | The production `.env`. | Persistent, outside every release. Created by hand by the owner. |
@@ -55,17 +55,19 @@ added.
 ## Web directory
 
 - In the hosting panel, the web directory of `<domain>` is set to `<live>/public`. `bin/`,
-  `config/`, `lib/`, `migrations/` and `vendor/` are therefore not web-reachable.
-- Pidgey runs at the root of `<domain>`, with no base path. The admin UI is served from
-  `public/admin/` at `/admin/`, same origin as the API.
+  `config/`, `lib/`, `migrations/`, `static/` and `vendor/` are therefore not web-reachable.
+- Pidgey runs at the root of `<domain>`, with no base path. The UI is served at `/`, same
+  origin as the API, by the PHP static-file handler from `<live>/static/`, which is outside
+  the web directory (see [static-files.md](../specs/request-handler/static-files.md)). Apache
+  never serves those files directly: every UI request goes through `public/index.php`.
 - The host redirects HTTP to HTTPS.
 - `public/.htaccess` returns `404` for any path segment starting with a dot, disables
   directory listings and routes every other non-file request to `index.php`.
 - `public/.htaccess` also sends `Strict-Transport-Security` on HTTPS responses only (see
   [HTTPS](#https)).
-- `public/admin/.htaccess` (from `frontend/public/.htaccess`) serves `index.html` with
-  `Cache-Control: no-cache`, so browsers pick up new hashed asset names after a release;
-  hashed Vite assets stay cacheable.
+- The static-file handler serves `index.html` with `Cache-Control: no-cache`, so browsers
+  pick up new hashed asset names after a release, and `/assets/*` with an `immutable`
+  `Cache-Control`, since hashed Vite asset names change on every content change.
 
 ## Shared `.env`
 
@@ -156,8 +158,8 @@ The host redirects HTTP to HTTPS.
 Decision (#110, raised in #115): `public/.htaccess` (from `source/public/.htaccess`) sends
 `Strict-Transport-Security: max-age=86400` on HTTPS responses only.
 
-- It covers the API and the admin UI: `public/admin/` inherits the same `.htaccess`. Because
-  the web server sets it, static admin files get it too.
+- It covers the API and the UI: the UI's files are served through `public/index.php`, so they
+  get the header like any API response.
 - It is sent only over HTTPS; plain-HTTP responses (including local docker and CI, which serve
   plain HTTP) never carry it.
 - There is no `includeSubDomains` and no `preload`, because other subdomains of the domain are
