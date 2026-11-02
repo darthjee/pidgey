@@ -16,12 +16,14 @@ use Pidgey\Http\ProcessingRequest;
 use Pidgey\Http\Request;
 use Pidgey\Http\TrustedOrigins;
 use Pidgey\Infra\Env;
+use Pidgey\Infra\OriginParser;
 
 #[CoversClass(OriginCheck::class)]
 #[UsesClass(BaseMiddleware::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(ForbiddenException::class)]
 #[UsesClass(HttpException::class)]
+#[UsesClass(OriginParser::class)]
 #[UsesClass(ProcessingRequest::class)]
 #[UsesClass(Request::class)]
 #[UsesClass(TrustedOrigins::class)]

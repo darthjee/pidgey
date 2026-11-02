@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pidgey\Http;
 
+use Pidgey\Infra\OriginParser;
+
 /**
  * Global middleware: Pidgey's CSRF protection (api/conventions/origin-check.md).
  *
@@ -16,13 +18,7 @@ final class OriginCheck extends BaseMiddleware
 
     private const ALLOWED_FETCH_SITES = ['same-origin', 'none'];
 
-    private const DEFAULT_PORTS = ['http' => 80, 'https' => 443];
-
     private const REJECTION_MESSAGE = 'Cross-site request rejected';
-
-    private const HOST_PATTERN = '(\[[0-9A-Fa-f:.]+\]|[^\s\/?#@:\[\]]+)(?::([0-9]{1,5}))?';
-
-    private const MAX_PORT = 65535;
 
     private readonly TrustedOrigins $trusted;
 
@@ -105,10 +101,10 @@ final class OriginCheck extends BaseMiddleware
             return;
         }
 
-        $parsedOrigin = self::parseOrigin($origin);
+        $parsedOrigin = OriginParser::parseOrigin($origin);
         $parsedHost = $parsedOrigin === null || $host === null
             ? null
-            : self::parseHost($host, self::DEFAULT_PORTS[$parsedOrigin['scheme']]);
+            : OriginParser::parseHost($host, OriginParser::DEFAULT_PORTS[$parsedOrigin['scheme']]);
 
         if ($parsedOrigin === null || $parsedHost === null || !self::sameHostAndPort($parsedOrigin, $parsedHost)) {
             throw new ForbiddenException(self::REJECTION_MESSAGE);
@@ -126,62 +122,5 @@ final class OriginCheck extends BaseMiddleware
     private static function sameHostAndPort(array $origin, array $host): bool
     {
         return strtolower($origin['host']) === strtolower($host['host']) && $origin['port'] === $host['port'];
-    }
-
-    /**
-     * Parses a bare scheme://host[:port] origin.
-     *
-     * @param string $origin Origin value.
-     *
-     * @return array{scheme: string, host: string, port: integer}|null Null when it cannot be parsed.
-     */
-    private static function parseOrigin(string $origin): ?array
-    {
-        if (preg_match('/^(https?):\/\/' . self::HOST_PATTERN . '$/D', $origin, $matches) !== 1) {
-            return null;
-        }
-
-        $scheme = $matches[1];
-        $port = self::parsePort($matches[3] ?? '', self::DEFAULT_PORTS[$scheme]);
-
-        return $port === null ? null : ['scheme' => $scheme, 'host' => $matches[2], 'port' => $port];
-    }
-
-    /**
-     * Parses a host[:port] Host header.
-     *
-     * @param string  $host        Host value.
-     * @param integer $defaultPort Port used when the Host has none.
-     *
-     * @return array{host: string, port: integer}|null Null when it cannot be parsed.
-     */
-    private static function parseHost(string $host, int $defaultPort): ?array
-    {
-        if (preg_match('/^' . self::HOST_PATTERN . '$/D', $host, $matches) !== 1) {
-            return null;
-        }
-
-        $port = self::parsePort($matches[2] ?? '', $defaultPort);
-
-        return $port === null ? null : ['host' => $matches[1], 'port' => $port];
-    }
-
-    /**
-     * Parses a port, defaulting when it is absent.
-     *
-     * @param string  $port        Digits, or "" when absent.
-     * @param integer $defaultPort Port used when absent.
-     *
-     * @return integer|null Null for port 0 or above 65535.
-     */
-    private static function parsePort(string $port, int $defaultPort): ?int
-    {
-        if ($port === '') {
-            return $defaultPort;
-        }
-
-        $value = (int) $port;
-
-        return $value < 1 || $value > self::MAX_PORT ? null : $value;
     }
 }

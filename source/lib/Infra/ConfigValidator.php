@@ -41,6 +41,9 @@ final class ConfigValidator
     private const DEFAULT_ACCESS_TOKEN_TTL = '900';
     private const DEFAULT_REFRESH_TOKEN_TTL = '604800';
 
+    /** PHP_ENV values that are not production; any other value, or none, counts as production. */
+    private const NON_PRODUCTION_ENVIRONMENTS = ['development', 'test'];
+
     private const POSITIVE_INTEGER_PATTERN = '/^[1-9][0-9]*$/';
     private const NON_NEGATIVE_INTEGER_PATTERN = '/^[0-9]+$/';
 
@@ -58,6 +61,7 @@ final class ConfigValidator
             ...$this->checkMigrationUser(),
             ...$this->checkIntegers(),
             ...$this->checkTokenTtls(),
+            ...$this->checkAllowedOrigins(),
         ];
     }
 
@@ -199,6 +203,54 @@ final class ConfigValidator
         }
 
         return ['ACCESS_TOKEN_TTL: not less than REFRESH_TOKEN_TTL'];
+    }
+
+    /**
+     * Checks every `ALLOWED_ORIGINS` entry, reporting each kind of failure once.
+     *
+     * Entries must be bare http/https origins, and https unless PHP_ENV is development or test.
+     *
+     * @return list<string>
+     */
+    private function checkAllowedOrigins(): array
+    {
+        $origins = Env::get('ALLOWED_ORIGINS');
+
+        if ($origins === null) {
+            return [];
+        }
+
+        $failures = [];
+
+        foreach (explode(',', $origins) as $entry) {
+            $entry = trim($entry);
+
+            if ($entry === '') {
+                continue;
+            }
+
+            $origin = OriginParser::parseOrigin($entry);
+
+            if ($origin === null) {
+                $failures['invalid'] = 'ALLOWED_ORIGINS: invalid origin';
+            } elseif ($origin['scheme'] === 'http' && !$this->isDevelopmentOrTest()) {
+                $failures['not https'] = 'ALLOWED_ORIGINS: not https';
+            }
+        }
+
+        ksort($failures);
+
+        return array_values($failures);
+    }
+
+    /**
+     * Tells whether PHP_ENV is exactly `development` or `test`; anything else counts as production.
+     *
+     * @return boolean
+     */
+    private function isDevelopmentOrTest(): bool
+    {
+        return in_array(Env::get('PHP_ENV'), self::NON_PRODUCTION_ENVIRONMENTS, true);
     }
 
     /**

@@ -28,6 +28,7 @@ use Pidgey\Http\RouteMatch;
 use Pidgey\Http\Router;
 use Pidgey\Http\TrustedOrigins;
 use Pidgey\Infra\Env;
+use Pidgey\Infra\OriginParser;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\WallClock;
 use Pidgey\Tests\Support\FirstTraceMiddleware;
@@ -46,6 +47,7 @@ use Pidgey\Tests\Support\ThrowingHandler;
 #[UsesClass(JsonResponse::class)]
 #[UsesClass(NotFoundException::class)]
 #[UsesClass(OriginCheck::class)]
+#[UsesClass(OriginParser::class)]
 #[UsesClass(ProcessingRequest::class)]
 #[UsesClass(Request::class)]
 #[UsesClass(RequestHandler::class)]
