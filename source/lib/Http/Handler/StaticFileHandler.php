@@ -14,8 +14,9 @@ use Pidgey\Http\Response;
  * Serves the built frontend: "/" gives index.html and "/assets/<rest>" gives the hashed bundles.
  *
  * Files come from a base folder fixed by the source tree (source/static/), never from the request.
- * Traversal, backslashes, dotfiles, symlink escapes, missing files, directories and extensions off
- * the allow-list all give the router's JSON 404; the resolved path is logged, never sent.
+ * Traversal, NUL bytes, backslashes, dotfiles, symlink escapes, missing files, directories and
+ * extensions off the allow-list all give the router's JSON 404; the resolved path is logged
+ * (control characters escaped), never sent.
  */
 final class StaticFileHandler extends RequestHandler
 {
@@ -100,7 +101,7 @@ final class StaticFileHandler extends RequestHandler
     }
 
     /**
-     * Tells whether the relative path has no backslash, no ".." segment and no dotfile segment.
+     * Tells whether the relative path has no NUL byte, no backslash, no ".." and no dotfile segment.
      *
      * @param string $relative Path relative to the base folder.
      *
@@ -108,7 +109,7 @@ final class StaticFileHandler extends RequestHandler
      */
     private function isSafe(string $relative): bool
     {
-        if (str_contains($relative, '\\')) {
+        if (str_contains($relative, "\0") || str_contains($relative, '\\')) {
             return false;
         }
 
@@ -176,7 +177,7 @@ final class StaticFileHandler extends RequestHandler
     }
 
     /**
-     * Logs the resolved candidate path and throws the router's JSON 404.
+     * Logs the candidate path, control characters escaped, and throws the router's JSON 404.
      *
      * @param ProcessingRequest $request   The request being dispatched.
      * @param string            $candidate Base folder joined with the relative path.
@@ -187,7 +188,7 @@ final class StaticFileHandler extends RequestHandler
      */
     private function notFound(ProcessingRequest $request, string $candidate): never
     {
-        ($this->logger)('StaticFileHandler: not served: ' . $candidate);
+        ($this->logger)('StaticFileHandler: not served: ' . addcslashes($candidate, "\0..\37\177"));
 
         throw new NotFoundException('Cannot GET ' . $request->path());
     }

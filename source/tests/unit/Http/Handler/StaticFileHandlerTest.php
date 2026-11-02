@@ -127,6 +127,39 @@ final class StaticFileHandlerTest extends TestCase
         $this->assertNotFound($this->fixture, $path, $this->fixture . '/' . ltrim($path, '/'));
     }
 
+    public function testEscapesControlCharactersInTheLogLine(): void
+    {
+        try {
+            $this->serve('/assets/a%0Dforged%0Aline.js');
+            $this->fail('Expected a NotFoundException.');
+        } catch (NotFoundException $error) {
+            $this->assertSame("Cannot GET /assets/a\rforged\nline.js", $error->getMessage());
+        }
+
+        $this->assertSame(
+            ['StaticFileHandler: not served: ' . $this->fixture . '/assets/a\\rforged\\nline.js'],
+            $this->logged,
+        );
+        $this->assertStringNotContainsString("\n", $this->logged[0]);
+        $this->assertStringNotContainsString("\r", $this->logged[0]);
+    }
+
+    public function testRejectsANulByteWithTheJsonNotFound(): void
+    {
+        try {
+            $this->serve('/assets/app.js%00.txt');
+            $this->fail('Expected a NotFoundException.');
+        } catch (NotFoundException $error) {
+            $this->assertSame("Cannot GET /assets/app.js\0.txt", $error->getMessage());
+            $this->assertSame(404, $error->status());
+        }
+
+        $this->assertSame(
+            ['StaticFileHandler: not served: ' . $this->fixture . '/assets/app.js\\000.txt'],
+            $this->logged,
+        );
+    }
+
     public function testRejectsASymlinkEscapingTheBaseFolder(): void
     {
         $base = $this->makeTempDir() . '/static';
