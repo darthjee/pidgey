@@ -16,7 +16,7 @@ use Pidgey\Http\SetCookie;
 #[UsesClass(SetCookie::class)]
 final class AccessTokenCookieTest extends TestCase
 {
-    private const JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjF9.c2lnbmF0dXJl';
+    private const JWT = 'header.payload.signature';
 
     public function testSetsTheAccessToken(): void
     {

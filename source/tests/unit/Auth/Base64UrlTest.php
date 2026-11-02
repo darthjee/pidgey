@@ -23,7 +23,7 @@ final class Base64UrlTest extends TestCase
             'two bytes' => ['fo', 'Zm8'],
             'three bytes' => ['foo', 'Zm9v'],
             'url-safe alphabet' => ["\xfb\xff\xbf", '-_-_'],
-            'header' => ['{"alg":"HS256","typ":"JWT"}', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'],
+            'json' => ['["HS256","JWT"]', 'WyJIUzI1NiIsIkpXVCJd'],
         ];
     }
 
