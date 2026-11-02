@@ -197,7 +197,7 @@ final class Router
      *
      * @param Request $request The unmatched request.
      *
-     * @return bool
+     * @return boolean
      */
     private function appliesToFallback(Request $request): bool
     {

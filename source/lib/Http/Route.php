@@ -115,7 +115,7 @@ final class Route
     /**
      * Tells whether the pattern is a prefix route, i.e. ends with "/*".
      *
-     * @return bool
+     * @return boolean
      */
     private function isPrefix(): bool
     {
