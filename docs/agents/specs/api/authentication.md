@@ -39,5 +39,3 @@ Each detail file lists its own. Summary:
 - An absolute session lifetime checked against `started_at` (e.g. `SESSION_MAX_AGE`)
   ([sessions.md](authentication/sessions.md)).
 - Renaming the cookie to `__Host-access_token` ([access-token.md](authentication/access-token.md)).
-- Refusing to boot with the shipped development key outside development/test
-  ([architecture/configuration.md](../architecture/configuration.md)).
