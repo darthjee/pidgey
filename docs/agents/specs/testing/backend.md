@@ -77,9 +77,17 @@ Tests for the env-file loader and `bin/check-config` (see
   [architecture/configuration.md](../architecture/configuration.md) has a passing and a
   failing case, and each failure is reported under its check name (e.g. `SECRET_KEY: missing`,
   `SECRET_KEY: too short`, `PREVIOUS_SECRET_KEYS: empty entry`,
-  `PREVIOUS_SECRET_KEYS: entry too short`, `DB_HOST: missing`,
+  `PREVIOUS_SECRET_KEYS: entry too short`, `SECRET_KEY: development key`,
+  `PREVIOUS_SECRET_KEYS: development key`, `DB_HOST: missing`,
   `<NAME>: not a positive integer`, `TRUSTED_PROXY_HOPS: not a non-negative integer`,
-  `ACCESS_TOKEN_TTL: not less than REFRESH_TOKEN_TTL`), never with a value.
+  `ACCESS_TOKEN_TTL: not less than REFRESH_TOKEN_TTL`), never with a value. The
+  [development-key rule](../architecture/configuration.md#development-key) has these cases:
+  - the development key as `SECRET_KEY` under `PHP_ENV=production`, under an unset
+    `PHP_ENV` and under `PHP_ENV=Production` → `SECRET_KEY: development key`;
+  - the development key as one `PREVIOUS_SECRET_KEYS` entry (with surrounding whitespace)
+    under a non-development `PHP_ENV` → `PREVIOUS_SECRET_KEYS: development key`;
+  - the development key under `PHP_ENV=development` and under `PHP_ENV=test` → passes;
+  - a different key of the same length under `PHP_ENV=production` → passes.
 - **`bin/check-config` PHP version check, unit tests**: the PHP version is passed in rather
   than read from the running binary, so no second PHP binary is needed:
   - a version other than 8.4.x (e.g. `8.3.0`, `8.5.0`) fails with `PHP version: not 8.4.x`;
@@ -89,8 +97,8 @@ Tests for the env-file loader and `bin/check-config` (see
 - **`bin/check-config`, integration tests** (run the command as a process):
   - a valid configuration exits `0`;
   - each invalid configuration (e.g. missing or short `SECRET_KEY`, a bad
-    `PREVIOUS_SECRET_KEYS` entry, a missing required `DB_*`) exits non-zero and names the
-    failed check;
+    `PREVIOUS_SECRET_KEYS` entry, a missing required `DB_*`, the development key with a
+    non-development `PHP_ENV`) exits non-zero and names the failed check;
   - an existing but unreadable `config/.env` exits non-zero and reports
     `env file: unreadable`, without printing the file's content;
   - the output never contains any configured value, on success or failure.

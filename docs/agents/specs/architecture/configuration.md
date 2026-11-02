@@ -28,7 +28,7 @@ Purpose: list every environment variable the application reads, with its default
 
 | Setting | Default | Effect |
 | --- | --- | --- |
-| `PHP_ENV` | none | Runtime environment (`development`, `test`, `production`); set by docker-compose. |
+| `PHP_ENV` | none | Runtime environment (`development`, `test`, `production`); set by docker-compose. Any value other than exactly `development` or `test` (including unset, empty or a different case such as `Production`) is treated as production by the [development-key rule](#development-key). |
 | `DB_HOST` | required | MySQL host. |
 | `DB_PORT` | `3306` | MySQL port. |
 | `DB_NAME` | required | Database name. |
@@ -113,9 +113,32 @@ sent through the system organization's active SMTP connection (see
   trimmed. An **empty entry** (e.g. a trailing or doubled comma) refuses boot, and every entry
   follows the same length rule as `SECRET_KEY`; an invalid entry also refuses boot.
 - Keys are never logged or returned by any endpoint.
-- `.env` ships a **clearly fake development key** (recognizable as such, never usable in
-  production). Production keys are generated with a CSPRNG and stored only in the production
-  env file on the host (see [deployment/server.md](../../deployment/server.md#folders)).
+- Production keys are generated with a CSPRNG and stored only in the production env file on
+  the host (see [deployment/server.md](../../deployment/server.md#folders)).
+
+### Development key
+
+- The shipped development key is exactly:
+  `pidgey-development-only-insecure-secret-key-0000`.
+  It is 48 bytes (so it passes the length rule), contains no `,`, and is recognizable as fake.
+- The `.env` line (`SECRET_KEY=<development key>`) and a code constant holding the same value
+  land with the access-token work (#128). Both must hold exactly this value.
+- **Recognition:** an **exact byte comparison** against that value, for `SECRET_KEY` and for
+  each trimmed `PREVIOUS_SECRET_KEYS` entry. There is no prefix or marker matching: a
+  different key of the same length is not the development key.
+- **When it applies:** boot is refused when the development key is found, **unless**
+  `PHP_ENV` is exactly `development` or `test`. Every other value counts as production:
+  unset, empty, a different case (e.g. `Production`), or anything else. A forgotten
+  `PHP_ENV` on a production host therefore fails safe, and a production host with a real key
+  is unaffected.
+- **Order:** a separate check, run after the missing / empty-entry / length checks.
+- **Failure names:** `SECRET_KEY: development key` and
+  `PREVIOUS_SECRET_KEYS: development key`. Each is reported at most once (even when several
+  `PREVIOUS_SECRET_KEYS` entries match) and never with a value.
+- **Refusal:** the same as every other boot-refusing rule on this page: `bin/check-config`
+  names the failure and exits `1`; the web boot follows the invalid-configuration path (the
+  error is logged and a `500 INTERNAL_ERROR` envelope is answered, see
+  [request-handler/front-controller.md](../request-handler/front-controller.md#failures-outside-the-wrapper)).
 
 ## Env file
 
@@ -161,8 +184,11 @@ the staging folder before migrating and swapping (see
   `PHP_BIN` or a host change.
 - It does not connect to the database.
 - **Exit codes:** `0` when every check passes; `1` when one or more checks fail.
-- **Output:** names each failed check (e.g. `SECRET_KEY: too short`, `DB_HOST: missing`,
-  `PHP version: not 8.4.x`, `env file: unreadable`), never a value, not even a partial one.
+- **Output:** names each failed check (e.g. `SECRET_KEY: too short`,
+  `SECRET_KEY: development key`, `DB_HOST: missing`, `PHP version: not 8.4.x`,
+  `env file: unreadable`), never a value, not even a partial one. A development key in
+  `PREVIOUS_SECRET_KEYS` follows the same naming: `PREVIOUS_SECRET_KEYS: development key`
+  (see [Development key](#development-key)).
   The `DB_MIGRATE_*` pairing rule reports:
   - `DB_MIGRATE_PASSWORD: missing` when `DB_MIGRATE_USER` is set and `DB_MIGRATE_PASSWORD` is
     not;
@@ -178,6 +204,3 @@ the staging folder before migrating and swapping (see
 
 - **Pending decision:** the log-level variable (name and default); logging is configured
   through Monolog but no variable is read yet.
-- **Pending decision:** refusing to boot when `SECRET_KEY`, or any `PREVIOUS_SECRET_KEYS`
-  entry, equals the development key shipped in `.env` while `PHP_ENV` is neither
-  `development` nor `test`.
