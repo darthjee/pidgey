@@ -46,12 +46,17 @@ Every rule below must hold; any failure is the uniform gate `401` (see [gate.md]
    `PREVIOUS_SECRET_KEYS` entry in order. No match → rejected.
 5. Only **after the signature matches** is the payload decoded. It must be a JSON
    **object** with:
-   - `sub` an integer;
-   - `sid` a well-formed UUID string;
-   - `iat` and `exp` integers;
+   - `sub` a JSON integer `>= 1`;
+   - `sid` a canonical lowercase UUID string: 8-4-4-4-12 lowercase hex digits
+     (`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`), any version;
+   - `iat` and `exp` JSON integers;
    - `iat <= now`;
    - `exp > now`, with **no leeway**;
    - `exp - iat <= ACCESS_TOKEN_TTL`.
+
+   "Integer" means a JSON integer within the platform's integer range: a float (`1.0`), a
+   numeric string (`"1"`) or an integer beyond the platform's integer range (`PHP_INT_MAX`)
+   is **not** an integer and is rejected.
 6. No other claim is trusted. Unknown claims are ignored.
 
 ### Clock
@@ -74,9 +79,12 @@ Set-Cookie: access_token=<jwt>; HttpOnly; Secure; SameSite=Strict; Path=/; Max-A
   `Secure` (see [local-development.md](local-development.md)).
 - The token is **never** put in a response body. The frontend cannot read it, which is why
   `isAdmin` is returned in the JSON payloads (see [gate.md](gate.md#shared-user-payload)).
-- Logout clears the cookie:
-  `Set-Cookie: access_token=; Path=/; Max-Age=0; Expires=<past date>` (with the same
-  `HttpOnly; Secure; SameSite=Strict` attributes).
+- Logout clears the cookie with the same attributes, an empty value, `Max-Age=0` and a fixed
+  past date:
+
+  ```
+  Set-Cookie: access_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT
+  ```
 - `SameSite=Strict` and the [origin check](../conventions/origin-check.md) together are the
   CSRF protection for cookie-authenticated requests.
 
