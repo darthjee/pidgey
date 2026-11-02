@@ -4,11 +4,25 @@ declare(strict_types=1);
 
 namespace Pidgey\Http;
 
+use Pidgey\Container;
+
 /**
  * Middleware with no-op hooks; subclasses override only what they need.
  */
 abstract class BaseMiddleware implements Middleware
 {
+    /**
+     * Builds the middleware with no arguments; subclasses with constructor arguments override it.
+     *
+     * @param Container $container The request's container (unused by default).
+     *
+     * @return static
+     */
+    public static function build(Container $container): static
+    {
+        return new static();
+    }
+
     /**
      * Does nothing.
      *

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pidgey\Tests\Support;
 
+use LogicException;
+use Pidgey\Container;
 use Pidgey\Http\Middleware;
 use Pidgey\Http\ProcessingRequest;
 use Pidgey\Http\Response;
@@ -26,6 +28,14 @@ final class RecordingMiddleware implements Middleware
         private readonly ?Throwable $requestError = null,
         private readonly ?Throwable $responseError = null,
     ) {
+    }
+
+    /**
+     * Needs a shared log by reference, so it cannot come from the container: tests build it directly.
+     */
+    public static function build(Container $container): static
+    {
+        throw new LogicException('RecordingMiddleware is built directly by tests');
     }
 
     public function processRequest(ProcessingRequest $request): void

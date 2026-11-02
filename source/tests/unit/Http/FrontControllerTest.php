@@ -9,12 +9,14 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use Pidgey\Container;
 use Pidgey\Http\BadRequestException;
 use Pidgey\Http\BaseMiddleware;
 use Pidgey\Http\ErrorFormatter;
 use Pidgey\Http\ErrorResponse;
 use Pidgey\Http\ForbiddenException;
 use Pidgey\Http\FrontController;
+use Pidgey\Http\HandlerFactory;
 use Pidgey\Http\Handler\HealthHandler;
 use Pidgey\Http\HttpException;
 use Pidgey\Http\JsonResponse;
@@ -28,10 +30,12 @@ use Pidgey\Http\Route;
 use Pidgey\Http\RouteMatch;
 use Pidgey\Http\Router;
 use Pidgey\Http\TrustedOrigins;
+use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\Env;
 use Pidgey\Infra\OriginParser;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\WallClock;
+use Pidgey\Tests\Support\ContainerHandler;
 use Pidgey\Tests\Support\FirstTraceMiddleware;
 use Pidgey\Tests\Support\ParamsHandler;
 use Pidgey\Tests\Support\SecondTraceMiddleware;
@@ -40,10 +44,12 @@ use Pidgey\Tests\Support\ThrowingHandler;
 #[CoversClass(FrontController::class)]
 #[UsesClass(BadRequestException::class)]
 #[UsesClass(BaseMiddleware::class)]
+#[UsesClass(Container::class)]
 #[UsesClass(ErrorFormatter::class)]
 #[UsesClass(ErrorResponse::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(ForbiddenException::class)]
+#[UsesClass(HandlerFactory::class)]
 #[UsesClass(HealthHandler::class)]
 #[UsesClass(HttpException::class)]
 #[UsesClass(JsonResponse::class)]
@@ -236,6 +242,41 @@ final class FrontControllerTest extends TestCase
         $this->assertSame(200, $get->status());
         $this->assertSame('{"status":"ok"}', $get->body());
         $this->assertSame([], $this->logged);
+    }
+
+    public function testTheHealthCheckOpensNoDatabaseConnection(): void
+    {
+        $router = new Router([OriginCheck::class]);
+        $router->get('/health.json', HealthHandler::class);
+        $connections = $this->createMock(ConnectionFactory::class);
+        $connections->expects($this->never())->method('create');
+        $connections->expects($this->never())->method('createServer');
+        $controller = new FrontController(
+            $router,
+            $this->formatter,
+            static fn (): Container => new Container($connections),
+        );
+
+        $response = $controller->handle(new Request(['method' => 'GET', 'uri' => '/health.json']));
+
+        $this->assertSame(200, $response->status());
+        $this->assertSame('{"status":"ok"}', $response->body());
+    }
+
+    public function testBuildsOneFreshContainerPerRequest(): void
+    {
+        $router = new Router();
+        $router->get('/container.json', ContainerHandler::class);
+        $built = [];
+        $controller = new FrontController($router, $this->formatter, static function () use (&$built): Container {
+            return $built[] = new Container();
+        });
+
+        $controller->handle(new Request(['method' => 'GET', 'uri' => '/container.json']));
+        $controller->handle(new Request(['method' => 'GET', 'uri' => '/container.json']));
+
+        $this->assertCount(2, $built);
+        $this->assertNotSame($built[0], $built[1]);
     }
 
     public function testDefaultsToTheStandardErrorFormatter(): void
