@@ -7,11 +7,15 @@ namespace Pidgey\Http;
 use LogicException;
 
 /**
- * Per-dispatch wrapper around the Request, carrying the route params and the early response.
+ * Per-dispatch wrapper around the Request, carrying the route params, the attached data and
+ * the early response.
  */
 final class ProcessingRequest
 {
     private ?Response $response = null;
+
+    /** @var array<class-string, object> Attached objects, keyed by their class. */
+    private array $attachments = [];
 
     /**
      * Wraps the given request.
@@ -83,6 +87,73 @@ final class ProcessingRequest
     public function param(string $name): ?string
     {
         return $this->params[$name] ?? null;
+    }
+
+    /**
+     * Attaches an object, keyed by its class.
+     *
+     * @param object $value The object to attach.
+     *
+     * @return void
+     *
+     * @throws LogicException When an object of the same class is already attached.
+     */
+    public function attach(object $value): void
+    {
+        $class = $value::class;
+
+        if (array_key_exists($class, $this->attachments)) {
+            throw new LogicException("An object of class {$class} is already attached.");
+        }
+
+        $this->attachments[$class] = $value;
+    }
+
+    /**
+     * Returns the attached object that is an instance of the class or interface, or null.
+     *
+     * @template T of object
+     *
+     * @param string $class Class or interface to look up.
+     *
+     * @phpstan-param class-string<T> $class
+     *
+     * @return T|null
+     *
+     * @throws LogicException When more than one attached object matches.
+     */
+    public function attached(string $class): ?object
+    {
+        $matches = array_values(array_filter(
+            $this->attachments,
+            static fn (object $value): bool => $value instanceof $class,
+        ));
+
+        if (count($matches) > 1) {
+            throw new LogicException("More than one attached object matches {$class}.");
+        }
+
+        return $matches[0] ?? null;
+    }
+
+    /**
+     * Returns the attached object that is an instance of the class or interface.
+     *
+     * A missing object is a route or handler bug, so it answers 500, never 401.
+     *
+     * @template T of object
+     *
+     * @param string $class Class or interface to look up.
+     *
+     * @phpstan-param class-string<T> $class
+     *
+     * @return T
+     *
+     * @throws LogicException When no attached object matches, or more than one does.
+     */
+    public function require(string $class): object
+    {
+        return $this->attached($class) ?? throw new LogicException("No attached object matches {$class}.");
     }
 
     /**
