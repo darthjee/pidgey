@@ -56,6 +56,8 @@ final class FrontControllerTest extends TestCase
 
     private FrontController $controller;
 
+    private ErrorFormatter $formatter;
+
     protected function setUp(): void
     {
         $router = new Router([FirstTraceMiddleware::class]);
@@ -69,11 +71,11 @@ final class FrontControllerTest extends TestCase
                 return new DateTimeImmutable(FrontControllerTest::TIMESTAMP);
             }
         };
-        $formatter = new ErrorFormatter($clock, function (string $line): void {
+        $this->formatter = new ErrorFormatter($clock, function (string $line): void {
             $this->logged[] = $line;
         });
 
-        $this->controller = new FrontController($router, $formatter);
+        $this->controller = new FrontController($router, $this->formatter);
     }
 
     public function testAnswersTheHealthCheck(): void
@@ -117,6 +119,35 @@ final class FrontControllerTest extends TestCase
             json_decode($response->body(), true),
         );
         $this->assertSame([], $this->logged);
+    }
+
+    /**
+     * @return array<string, array{string, string, string}>
+     */
+    public static function notFoundDespiteFallback(): array
+    {
+        return [
+            'non-GET' => ['POST', '/foo', 'Cannot POST /foo'],
+            'unknown json' => ['GET', '/x.json', 'Cannot GET /x.json'],
+        ];
+    }
+
+    #[DataProvider('notFoundDespiteFallback')]
+    public function testAFallbackKeepsThe404ForOtherRequests(string $method, string $uri, string $message): void
+    {
+        $router = new Router();
+        $router->get('/health.json', HealthHandler::class);
+        $router->fallback(HealthHandler::class);
+        $controller = new FrontController($router, $this->formatter);
+
+        $response = $controller->handle(new Request(['method' => $method, 'uri' => $uri]));
+
+        $this->assertSame(404, $response->status());
+        $this->assertSame(
+            ['code' => 'NOT_FOUND', 'message' => $message],
+            json_decode($response->body(), true)['error'],
+        );
+        $this->assertSame(200, $controller->handle(new Request(['method' => 'GET', 'uri' => '/foo']))->status());
     }
 
     public function testRouteParamsReachTheHandler(): void

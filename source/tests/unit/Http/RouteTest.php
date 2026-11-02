@@ -34,6 +34,8 @@ final class RouteTest extends TestCase
             'two params' => ['/a/:org_id/b/:Id2.json', '#^/a/(?<org_id>[^/]+)/b/(?<Id2>[^/]+)\.json$#'],
             'no .json' => ['/v1/messages', '#^/v1/messages$#'],
             'hash quoted' => ['/a#b.json', '#^/a\#b\.json$#'],
+            'prefix' => ['/assets/*', '#^/assets/.*$#'],
+            'prefix with param' => ['/a/:id/*', '#^/a/(?<id>[^/]+)/.*$#'],
         ];
     }
 
@@ -108,5 +110,79 @@ final class RouteTest extends TestCase
         $route = new Route('GET', '/a/:id.json', StubHandler::class);
 
         $this->assertNull($route->match(new Request(['method' => $method, 'uri' => $uri])));
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function prefixHits(): array
+    {
+        return [
+            'file' => ['/assets/x.js'],
+            'nested' => ['/assets/fonts/x.woff2'],
+            'bare prefix' => ['/assets/'],
+            'query ignored' => ['/assets/x.js?v=1'],
+        ];
+    }
+
+    #[DataProvider('prefixHits')]
+    public function testPrefixRouteMatchesPathsUnderThePrefix(string $uri): void
+    {
+        $route = new Route('GET', '/assets/*', StubHandler::class);
+        $match = $route->match(new Request(['method' => 'GET', 'uri' => $uri]));
+
+        $this->assertNotNull($match);
+        $this->assertSame([], $match->params);
+        $this->assertSame('/assets/*', $match->pattern);
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function prefixMisses(): array
+    {
+        return [
+            'no trailing slash' => ['GET', '/assets'],
+            'longer segment' => ['GET', '/assetsX'],
+            'longer segment with slash' => ['GET', '/assetsX/a.js'],
+            'case' => ['GET', '/Assets/x.js'],
+            'wrong method' => ['POST', '/assets/x.js'],
+            'HEAD' => ['HEAD', '/assets/x.js'],
+        ];
+    }
+
+    #[DataProvider('prefixMisses')]
+    public function testPrefixRouteDoesNotMatch(string $method, string $uri): void
+    {
+        $route = new Route('GET', '/assets/*', StubHandler::class);
+
+        $this->assertNull($route->match(new Request(['method' => $method, 'uri' => $uri])));
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function misplacedStars(): array
+    {
+        return [
+            'star after a literal' => ['/a*'],
+            'star mid-pattern' => ['/a/*/b'],
+            'star followed by text' => ['/*x'],
+            'two stars' => ['/a/*/*'],
+            'double star' => ['/a/**'],
+        ];
+    }
+
+    #[DataProvider('misplacedStars')]
+    public function testRejectsAMisplacedStar(string $pattern): void
+    {
+        $this->expectException(LogicException::class);
+
+        new Route('GET', $pattern, StubHandler::class);
+    }
+
+    public function testNormalizedPatternKeepsTheStar(): void
+    {
+        $this->assertSame('/a/:/*', (new Route('GET', '/a/:id/*', StubHandler::class))->normalizedPattern());
     }
 }

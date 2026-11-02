@@ -198,6 +198,140 @@ final class RouterTest extends TestCase
         $router->get('/a.json', StubHandler::class, [RecordingMiddleware::class]);
     }
 
+    public function testRejectsADuplicatePrefixRoute(): void
+    {
+        $router = new Router();
+        $router->get('/assets/*', StubHandler::class);
+
+        $this->expectException(LogicException::class);
+        $router->get('/assets/*', HealthHandler::class);
+    }
+
+    public function testAPrefixRouteDiffersFromItsLiteralPrefix(): void
+    {
+        $router = new Router();
+        $router->get('/assets/*', StubHandler::class);
+        $router->get('/assets/', HealthHandler::class);
+
+        $this->assertSame(StubHandler::class, $this->handlerFor($router, 'GET', '/assets/'));
+    }
+
+    public function testPrefixRouteTakesPartInFirstMatchWins(): void
+    {
+        $router = new Router();
+        $router->get('/assets/app.json', HealthHandler::class);
+        $router->get('/assets/*', StubHandler::class);
+        $router->get('/assets/late.json', HealthHandler::class);
+
+        $this->assertSame(HealthHandler::class, $this->handlerFor($router, 'GET', '/assets/app.json'));
+        $this->assertSame(StubHandler::class, $this->handlerFor($router, 'GET', '/assets/late.json'));
+        $this->assertSame(StubHandler::class, $this->handlerFor($router, 'GET', '/assets/fonts/x.woff2'));
+        $this->assertNull($this->handlerFor($router, 'POST', '/assets/x.js'));
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function fallbackHits(): array
+    {
+        return [
+            'extensionless' => ['/foo'],
+            'trailing slash' => ['/foo/'],
+            'nested' => ['/users/42'],
+            'dot in an earlier segment' => ['/foo.bar/baz'],
+            'v1 without slash' => ['/v1'],
+            'assets without slash' => ['/assets'],
+            'assets prefix lookalike' => ['/assetsX'],
+            'root' => ['/'],
+            'query ignored' => ['/foo?x=1.json'],
+        ];
+    }
+
+    #[DataProvider('fallbackHits')]
+    public function testFallbackTakesExtensionlessGetOutsideV1(string $uri): void
+    {
+        $match = $this->fallbackRouter()->match($this->request('GET', $uri));
+
+        $this->assertNotNull($match);
+        $this->assertSame(StubHandler::class, $match->handlerClass);
+        $this->assertSame(Router::FALLBACK_PATTERN, $match->pattern);
+        $this->assertSame([], $match->middlewares);
+        $this->assertSame([], $match->params);
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function fallbackMisses(): array
+    {
+        return [
+            'json' => ['GET', '/x.json'],
+            'nested json' => ['GET', '/a/b/x.json'],
+            'v1 with slash' => ['GET', '/v1/'],
+            'v1 path' => ['GET', '/v1/messages'],
+            'favicon' => ['GET', '/favicon.ico'],
+            'robots' => ['GET', '/robots.txt'],
+            'index.html' => ['GET', '/index.html'],
+            'index.php' => ['GET', '/index.php'],
+            'POST' => ['POST', '/foo'],
+            'HEAD' => ['HEAD', '/foo'],
+            'OPTIONS' => ['OPTIONS', '/foo'],
+        ];
+    }
+
+    #[DataProvider('fallbackMisses')]
+    public function testFallbackLeavesOtherRequestsUnmatched(string $method, string $uri): void
+    {
+        $this->assertNull($this->fallbackRouter()->match($this->request($method, $uri)));
+    }
+
+    public function testRoutesRegisteredAfterTheFallbackStillWin(): void
+    {
+        $router = new Router();
+        $router->fallback(StubHandler::class);
+        $router->get('/health', HealthHandler::class, [RecordingMiddleware::class]);
+
+        $match = $router->match($this->request('GET', '/health'));
+
+        $this->assertNotNull($match);
+        $this->assertSame(HealthHandler::class, $match->handlerClass);
+        $this->assertSame([RecordingMiddleware::class], $match->middlewares);
+        $this->assertSame(StubHandler::class, $this->handlerFor($router, 'GET', '/other'));
+    }
+
+    public function testWithoutAFallbackExtensionlessGetIsUnmatched(): void
+    {
+        $router = new Router();
+        $router->get('/health.json', HealthHandler::class);
+
+        $this->assertNull($router->match($this->request('GET', '/foo')));
+    }
+
+    public function testRejectsASecondFallback(): void
+    {
+        $router = $this->fallbackRouter();
+
+        $this->expectException(LogicException::class);
+        $router->fallback(HealthHandler::class);
+    }
+
+    #[DataProvider('nonHandlers')]
+    public function testRejectsANonHandlerFallback(string $class): void
+    {
+        $this->expectException(LogicException::class);
+
+        (new Router())->fallback($class);
+    }
+
+    private function fallbackRouter(): Router
+    {
+        $router = new Router();
+        $router->get('/health.json', HealthHandler::class);
+        $router->fallback(StubHandler::class);
+
+        return $router;
+    }
+
     private function handlerFor(Router $router, string $method, string $uri): ?string
     {
         return $router->match($this->request($method, $uri))?->handlerClass;
