@@ -9,15 +9,27 @@ use LogicException;
 /**
  * Maps a request to a handler class: routes are tried in registration order, first match wins.
  *
- * When nothing matches, match() returns null; the dispatcher answers the 404.
+ * When no route matches, the GET fallback (if registered) is tried last, whatever its registration
+ * position: it takes extensionless GET paths outside "/v1/". Otherwise match() returns null and the
+ * dispatcher answers the 404.
  */
 final class Router
 {
+    /** Pattern reported in the RouteMatch of the GET fallback. */
+    public const FALLBACK_PATTERN = '*';
+
+    private const FALLBACK_METHOD = 'GET';
+
+    private const FALLBACK_EXCLUDED_PREFIX = '/v1/';
+
     /** @var list<Route> */
     private array $routes = [];
 
     /** @var array<string, true> Keys "<METHOD> <normalized pattern>" already registered. */
     private array $registered = [];
+
+    /** @var string|null Handler class of the GET fallback, kept apart from $routes so it is tried last. */
+    private ?string $fallbackHandlerClass = null;
 
     /**
      * Builds the router.
@@ -133,7 +145,31 @@ final class Router
     }
 
     /**
-     * Returns the first route matching the request's method and path, or null.
+     * Registers the GET fallback, tried after every other route; it has no route middlewares.
+     *
+     * @param string $handlerClass Subclass of RequestHandler.
+     *
+     * @return void
+     *
+     * @throws LogicException When the handler is not a RequestHandler or a fallback is already registered.
+     */
+    public function fallback(string $handlerClass): void
+    {
+        if (!is_subclass_of($handlerClass, RequestHandler::class)) {
+            throw new LogicException("GET fallback: {$handlerClass} is not a RequestHandler.");
+        }
+
+        if ($this->fallbackHandlerClass !== null) {
+            throw new LogicException('GET fallback is already registered.');
+        }
+
+        $this->fallbackHandlerClass = $handlerClass;
+    }
+
+    /**
+     * Returns the first route matching the request's method and path, then the GET fallback, or null.
+     *
+     * The fallback's RouteMatch carries the pattern FALLBACK_PATTERN ("*"), no middlewares and no params.
      *
      * @param Request $request The request to route.
      *
@@ -149,6 +185,34 @@ final class Router
             }
         }
 
-        return null;
+        if ($this->fallbackHandlerClass === null || !$this->appliesToFallback($request)) {
+            return null;
+        }
+
+        return new RouteMatch(self::FALLBACK_PATTERN, $this->fallbackHandlerClass, [], []);
+    }
+
+    /**
+     * Tells whether the GET fallback takes the request: GET, extensionless last segment, outside "/v1/".
+     *
+     * @param Request $request The unmatched request.
+     *
+     * @return boolean
+     */
+    private function appliesToFallback(Request $request): bool
+    {
+        if ($request->method() !== self::FALLBACK_METHOD) {
+            return false;
+        }
+
+        $path = $request->path();
+
+        if (str_starts_with($path, self::FALLBACK_EXCLUDED_PREFIX)) {
+            return false;
+        }
+
+        $lastSegment = substr($path, (int) strrpos($path, '/') + 1);
+
+        return !str_contains($lastSegment, '.');
     }
 }
