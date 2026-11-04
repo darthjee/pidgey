@@ -12,7 +12,7 @@ use Pidgey\Http\Router;
 use Pidgey\Tests\Support\SessionEndpointTestCase;
 
 /**
- * End-to-end session endpoints (register, login, refresh, logoff, status) through
+ * End-to-end session endpoints (register, login, refresh, logoff, status, account) through
  * config/routes.php: the origin check applies, and no password, digest, refresh token, token hash
  * or access token ever reaches a log, on success or failure.
  *
@@ -224,6 +224,76 @@ final class AuthLogTest extends SessionEndpointTestCase
         $this->assertSame(500, $response->status());
         $this->assertNotSame([], $this->logged);
         $this->assertNothingSecretWasLogged();
+    }
+
+    public function testAccountEditsLogNoSecret(): void
+    {
+        putenv('USER_APPROVAL_REQUIRED=false');
+        putenv('ACCOUNT_EDIT_MAX_ATTEMPTS=2');
+        $this->registered();
+        $access = $this->accessTokenOf($this->post(
+            $this->router,
+            '/auth/login.json',
+            ['username' => 'bob', 'password' => $this->password],
+        ));
+        $cookies = ['access_token' => $access];
+        $newPassword = 'new-' . bin2hex(random_bytes(12));
+        $wrong = 'wrong-' . bin2hex(random_bytes(12));
+        $this->secrets[] = $newPassword;
+        $this->secrets[] = $wrong;
+        $edit = fn (array $body, array $with = []): Response => $this->patch(
+            $this->router,
+            '/auth/account.json',
+            $body,
+            $with,
+        );
+
+        $responses = [
+            $edit(['currentPassword' => $this->password, 'newPassword' => "a\0b"], $cookies),
+            $edit(['currentPassword' => $this->password], $cookies),
+            $edit(['currentPassword' => $this->password, 'newPassword' => $newPassword], $cookies),
+            $edit(['currentPassword' => $wrong, 'newPassword' => $this->password], $cookies),
+            $edit(['currentPassword' => $wrong, 'username' => 'bobby'], $cookies),
+            $edit(['currentPassword' => $newPassword, 'username' => 'bobby'], $cookies),
+            $edit(['currentPassword' => $newPassword, 'username' => 'bobby']),
+        ];
+        $this->secrets[] = (string) $this->row('users', 'username', 'bob')['password_digest'];
+        $statuses = array_map(static fn (Response $response): int => $response->status(), $responses);
+
+        $this->assertSame([400, 400, 200, 400, 400, 423, 401], $statuses);
+        $this->assertNothingSecretWasLogged();
+    }
+
+    public function testACrossSiteAccountEditIsRejectedBeforeTheGate(): void
+    {
+        $response = $this->patch(
+            $this->router,
+            '/auth/account.json',
+            ['currentPassword' => $this->password, 'username' => 'bobby'],
+            [],
+            ['Sec-Fetch-Site' => 'cross-site', 'Origin' => 'https://evil.example'],
+        );
+
+        $this->assertSame(403, $response->status());
+        $this->assertSame('FORBIDDEN', self::json($response)['error']['code']);
+        $this->assertNothingSecretWasLogged();
+    }
+
+    /**
+     * Returns the access token a session response set, remembering its secrets.
+     */
+    private function accessTokenOf(Response $response): string
+    {
+        $this->assertSame(201, $response->status());
+        $this->remember($response);
+
+        foreach (self::cookies($response) as $line) {
+            if (preg_match('/access_token=([^;]+);/', $line, $match) === 1) {
+                return $match[1];
+            }
+        }
+
+        $this->fail('No access_token cookie.');
     }
 
     /**

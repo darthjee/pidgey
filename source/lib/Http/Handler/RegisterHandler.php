@@ -26,7 +26,7 @@ final class RegisterHandler extends RequestHandler
 {
     private const MAX_CHARACTERS = 255;
 
-    private const PASSWORD_MIN_CHARACTERS = 8;
+    private const PASSWORD_MIN_CHARACTERS = Passwords::MIN_CHARACTERS;
 
     private const PASSWORD_MAX_BYTES = Passwords::MAX_BYTES;
 

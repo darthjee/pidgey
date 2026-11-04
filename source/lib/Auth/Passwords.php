@@ -23,6 +23,9 @@ final class Passwords implements PasswordVerifier
      */
     public const DUMMY_DIGEST = '$2y$12$mV.fFfQHSZaUZCy60Qny.ukI2luAYMAjAUIHV3tud1o38gSktFWfG';
 
+    /** The shortest password accepted when one is chosen (register, account edit), in characters. */
+    public const MIN_CHARACTERS = 8;
+
     /** The longest password bcrypt hashes in full; longer ones would be silently truncated. */
     public const MAX_BYTES = 72;
 

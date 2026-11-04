@@ -37,7 +37,7 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
     public const ACCESS_TOKEN_TTL = 600;
 
     private const VARIABLES = ['SECRET_KEY', 'PREVIOUS_SECRET_KEYS', 'ACCESS_TOKEN_TTL', 'REFRESH_TOKEN_TTL',
-        'USER_APPROVAL_REQUIRED'];
+        'USER_APPROVAL_REQUIRED', 'ACCOUNT_EDIT_MAX_ATTEMPTS', 'ACCOUNT_EDIT_LOCK_TTL'];
 
     protected PDO $pdo;
 
