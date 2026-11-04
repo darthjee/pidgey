@@ -251,6 +251,108 @@ final class ValidatorTest extends TestCase
         );
     }
 
+    /**
+     * @return array<string, array{array<string, mixed>}>
+     */
+    public static function notPresentProvider(): array
+    {
+        return [
+            'absent' => [[]],
+            'null' => [['email' => null]],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     */
+    #[DataProvider('notPresentProvider')]
+    public function testOptionalFieldNotPresentIsOmitted(array $body): void
+    {
+        $validator = new Validator($body);
+        $validator->string('email')->optional()->trim()->notEmpty()->email()->maxLength(255);
+
+        $this->assertSame([], $validator->validated());
+    }
+
+    /**
+     * @return array<string, array{mixed, string}>
+     */
+    public static function optionalFailureProvider(): array
+    {
+        return [
+            'empty' => ['', 'email should not be empty'],
+            'whitespace only' => ['   ', 'email should not be empty'],
+            'integer' => [1, 'email must be a string'],
+            'boolean' => [false, 'email must be a string'],
+            'array' => [['a'], 'email must be a string'],
+            'invalid' => ['bob', 'email must be an email'],
+        ];
+    }
+
+    #[DataProvider('optionalFailureProvider')]
+    public function testOptionalFieldPresentRunsEveryRule(mixed $value, string $message): void
+    {
+        $validator = new Validator(['email' => $value]);
+        $validator->string('email')->optional()->trim()->notEmpty()->email()->maxLength(255);
+
+        $this->assertSame([$message], $this->details($validator));
+    }
+
+    public function testOptionalFieldPresentAndValidIsReturned(): void
+    {
+        $validator = new Validator(['email' => ' bob@example.com ']);
+        $validator->string('email')->optional()->trim()->notEmpty()->email();
+
+        $this->assertSame(['email' => 'bob@example.com'], $validator->validated());
+    }
+
+    public function testOptionalMethodReturnsTheBuilder(): void
+    {
+        $rules = (new Validator([]))->string('f');
+
+        $this->assertSame($rules, $rules->optional());
+    }
+
+    public function testOptionalAndRequiredFieldsMix(): void
+    {
+        $validator = new Validator([
+            'currentPassword' => 'secret',
+            'email' => null,
+            'newPassword' => 'evenmoresecret',
+        ]);
+        $validator->string('currentPassword')->notEmpty();
+        $validator->string('username')->optional()->trim()->notEmpty()->maxLength(255);
+        $validator->string('email')->optional()->trim()->notEmpty()->email()->maxLength(255);
+        $validator->string('newPassword')->optional()->minLength(8)->maxBytes(72)->noNulByte();
+
+        $this->assertSame(
+            ['currentPassword' => 'secret', 'newPassword' => 'evenmoresecret'],
+            $validator->validated(),
+        );
+    }
+
+    public function testOptionalAndRequiredFailuresAreReportedInDeclarationOrder(): void
+    {
+        $validator = new Validator([
+            'username' => '',
+            'newPassword' => "ab\0",
+        ]);
+        $validator->string('currentPassword')->notEmpty();
+        $validator->string('username')->optional()->trim()->notEmpty()->maxLength(255);
+        $validator->string('email')->optional()->trim()->notEmpty()->email()->maxLength(255);
+        $validator->string('newPassword')->optional()->minLength(8)->maxBytes(72)->noNulByte();
+
+        $this->assertSame(
+            [
+                'currentPassword should not be empty',
+                'username should not be empty',
+                'newPassword must be longer than or equal to 8 characters',
+                'newPassword must not contain a NUL byte',
+            ],
+            $this->details($validator),
+        );
+    }
+
     public function testNoDeclaredFieldsGivesAnEmptyResult(): void
     {
         $this->assertSame([], (new Validator(['a' => 'b']))->validated());

@@ -12,7 +12,7 @@ use SensitiveParameter;
  * Verification always runs exactly one `password_verify()`: when there is no user, it runs
  * against `DUMMY_DIGEST`, so the response time does not reveal whether a username exists.
  */
-final class Passwords
+final class Passwords implements PasswordVerifier
 {
     /**
      * A hard-coded `PASSWORD_DEFAULT` digest of a random, discarded string (bcrypt, cost 12).

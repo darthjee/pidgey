@@ -7,6 +7,7 @@ namespace Pidgey\Tests\Support;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
+use Pidgey\Auth\AccessTokenCookie;
 use Pidgey\Auth\RefreshTokenValue;
 use Pidgey\Auth\SessionTokens;
 use Pidgey\Container;
@@ -82,6 +83,7 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
      *
      * @param array<string, mixed>|string $body    Encoded as JSON unless already a string.
      * @param array<string, string>       $headers Extra request headers (e.g. `Origin`).
+     * @param array<string, string>       $cookies Request cookies (e.g. accessCookie()).
      */
     protected function dispatch(
         Router $router,
@@ -89,6 +91,7 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
         string $path,
         array|string $body,
         array $headers = [],
+        array $cookies = [],
     ): Response {
         $logger = function (string $line): void {
             $this->logged[] = $line;
@@ -99,7 +102,7 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
             'method' => $method,
             'uri' => $path,
             'headers' => ['Content-Type' => 'application/json', ...$headers],
-            'cookies' => [],
+            'cookies' => $cookies,
             'body' => is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR),
         ]));
     }
@@ -127,6 +130,23 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
     }
 
     /**
+     * Sends a JSON PATCH (see dispatch()).
+     *
+     * @param array<string, mixed>|string $body    Encoded as JSON unless already a string.
+     * @param array<string, string>       $cookies Request cookies (e.g. accessCookie()).
+     * @param array<string, string>       $headers Extra request headers (e.g. `Origin`).
+     */
+    protected function patch(
+        Router $router,
+        string $path,
+        array|string $body,
+        array $cookies = [],
+        array $headers = [],
+    ): Response {
+        return $this->dispatch($router, 'PATCH', $path, $body, $headers, $cookies);
+    }
+
+    /**
      * Creates a user with the given status through the fixtures and reads it back.
      */
     protected function account(UserStatus $status = UserStatus::Approved, bool $isAdmin = false): User
@@ -142,6 +162,56 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
     protected function startSession(User $user): SessionTokens
     {
         return $this->container()->sessions()->start($user);
+    }
+
+    /**
+     * Starts a real session for the user and returns the `access_token` cookie the gate reads.
+     *
+     * @return array{access_token: string}
+     */
+    protected function accessCookie(User $user): array
+    {
+        return [AccessTokenCookie::NAME => $this->startSession($user)->accessToken()];
+    }
+
+    /**
+     * Returns the user's `account_edit_lockouts` row, as strings, or null when there is none.
+     *
+     * @return array<string, string|null>|null
+     */
+    protected function lockoutRow(int $userId): ?array
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM `account_edit_lockouts` WHERE `user_id` = :user_id');
+        $statement->execute(['user_id' => $userId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return $row === false ? null : $row;
+    }
+
+    /**
+     * Creates or replaces the user's lockout row. `$lockedUntil` is a UTC `Y-m-d H:i:s` string.
+     */
+    protected function setLockout(int $userId, int $failedAttempts, ?string $lockedUntil = null): void
+    {
+        $this->pdo->prepare('DELETE FROM `account_edit_lockouts` WHERE `user_id` = :user_id')
+            ->execute(['user_id' => $userId]);
+        $this->fixtures->accountEditLockout($userId, $failedAttempts, $lockedUntil);
+    }
+
+    /**
+     * Inserts an unused, unexpired password reset token for the user and returns its id.
+     */
+    protected function resetToken(int $userId): int
+    {
+        return $this->fixtures->passwordResetToken(userId: $userId);
+    }
+
+    /**
+     * Returns the `used_at` of a password reset token, or null while it is unused.
+     */
+    protected function resetTokenUsedAt(int $tokenId): ?string
+    {
+        return $this->row('password_reset_tokens', 'id', $tokenId)['used_at'];
     }
 
     /**

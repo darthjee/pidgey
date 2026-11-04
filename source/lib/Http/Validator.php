@@ -47,6 +47,9 @@ final class Validator
     /**
      * Evaluates every declared field and returns only the declared fields, trimmed when declared so.
      *
+     * An optional field that is absent or null is omitted from the result, so a key is present
+     * only when its field was sent.
+     *
      * @return array<string, string>
      *
      * @throws ValidationFailedException With every message, fields then rules in declaration order.
@@ -66,6 +69,10 @@ final class Validator
         $values = [];
 
         foreach ($this->fields as $field => $rules) {
+            if ($rules->isOmitted($this->body)) {
+                continue;
+            }
+
             $values[$field] = $rules->value($this->body);
         }
 
