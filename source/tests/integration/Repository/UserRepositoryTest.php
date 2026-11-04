@@ -246,6 +246,71 @@ final class UserRepositoryTest extends RepositoryTestCase
         $this->assertSame($adminId, $this->repository->findByUsername('admin')?->id);
     }
 
+    public function testFindTakenFindsAUsernameMatch(): void
+    {
+        $id = $this->fixtures->user(username: 'frank', email: 'frank@example.com');
+
+        $this->assertSame($id, $this->repository->findTaken('frank', 'other@example.com')?->id);
+    }
+
+    public function testFindTakenFindsAnEmailMatch(): void
+    {
+        $id = $this->fixtures->user(username: 'frank', email: 'frank@example.com');
+
+        $this->assertSame($id, $this->repository->findTaken('other', 'frank@example.com')?->id);
+    }
+
+    public function testFindTakenPrefersTheUsernameRowWhenTwoRowsMatch(): void
+    {
+        $this->fixtures->user(username: 'first', email: 'taken@example.com');
+        $usernameId = $this->fixtures->user(username: 'taken', email: 'second@example.com');
+
+        $this->assertSame($usernameId, $this->repository->findTaken('taken', 'taken@example.com')?->id);
+    }
+
+    public function testFindTakenPrefersTheUsernameRowWhateverTheInsertOrder(): void
+    {
+        $usernameId = $this->fixtures->user(username: 'taken', email: 'second@example.com');
+        $this->fixtures->user(username: 'first', email: 'taken@example.com');
+
+        $this->assertSame($usernameId, $this->repository->findTaken('taken', 'taken@example.com')?->id);
+    }
+
+    public function testFindTakenIgnoresCaseAndAccents(): void
+    {
+        $bobId = $this->fixtures->user(username: 'bob', email: 'bob@example.com');
+
+        $this->assertSame($bobId, $this->repository->findTaken('BOB', 'new@example.com')?->id);
+        $this->assertSame($bobId, $this->repository->findTaken('bób', 'new@example.com')?->id);
+        $this->assertSame($bobId, $this->repository->findTaken('new', 'BÓB@example.com')?->id);
+    }
+
+    public function testFindTakenCountsADeniedUser(): void
+    {
+        $id = $this->fixtures->user(username: 'denied', status: 'denied');
+
+        $this->assertSame($id, $this->repository->findTaken('denied', 'new@example.com')?->id);
+    }
+
+    public function testFindTakenReturnsNullWhenNothingMatches(): void
+    {
+        $this->fixtures->user(username: 'frank', email: 'frank@example.com');
+
+        $this->assertNull($this->repository->findTaken('george', 'george@example.com'));
+    }
+
+    public function testUpdatePasswordDigestStoresTheNewDigest(): void
+    {
+        $id = $this->fixtures->user();
+        $otherId = $this->fixtures->user();
+        $digest = '$2y$12$abcdefghijklmnopqrstuuJ6C3D5yWv0cZx1vQ8kYb2e4f6g8h0i2';
+
+        $this->repository->updatePasswordDigest($id, $digest);
+
+        $this->assertSame($digest, $this->repository->findById($id)?->passwordDigest);
+        $this->assertSame(Fixtures::PASSWORD_DIGEST, $this->repository->findById($otherId)?->passwordDigest);
+    }
+
     public function testFindApprovedBySessionFindsTheUserOfALiveSession(): void
     {
         $organizationId = $this->fixtures->organization();

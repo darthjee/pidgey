@@ -16,6 +16,7 @@ use Pidgey\Infra\Env;
 use Pidgey\Infra\PdoFactory;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\Transaction;
+use Pidgey\Infra\UserApproval;
 use Pidgey\Infra\WallClock;
 use Pidgey\Repository\AccountEditLockoutRepository;
 use Pidgey\Repository\ApiTokenRepository;
@@ -82,6 +83,17 @@ final class Container
     public function wallClock(): WallClock
     {
         return $this->wallClock ??= new SystemWallClock();
+    }
+
+    /**
+     * Tells whether new registrations start `pending`, read from `USER_APPROVAL_REQUIRED` on
+     * each call (only the exact value `false` disables approval).
+     *
+     * @return boolean
+     */
+    public function userApprovalRequired(): bool
+    {
+        return UserApproval::required();
     }
 
     /**

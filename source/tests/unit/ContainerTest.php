@@ -21,6 +21,7 @@ use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\Transaction;
+use Pidgey\Infra\UserApproval;
 use Pidgey\Infra\WallClock;
 use Pidgey\Repository\AccountEditLockoutRepository;
 use Pidgey\Repository\ApiTokenRepository;
@@ -43,6 +44,7 @@ use RuntimeException;
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(Transaction::class)]
+#[UsesClass(UserApproval::class)]
 #[UsesClass(OrganizationRepository::class)]
 #[UsesClass(UserRepository::class)]
 #[UsesClass(RefreshTokenRepository::class)]
@@ -63,6 +65,7 @@ final class ContainerTest extends TestCase
         'PREVIOUS_SECRET_KEYS',
         'ACCESS_TOKEN_TTL',
         'REFRESH_TOKEN_TTL',
+        'USER_APPROVAL_REQUIRED',
     ];
 
     private const SECRET_KEY = 'container-test-secret-key-0123456789abcdef';
@@ -85,6 +88,7 @@ final class ContainerTest extends TestCase
         putenv('PREVIOUS_SECRET_KEYS');
         putenv('ACCESS_TOKEN_TTL');
         putenv('REFRESH_TOKEN_TTL');
+        putenv('USER_APPROVAL_REQUIRED');
     }
 
     protected function tearDown(): void
@@ -362,6 +366,22 @@ final class ContainerTest extends TestCase
         $this->expectExceptionMessage('REFRESH_TOKEN_TTL');
 
         (new Container($factory))->sessions();
+    }
+
+    public function testUserApprovalIsRequiredByDefaultAndOpensNoConnection(): void
+    {
+        $this->assertTrue((new Container($this->unusedConnections()))->userApprovalRequired());
+    }
+
+    public function testUserApprovalFollowsTheEnvironment(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        putenv('USER_APPROVAL_REQUIRED=false');
+        $this->assertFalse($container->userApprovalRequired());
+
+        putenv('USER_APPROVAL_REQUIRED=FALSE');
+        $this->assertTrue($container->userApprovalRequired());
     }
 
     private function unusedConnections(): ConnectionFactory
