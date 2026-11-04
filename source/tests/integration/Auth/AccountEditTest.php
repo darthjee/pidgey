@@ -33,6 +33,7 @@ use Pidgey\Repository\AccountEditLockoutRepository;
 use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\Sql;
 use Pidgey\Repository\UserRepository;
+use Pidgey\Tests\Support\Fixtures;
 use Pidgey\Tests\Support\SessionEndpointTestCase;
 use SensitiveParameter;
 
@@ -76,6 +77,14 @@ final class AccountEditTest extends SessionEndpointTestCase
     /** Counts the password checks the service runs. */
     private int $verifications = 0;
 
+    /**
+     * Runs during the password check, i.e. inside the attempt's transaction once its snapshot
+     * is set (by `findById()`) and before the "taken" checks and the update.
+     *
+     * @var (Closure(): void)|null
+     */
+    private ?Closure $duringVerification = null;
+
     private PasswordVerifier $verifier;
 
     private WallClock $clock;
@@ -94,6 +103,10 @@ final class AccountEditTest extends SessionEndpointTestCase
 
         $this->verifier = new class (function (): void {
             $this->verifications++;
+
+            if ($this->duringVerification !== null) {
+                ($this->duringVerification)();
+            }
         }) implements PasswordVerifier {
             /** @param Closure(): void $onVerify */
             public function __construct(private readonly Closure $onVerify)
@@ -377,12 +390,44 @@ final class AccountEditTest extends SessionEndpointTestCase
         $this->assertNull($this->resetTokenUsedAt($token));
     }
 
+    public function testAUsernameCommittedAfterTheSnapshotIsRefusedAndCounted(): void
+    {
+        $user = $this->user('bob', 'bob@example.com');
+        $this->commitConcurrently('Carol', 'carol@example.com');
+
+        $this->assertError(
+            fn () => $this->service()->edit($user->id, self::$password, 'carol', 'bobby@example.com', null),
+            409,
+            'USERNAME_TAKEN',
+            'Username already in use',
+        );
+
+        $this->assertUnchanged($user);
+        $this->assertLockout($user->id, 1, null);
+    }
+
+    public function testAnEmailCommittedAfterTheSnapshotIsRefusedAndCounted(): void
+    {
+        $user = $this->user('bob', 'bob@example.com');
+        $this->commitConcurrently('carol', 'Carol@example.com');
+
+        $this->assertError(
+            fn () => $this->service()->edit($user->id, self::$password, 'bobby', 'carol@example.com', null),
+            409,
+            'EMAIL_TAKEN',
+            'Email already in use',
+        );
+
+        $this->assertUnchanged($user);
+        $this->assertLockout($user->id, 1, null);
+    }
+
     public function testAUsernameRaceOnUpdateAppliesNothingAndIsCounted(): void
     {
         $user = $this->user('bob', 'bob@example.com');
         $token = $this->resetToken($user->id);
-        $this->user('carol', 'carol@example.com');
         $this->setLockout($user->id, 1);
+        $this->commitConcurrently('carol', 'carol@example.com');
 
         $this->assertError(
             fn () => $this->service()->editSkippingTakenChecks(
@@ -405,14 +450,14 @@ final class AccountEditTest extends SessionEndpointTestCase
     public function testAnEmailRaceOnUpdateAppliesNothingAndIsCounted(): void
     {
         $user = $this->user('bob', 'bob@example.com');
-        $this->user('carol', 'carol@example.com');
+        $this->commitConcurrently('carol', 'carol@example.com');
 
         $this->assertError(
             fn () => $this->service()->editSkippingTakenChecks(
                 $user->id,
                 self::$password,
                 'bobby',
-                'carol@example.com',
+                'CAROL@example.com',
                 null,
             ),
             409,
@@ -494,6 +539,27 @@ final class AccountEditTest extends SessionEndpointTestCase
             self::MAX_ATTEMPTS,
             self::LOCK_TTL,
         );
+    }
+
+    /**
+     * Has a second connection commit a user with these values during the attempt's password
+     * check: after the attempt's snapshot is set, before its "taken" checks and its update.
+     */
+    private function commitConcurrently(string $username, string $email): void
+    {
+        $this->duringVerification = function () use ($username, $email): void {
+            $this->duringVerification = null;
+            $other = self::pdo();
+            (new Fixtures($other))->user(username: $username, email: $email);
+            $this->assertFalse($other->inTransaction());
+            $this->assertTrue($this->pdo->inTransaction());
+            $snapshot = $this->pdo->prepare('SELECT 1 FROM users WHERE username = :username');
+            $snapshot->execute(['username' => $username]);
+            $this->assertFalse(
+                $snapshot->fetchColumn(),
+                'The attempt\'s snapshot must not see the concurrently committed user.',
+            );
+        };
     }
 
     private function user(string $username, string $email): User

@@ -31,6 +31,10 @@ use SensitiveParameter;
  * the transaction as an AccountEditOutcome, so their increment is committed, and only then turned
  * into an HTTP error. Nothing here is logged; the digest is never rehashed and no session is
  * revoked.
+ *
+ * The "taken" checks are locking reads (`FOR SHARE`): under REPEATABLE READ the transaction's
+ * snapshot is set by the first plain read (`findById()`), so a plain read would miss a username
+ * or email committed by another transaction after it, while the update's unique check would not.
  */
 final class AccountEdit
 {
@@ -46,6 +50,9 @@ final class AccountEdit
 
     /** SQLSTATE of an integrity constraint violation (e.g. a duplicate unique key). */
     private const INTEGRITY_VIOLATION = '23000';
+
+    /** MySQL error number of a foreign key violation on insert (`ER_NO_REFERENCED_ROW_2`). */
+    private const FOREIGN_KEY_VIOLATION = 1452;
 
     /**
      * Builds the service.
@@ -101,8 +108,10 @@ final class AccountEdit
     }
 
     /**
-     * Same as edit() without the "taken" pre-checks, so the unique-index race of the update can
-     * be tested (as `Registration::create()` does). Not for production callers.
+     * Same as edit() without the "taken" pre-checks, so the unique-index race of the update (and
+     * its re-check) can be tested (as `Registration::create()` does).
+     *
+     * @internal Test seam only; production callers use edit().
      *
      * @param integer     $userId          The authenticated caller.
      * @param string      $currentPassword The current password, never trimmed.
@@ -221,7 +230,8 @@ final class AccountEdit
     /**
      * Makes sure the caller's lockout row exists (atomic upsert), then locks it `FOR UPDATE`.
      *
-     * The upsert can only violate the foreign key to `users`: the caller's row is gone.
+     * Only a foreign key violation of the upsert (MySQL error 1452: the caller's row is gone)
+     * means a missing caller; any other failure is rethrown.
      *
      * @param integer $userId The authenticated caller.
      *
@@ -234,7 +244,7 @@ final class AccountEdit
         try {
             $this->lockouts->ensure($userId);
         } catch (PDOException $exception) {
-            if ((string) $exception->getCode() !== self::INTEGRITY_VIOLATION) {
+            if ((int) ($exception->errorInfo[1] ?? 0) !== self::FOREIGN_KEY_VIOLATION) {
                 throw $exception;
             }
 
@@ -301,7 +311,8 @@ final class AccountEdit
      *
      * A unique-index violation on the update (a concurrent change took the value) applies
      * nothing, as InnoDB rolls back the failed statement, and is counted as a failure with the
-     * matching `409`. Any other integrity violation is rethrown as a generic `PDOException`
+     * matching `409`; the re-check is a locking read, so it sees the concurrently committed row
+     * the update collided with. Any other integrity violation is rethrown as a generic `PDOException`
      * carrying only the SQLSTATE, as the driver message quotes user data.
      *
      * @param User        $user        The caller's current row.

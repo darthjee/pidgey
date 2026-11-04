@@ -182,7 +182,10 @@ final class UserRepository
      * Tells whether another user than the given one has this username, regardless of case and
      * accents (the account edit "taken" check).
      *
-     * Unscoped on purpose: usernames are unique across organizations.
+     * A locking read (`FOR SHARE`): inside a REPEATABLE READ transaction it sees the latest
+     * committed rows rather than the transaction's snapshot, and it locks the matching index
+     * range on `users.username` until the transaction ends. Unscoped on purpose: usernames are
+     * unique across organizations.
      *
      * @param string  $username Username, compared as given with the column collation.
      * @param integer $userId   The caller, whose own row is excluded.
@@ -194,7 +197,7 @@ final class UserRepository
     public function usernameTakenByOther(string $username, int $userId): bool
     {
         return $this->exists(
-            'SELECT 1 FROM users WHERE username = :username AND id <> :id LIMIT 1',
+            'SELECT 1 FROM users WHERE username = :username AND id <> :id LIMIT 1 FOR SHARE',
             ['username' => $username, 'id' => $userId],
         );
     }
@@ -203,7 +206,10 @@ final class UserRepository
      * Tells whether another user than the given one has this email, regardless of case and
      * accents (the account edit "taken" check).
      *
-     * Unscoped on purpose: emails are unique across organizations.
+     * A locking read (`FOR SHARE`): inside a REPEATABLE READ transaction it sees the latest
+     * committed rows rather than the transaction's snapshot, and it locks the matching index
+     * range on `users.email` until the transaction ends. Unscoped on purpose: emails are unique
+     * across organizations.
      *
      * @param string  $email  Email address, compared as given with the column collation.
      * @param integer $userId The caller, whose own row is excluded.
@@ -215,7 +221,7 @@ final class UserRepository
     public function emailTakenByOther(string $email, int $userId): bool
     {
         return $this->exists(
-            'SELECT 1 FROM users WHERE email = :email AND id <> :id LIMIT 1',
+            'SELECT 1 FROM users WHERE email = :email AND id <> :id LIMIT 1 FOR SHARE',
             ['email' => $email, 'id' => $userId],
         );
     }
