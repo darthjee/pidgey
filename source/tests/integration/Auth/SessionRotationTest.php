@@ -105,7 +105,7 @@ final class SessionRotationTest extends IntegrationTestCase
         $user = $this->user();
         $presented = $this->presented($user);
 
-        $tokens = $this->rotation(self::NOW)->rotate($presented, $user);
+        $tokens = $this->rotation()->rotate($presented, $user, self::moment(self::NOW));
 
         $this->assertNotNull($tokens);
         $this->assertSame(self::SESSION, $tokens->sessionUuid);
@@ -136,7 +136,7 @@ final class SessionRotationTest extends IntegrationTestCase
         )->execute(['at' => self::at(self::NOW - 1), 'id' => $presented->id]);
         $before = $this->rows();
 
-        $this->assertNull($this->rotation(self::NOW)->rotate($presented, $user));
+        $this->assertNull($this->rotation()->rotate($presented, $user, self::moment(self::NOW)));
 
         $this->assertFalse($this->pdo->inTransaction());
         $this->assertSame($before, $this->rows());
@@ -148,19 +148,18 @@ final class SessionRotationTest extends IntegrationTestCase
         $presented = $this->presented($user);
         $before = $this->rows();
 
-        $this->assertNull($this->rotation(self::EXPIRES)->rotate($presented, $user));
+        $this->assertNull($this->rotation()->rotate($presented, $user, self::moment(self::EXPIRES)));
 
         $this->assertFalse($this->pdo->inTransaction());
         $this->assertSame($before, $this->rows());
     }
 
-    private function rotation(int $now): SessionRotation
+    private function rotation(): SessionRotation
     {
         return new SessionRotation(
             $this->refreshTokens,
             new Transaction($this->pdo),
             $this->accessToken,
-            self::clockAt($now),
             self::TTL,
         );
     }
@@ -203,6 +202,11 @@ final class SessionRotationTest extends IntegrationTestCase
     private static function at(int $timestamp): string
     {
         return gmdate('Y-m-d H:i:s', $timestamp);
+    }
+
+    private static function moment(int $timestamp): DateTimeImmutable
+    {
+        return (new DateTimeImmutable('now', new DateTimeZone('UTC')))->setTimestamp($timestamp);
     }
 
     private static function clockAt(int $timestamp): WallClock

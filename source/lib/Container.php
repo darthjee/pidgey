@@ -124,8 +124,8 @@ final class Container
 
     /**
      * Returns the atomic rotation step of a refresh, built from the request's connection, the
-     * access-token service, the wall clock and `REFRESH_TOKEN_TTL` on the first call (which
-     * opens the connection).
+     * access-token service and `REFRESH_TOKEN_TTL` on the first call (which opens the
+     * connection).
      *
      * @return SessionRotation
      *
@@ -138,7 +138,6 @@ final class Container
             $this->refreshTokenRepository(),
             $this->transaction(),
             $this->accessToken(),
-            $this->wallClock(),
             self::refreshTokenTtl(),
         );
     }

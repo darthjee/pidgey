@@ -142,7 +142,7 @@ final class Sessions
             return null;
         }
 
-        return $this->rotation->rotate($token, $user);
+        return $this->rotation->rotate($token, $user, $now);
     }
 
     /**

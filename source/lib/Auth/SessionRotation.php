@@ -9,7 +9,6 @@ use DateTimeImmutable;
 use LogicException;
 use PDOException;
 use Pidgey\Infra\Transaction;
-use Pidgey\Infra\WallClock;
 use Pidgey\Model\RefreshToken;
 use Pidgey\Model\RevokedReason;
 use Pidgey\Model\User;
@@ -31,14 +30,12 @@ final class SessionRotation
      * @param RefreshTokenRepository $refreshTokens The `refresh_tokens` repository.
      * @param Transaction            $transaction   Transaction helper of the same connection.
      * @param AccessToken            $accessToken   Issues the access tokens (JWT).
-     * @param WallClock              $clock         Source of `now`, in UTC.
      * @param integer                $refreshTtl    Refresh token lifetime in seconds (`REFRESH_TOKEN_TTL`).
      */
     public function __construct(
         private readonly RefreshTokenRepository $refreshTokens,
         private readonly Transaction $transaction,
         private readonly AccessToken $accessToken,
-        private readonly WallClock $clock,
         private readonly int $refreshTtl,
     ) {
     }
@@ -48,8 +45,9 @@ final class SessionRotation
      *
      * Opens its own transaction, so it must not run inside another one.
      *
-     * @param RefreshToken $presented The presented token, as read before the rotation.
-     * @param User         $user      The token's user.
+     * @param RefreshToken      $presented The presented token, as read before the rotation.
+     * @param User              $user      The token's user.
+     * @param DateTimeImmutable $now       The refresh's `now`, in UTC, read once by the caller.
      *
      * @return SessionTokens|null The new tokens, or null when the presented token was no longer
      *                            active (rolled back, no side effect).
@@ -58,9 +56,8 @@ final class SessionRotation
      * @throws LogicException  When a transaction is already active on the connection.
      * @throws RandomException When no source of randomness is available.
      */
-    public function rotate(RefreshToken $presented, User $user): ?SessionTokens
+    public function rotate(RefreshToken $presented, User $user, DateTimeImmutable $now): ?SessionTokens
     {
-        $now = $this->clock->now();
         $plain = RefreshTokenValue::generate();
         $hash = RefreshTokenValue::hash($plain);
 

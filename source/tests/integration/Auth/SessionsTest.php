@@ -99,7 +99,7 @@ final class SessionsTest extends IntegrationTestCase
         $this->sessions = new Sessions(
             $refreshTokens,
             new UserRepository($this->pdo),
-            new SessionRotation($refreshTokens, $transaction, $this->accessToken, $clock, self::TTL),
+            new SessionRotation($refreshTokens, $transaction, $this->accessToken, self::TTL),
             $this->accessToken,
             $clock,
             self::TTL,
@@ -208,6 +208,29 @@ final class SessionsTest extends IntegrationTestCase
         $old = $this->rows()[$presented];
         $this->assertSame('rotated', $old['revoked_reason']);
         $this->assertSame(self::at(self::NOW), $old['revoked_at']);
+    }
+
+    public function testRefreshReadsTheClockOnceForTheWholeRotation(): void
+    {
+        $user = $this->user();
+        $presented = $this->token($user->id, 'presented');
+        $refreshTokens = new RefreshTokenRepository($this->pdo);
+        $sessions = new Sessions(
+            $refreshTokens,
+            new UserRepository($this->pdo),
+            new SessionRotation($refreshTokens, new Transaction($this->pdo), $this->accessToken, self::TTL),
+            $this->accessToken,
+            self::tickingClockFrom(self::NOW),
+            self::TTL,
+        );
+
+        $tokens = $sessions->refresh('presented');
+
+        $this->assertNotNull($tokens);
+        $new = $this->rowByHash(hash('sha256', $tokens->refreshToken()));
+        $this->assertSame(self::at(self::NOW), $new['issued_at']);
+        $this->assertSame(self::at(self::NOW + self::TTL), $new['expires_at']);
+        $this->assertSame(self::at(self::NOW), $this->rows()[$presented]['revoked_at']);
     }
 
     public function testRefreshWithAnUnknownTokenFails(): void
@@ -541,6 +564,26 @@ final class SessionsTest extends IntegrationTestCase
     private static function at(int $timestamp): string
     {
         return gmdate('Y-m-d H:i:s', $timestamp);
+    }
+
+    /**
+     * A clock that moves one minute forward on every read, so a second read would show.
+     */
+    private static function tickingClockFrom(int $timestamp): WallClock
+    {
+        return new class ($timestamp) implements WallClock {
+            public function __construct(private int $timestamp)
+            {
+            }
+
+            public function now(): DateTimeImmutable
+            {
+                $now = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->setTimestamp($this->timestamp);
+                $this->timestamp += 60;
+
+                return $now;
+            }
+        };
     }
 
     private static function clockAt(int $timestamp): WallClock
