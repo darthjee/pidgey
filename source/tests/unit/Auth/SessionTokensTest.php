@@ -24,8 +24,8 @@ final class SessionTokensTest extends TestCase
     {
         $tokens = $this->tokens();
 
-        $this->assertSame(self::REFRESH, $tokens->refreshToken);
-        $this->assertSame(self::ACCESS, $tokens->accessToken);
+        $this->assertSame(self::REFRESH, $tokens->refreshToken());
+        $this->assertSame(self::ACCESS, $tokens->accessToken());
         $this->assertSame(self::SESSION, $tokens->sessionUuid);
         $this->assertSame(7, $tokens->user->id);
     }
@@ -46,6 +46,49 @@ final class SessionTokensTest extends TestCase
         $this->assertStringNotContainsString(self::REFRESH, $output);
         $this->assertStringNotContainsString(self::ACCESS, $output);
         $this->assertStringContainsString(self::SESSION, $output);
+    }
+
+    public function testVarExportShowsNeitherToken(): void
+    {
+        $output = var_export($this->tokens(), true);
+
+        $this->assertStringNotContainsString(self::REFRESH, $output);
+        $this->assertStringNotContainsString(self::ACCESS, $output);
+    }
+
+    public function testJsonEncodeShowsNeitherToken(): void
+    {
+        $output = json_encode($this->tokens(), JSON_THROW_ON_ERROR);
+
+        $this->assertStringNotContainsString(self::REFRESH, $output);
+        $this->assertStringNotContainsString(self::ACCESS, $output);
+        $this->assertStringContainsString(self::SESSION, $output);
+    }
+
+    public function testArrayCastShowsNeitherToken(): void
+    {
+        $output = var_export((array) $this->tokens(), true);
+
+        $this->assertStringNotContainsString(self::REFRESH, $output);
+        $this->assertStringNotContainsString(self::ACCESS, $output);
+    }
+
+    public function testGetObjectVarsShowsNeitherToken(): void
+    {
+        $output = var_export(get_object_vars($this->tokens()), true);
+
+        $this->assertStringNotContainsString(self::REFRESH, $output);
+        $this->assertStringNotContainsString(self::ACCESS, $output);
+    }
+
+    public function testVarDumpShowsNeitherToken(): void
+    {
+        ob_start();
+        var_dump($this->tokens());
+        $output = (string) ob_get_clean();
+
+        $this->assertStringNotContainsString(self::REFRESH, $output);
+        $this->assertStringNotContainsString(self::ACCESS, $output);
     }
 
     private function tokens(): SessionTokens

@@ -110,7 +110,7 @@ final class SessionRotationTest extends IntegrationTestCase
         $this->assertNotNull($tokens);
         $this->assertSame(self::SESSION, $tokens->sessionUuid);
         $this->assertSame($user, $tokens->user);
-        $new = $this->refreshTokens->findByTokenHash(hash('sha256', $tokens->refreshToken));
+        $new = $this->refreshTokens->findByTokenHash(hash('sha256', $tokens->refreshToken()));
         $this->assertNotNull($new);
         $this->assertNotSame($presented->id, $new->id);
         $this->assertSame(self::SESSION, $new->sessionUuid);
@@ -121,7 +121,7 @@ final class SessionRotationTest extends IntegrationTestCase
         $old = $this->refreshTokens->findById($presented->id);
         $this->assertSame(RevokedReason::Rotated, $old?->revokedReason);
         $this->assertSame(self::NOW, $old->revokedAt?->getTimestamp());
-        $claims = $this->accessToken->verify($tokens->accessToken);
+        $claims = $this->accessToken->verify($tokens->accessToken());
         $this->assertSame(self::SESSION, $claims?->sessionId);
         $this->assertSame($user->id, $claims->userId);
     }

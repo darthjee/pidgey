@@ -118,9 +118,9 @@ final class SessionsTest extends IntegrationTestCase
         $tokens = $this->sessions->start($this->user());
         $row = $this->onlyRow();
 
-        $this->assertMatchesRegularExpression('/\A[0-9a-f]{96}\z/', $tokens->refreshToken);
-        $this->assertSame(hash('sha256', $tokens->refreshToken), $row['token_hash']);
-        $this->assertNotContains($tokens->refreshToken, array_map('strval', $row));
+        $this->assertMatchesRegularExpression('/\A[0-9a-f]{96}\z/', $tokens->refreshToken());
+        $this->assertSame(hash('sha256', $tokens->refreshToken()), $row['token_hash']);
+        $this->assertNotContains($tokens->refreshToken(), array_map('strval', $row));
     }
 
     public function testStartStoresTheSessionTimesAndUser(): void
@@ -149,7 +149,7 @@ final class SessionsTest extends IntegrationTestCase
         $user = $this->user();
 
         $tokens = $this->sessions->start($user);
-        $claims = $this->accessToken->verify($tokens->accessToken);
+        $claims = $this->accessToken->verify($tokens->accessToken());
 
         $this->assertNotNull($claims);
         $this->assertSame($user->id, $claims->userId);
@@ -164,7 +164,7 @@ final class SessionsTest extends IntegrationTestCase
         $second = $this->sessions->start($user);
 
         $this->assertNotSame($first->sessionUuid, $second->sessionUuid);
-        $this->assertNotSame($first->refreshToken, $second->refreshToken);
+        $this->assertNotSame($first->refreshToken(), $second->refreshToken());
         $this->assertSame(2, $this->rowCount());
     }
 
@@ -198,8 +198,8 @@ final class SessionsTest extends IntegrationTestCase
         $this->assertNotNull($tokens);
         $this->assertSame($session, $tokens->sessionUuid);
         $this->assertSame($user->id, $tokens->user->id);
-        $this->assertSame($session, $this->accessToken->verify($tokens->accessToken)?->sessionId);
-        $new = $this->rowByHash(hash('sha256', $tokens->refreshToken));
+        $this->assertSame($session, $this->accessToken->verify($tokens->accessToken())?->sessionId);
+        $new = $this->rowByHash(hash('sha256', $tokens->refreshToken()));
         $this->assertSame($session, $new['session_uuid']);
         $this->assertSame(self::at(self::STARTED), $new['started_at']);
         $this->assertSame(self::at(self::NOW), $new['issued_at']);
@@ -312,13 +312,13 @@ final class SessionsTest extends IntegrationTestCase
 
         $second = $this->sessions->refresh('first');
         $this->assertNotNull($second);
-        $third = $this->sessions->refresh($second->refreshToken);
+        $third = $this->sessions->refresh($second->refreshToken());
         $this->assertNotNull($third);
 
         $this->assertNull($this->sessions->refresh('first'));
-        $latest = $this->rowByHash(hash('sha256', $third->refreshToken));
+        $latest = $this->rowByHash(hash('sha256', $third->refreshToken()));
         $this->assertSame('replay_detected', $latest['revoked_reason']);
-        $this->assertNull($this->sessions->refresh($third->refreshToken));
+        $this->assertNull($this->sessions->refresh($third->refreshToken()));
     }
 
     public function testLogoutRevokesOnlyThePresentedSession(): void
