@@ -6,6 +6,9 @@ namespace Pidgey;
 
 use PDO;
 use Pidgey\Auth\AccessToken;
+use Pidgey\Auth\Login;
+use Pidgey\Auth\Passwords;
+use Pidgey\Auth\Registration;
 use Pidgey\Auth\SecretKeys;
 use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
@@ -16,6 +19,7 @@ use Pidgey\Infra\Env;
 use Pidgey\Infra\PdoFactory;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\Transaction;
+use Pidgey\Infra\UserApproval;
 use Pidgey\Infra\WallClock;
 use Pidgey\Repository\AccountEditLockoutRepository;
 use Pidgey\Repository\ApiTokenRepository;
@@ -61,6 +65,12 @@ final class Container
 
     private ?SessionRotation $sessionRotation = null;
 
+    private ?Passwords $passwords = null;
+
+    private ?Registration $registration = null;
+
+    private ?Login $login = null;
+
     /**
      * Creates an empty container; nothing is built yet.
      *
@@ -82,6 +92,17 @@ final class Container
     public function wallClock(): WallClock
     {
         return $this->wallClock ??= new SystemWallClock();
+    }
+
+    /**
+     * Tells whether new registrations start `pending`, read from `USER_APPROVAL_REQUIRED` on
+     * each call (only the exact value `false` disables approval).
+     *
+     * @return boolean
+     */
+    public function userApprovalRequired(): bool
+    {
+        return UserApproval::required();
     }
 
     /**
@@ -140,6 +161,51 @@ final class Container
             $this->accessToken(),
             self::refreshTokenTtl(),
         );
+    }
+
+    /**
+     * Returns the password hashing and verification helper (opens no connection).
+     *
+     * @return Passwords
+     */
+    public function passwords(): Passwords
+    {
+        return $this->passwords ??= new Passwords();
+    }
+
+    /**
+     * Returns the registration service, built from the request's connection, the sessions
+     * service and `USER_APPROVAL_REQUIRED` on the first call (which opens the connection).
+     *
+     * @return Registration
+     *
+     * @throws RuntimeException When `SECRET_KEY`, a TTL or a required DB_* variable is missing or
+     *                          invalid.
+     */
+    public function registration(): Registration
+    {
+        return $this->registration ??= new Registration(
+            $this->transaction(),
+            $this->organizationRepository(),
+            $this->userRepository(),
+            $this->sessions(),
+            $this->passwords(),
+            $this->userApprovalRequired(),
+        );
+    }
+
+    /**
+     * Returns the login service, built from the request's connection and the sessions service on
+     * the first call (which opens the connection).
+     *
+     * @return Login
+     *
+     * @throws RuntimeException When `SECRET_KEY`, a TTL or a required DB_* variable is missing or
+     *                          invalid.
+     */
+    public function login(): Login
+    {
+        return $this->login ??= new Login($this->userRepository(), $this->sessions(), $this->passwords());
     }
 
     /**

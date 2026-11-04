@@ -12,6 +12,9 @@ use PHPUnit\Framework\TestCase;
 use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccessTokenClaims;
 use Pidgey\Auth\Base64Url;
+use Pidgey\Auth\Login;
+use Pidgey\Auth\Passwords;
+use Pidgey\Auth\Registration;
 use Pidgey\Auth\SecretKeys;
 use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
@@ -21,6 +24,7 @@ use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\Transaction;
+use Pidgey\Infra\UserApproval;
 use Pidgey\Infra\WallClock;
 use Pidgey\Repository\AccountEditLockoutRepository;
 use Pidgey\Repository\ApiTokenRepository;
@@ -36,6 +40,9 @@ use RuntimeException;
 #[UsesClass(AccessToken::class)]
 #[UsesClass(AccessTokenClaims::class)]
 #[UsesClass(Base64Url::class)]
+#[UsesClass(Login::class)]
+#[UsesClass(Passwords::class)]
+#[UsesClass(Registration::class)]
 #[UsesClass(SecretKeys::class)]
 #[UsesClass(SessionRotation::class)]
 #[UsesClass(Sessions::class)]
@@ -43,6 +50,7 @@ use RuntimeException;
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(Transaction::class)]
+#[UsesClass(UserApproval::class)]
 #[UsesClass(OrganizationRepository::class)]
 #[UsesClass(UserRepository::class)]
 #[UsesClass(RefreshTokenRepository::class)]
@@ -63,6 +71,7 @@ final class ContainerTest extends TestCase
         'PREVIOUS_SECRET_KEYS',
         'ACCESS_TOKEN_TTL',
         'REFRESH_TOKEN_TTL',
+        'USER_APPROVAL_REQUIRED',
     ];
 
     private const SECRET_KEY = 'container-test-secret-key-0123456789abcdef';
@@ -85,6 +94,7 @@ final class ContainerTest extends TestCase
         putenv('PREVIOUS_SECRET_KEYS');
         putenv('ACCESS_TOKEN_TTL');
         putenv('REFRESH_TOKEN_TTL');
+        putenv('USER_APPROVAL_REQUIRED');
     }
 
     protected function tearDown(): void
@@ -362,6 +372,59 @@ final class ContainerTest extends TestCase
         $this->expectExceptionMessage('REFRESH_TOKEN_TTL');
 
         (new Container($factory))->sessions();
+    }
+
+    public function testPasswordsIsMemoizedAndOpensNoConnection(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $passwords = $container->passwords();
+
+        $this->assertInstanceOf(Passwords::class, $passwords);
+        $this->assertSame($passwords, $container->passwords());
+    }
+
+    public function testRegistrationIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $registration = $container->registration();
+
+        $this->assertInstanceOf(Registration::class, $registration);
+        $this->assertSame($registration, $container->registration());
+        $container->sessions();
+        $container->transaction();
+    }
+
+    public function testLoginIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $login = $container->login();
+
+        $this->assertInstanceOf(Login::class, $login);
+        $this->assertSame($login, $container->login());
+        $container->sessions();
+    }
+
+    public function testUserApprovalIsRequiredByDefaultAndOpensNoConnection(): void
+    {
+        $this->assertTrue((new Container($this->unusedConnections()))->userApprovalRequired());
+    }
+
+    public function testUserApprovalFollowsTheEnvironment(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        putenv('USER_APPROVAL_REQUIRED=false');
+        $this->assertFalse($container->userApprovalRequired());
+
+        putenv('USER_APPROVAL_REQUIRED=FALSE');
+        $this->assertTrue($container->userApprovalRequired());
     }
 
     private function unusedConnections(): ConnectionFactory

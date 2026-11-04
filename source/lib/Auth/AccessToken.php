@@ -42,6 +42,16 @@ final class AccessToken
     }
 
     /**
+     * Returns the token lifetime in seconds, also the `access_token` cookie `Max-Age`.
+     *
+     * @return integer
+     */
+    public function ttl(): int
+    {
+        return $this->ttl;
+    }
+
+    /**
      * Issues a token signed with the current key, valid for the TTL from now.
      *
      * @param integer $userId    The user id (`sub`).

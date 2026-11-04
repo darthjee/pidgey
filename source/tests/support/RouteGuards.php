@@ -18,7 +18,13 @@ use Pidgey\Http\Router;
 final class RouteGuards
 {
     /** Routes that are reachable without credentials, as "<METHOD> <pattern>". */
-    public const PUBLIC_ROUTES = ['GET /', 'GET /assets/*', 'GET /health.json'];
+    public const PUBLIC_ROUTES = [
+        'GET /',
+        'GET /assets/*',
+        'GET /health.json',
+        'POST /auth/register.json',
+        'POST /auth/login.json',
+    ];
 
     /** Future Bearer middleware of the /v1 API; referenced by name until it exists. */
     public const API_TOKEN_AUTH = 'Pidgey\\Auth\\ApiTokenAuth';

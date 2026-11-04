@@ -10,6 +10,7 @@ use PDO;
 use PDOException;
 use Pidgey\Model\User;
 use Pidgey\Model\UserStatus;
+use SensitiveParameter;
 
 /**
  * Reads and writes the `users` table.
@@ -55,7 +56,7 @@ final class UserRepository
         int $organizationId,
         string $username,
         string $email,
-        string $passwordDigest,
+        #[SensitiveParameter] string $passwordDigest,
         UserStatus $status,
         bool $isAdmin = false,
     ): User {
@@ -133,6 +134,48 @@ final class UserRepository
             'SELECT ' . self::COLUMNS . ' FROM users WHERE email = :email',
             ['email' => $email],
         );
+    }
+
+    /**
+     * Finds a user whose username or email is already taken, in one query (the register pre-check).
+     *
+     * When one row matches the username and another the email, the username row is returned,
+     * so the caller can report `USERNAME_TAKEN` first. Every status counts: denied users keep
+     * their username and email. Unscoped on purpose: usernames and emails are unique across
+     * organizations (see api/endpoints/auth/session.md).
+     *
+     * @param string $username Username, compared as given (no trimming).
+     * @param string $email    Email address, compared as given (no trimming).
+     *
+     * @return User|null Null when neither the username nor the email is taken.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function findTaken(string $username, string $email): ?User
+    {
+        return $this->fetchOne(
+            'SELECT ' . self::COLUMNS . ' FROM users WHERE username = :username OR email = :email '
+            . 'ORDER BY (username = :username_first) DESC LIMIT 1',
+            ['username' => $username, 'email' => $email, 'username_first' => $username],
+        );
+    }
+
+    /**
+     * Stores a new password digest for a user (the login rehash).
+     *
+     * Unscoped on purpose: login identifies the user by username before any organization is known.
+     *
+     * @param integer $id     Primary key.
+     * @param string  $digest New digest, from `password_hash()`.
+     *
+     * @return void
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function updatePasswordDigest(int $id, #[SensitiveParameter] string $digest): void
+    {
+        $this->pdo->prepare('UPDATE users SET password_digest = :password_digest WHERE id = :id')
+            ->execute(['password_digest' => $digest, 'id' => $id]);
     }
 
     /**

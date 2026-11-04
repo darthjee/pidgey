@@ -9,6 +9,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Pidgey\Http\Handler\HashRedirectHandler;
 use Pidgey\Http\Handler\HealthHandler;
+use Pidgey\Http\Handler\LoginHandler;
+use Pidgey\Http\Handler\RegisterHandler;
 use Pidgey\Http\Handler\StaticFileHandler;
 use Pidgey\Http\OriginCheck;
 use Pidgey\Http\Request;
@@ -36,6 +38,13 @@ final class RoutesTest extends TestCase
             'GET /' => ['GET', '/', StaticFileHandler::class, '/'],
             'GET /assets/x.js' => ['GET', '/assets/x.js', StaticFileHandler::class, '/assets/*'],
             'GET /health.json' => ['GET', '/health.json', HealthHandler::class, '/health.json'],
+            'POST /auth/register.json' => [
+                'POST',
+                '/auth/register.json',
+                RegisterHandler::class,
+                '/auth/register.json',
+            ],
+            'POST /auth/login.json' => ['POST', '/auth/login.json', LoginHandler::class, '/auth/login.json'],
         ];
     }
 
@@ -99,6 +108,8 @@ final class RoutesTest extends TestCase
             'v1 API path' => ['GET', '/v1/messages'],
             'HEAD on the index' => ['HEAD', '/'],
             'non-GET deep link' => ['POST', '/foo'],
+            'GET on the login endpoint' => ['GET', '/auth/login.json'],
+            'PATCH on the register endpoint' => ['PATCH', '/auth/register.json'],
         ];
     }
 

@@ -31,6 +31,11 @@ final class AccessTokenTest extends TestCase
     private const SESSION_ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
     private const HEADER = '{"alg":"HS256","typ":"JWT"}';
 
+    public function testTtlIsTheConfiguredLifetime(): void
+    {
+        $this->assertSame(self::TTL, self::service()->ttl());
+    }
+
     public function testIssuedTokenVerifies(): void
     {
         $service = self::service();
