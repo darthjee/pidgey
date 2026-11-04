@@ -62,11 +62,12 @@ final class SessionRotation
     {
         $now = $this->clock->now();
         $plain = RefreshTokenValue::generate();
+        $hash = RefreshTokenValue::hash($plain);
 
         try {
-            $this->transaction->run(function () use ($presented, $plain, $now): void {
+            $this->transaction->run(function () use ($presented, $hash, $now): void {
                 $this->refreshTokens->create(
-                    RefreshTokenValue::hash($plain),
+                    $hash,
                     $presented->userId,
                     $presented->sessionUuid,
                     $now,
