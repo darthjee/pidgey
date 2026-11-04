@@ -71,6 +71,9 @@ final class AccountEditTest extends SessionEndpointTestCase
     /** A password generated once for the whole class, so no password literal is hardcoded. */
     private static string $password;
 
+    /** A password that never matches, generated once for the whole class. */
+    private static string $wrongPassword;
+
     /** A cheap bcrypt digest of the password (cost 4: password_needs_rehash() is true for it). */
     private static string $digest;
 
@@ -93,7 +96,8 @@ final class AccountEditTest extends SessionEndpointTestCase
     {
         parent::setUpBeforeClass();
 
-        self::$password = 'pw-' . bin2hex(random_bytes(12));
+        self::$password = self::randomPassword('pw-');
+        self::$wrongPassword = self::randomPassword('wrong-');
         self::$digest = password_hash(self::$password, PASSWORD_BCRYPT, ['cost' => 4]);
     }
 
@@ -159,7 +163,7 @@ final class AccountEditTest extends SessionEndpointTestCase
     public function testEditsThePasswordOnly(): void
     {
         $user = $this->user('bob', 'bob@example.com');
-        $newPassword = 'new-' . bin2hex(random_bytes(8));
+        $newPassword = self::randomPassword('new-', 8);
 
         $result = $this->service()->edit($user->id, self::$password, null, null, $newPassword);
 
@@ -173,7 +177,7 @@ final class AccountEditTest extends SessionEndpointTestCase
     public function testEditsEveryFieldTogether(): void
     {
         $user = $this->user('bob', 'bob@example.com');
-        $newPassword = 'new-' . bin2hex(random_bytes(8));
+        $newPassword = self::randomPassword('new-', 8);
 
         $result = $this->service()->edit($user->id, self::$password, 'bobby', 'bobby@example.com', $newPassword);
 
@@ -199,7 +203,7 @@ final class AccountEditTest extends SessionEndpointTestCase
         $user = $this->user('bob', 'bob@example.com');
 
         $this->assertError(
-            fn () => $this->service()->edit($user->id, 'wrong-password', 'bobby', null, null),
+            fn () => $this->service()->edit($user->id, self::$wrongPassword, 'bobby', null, null),
             400,
             null,
             'Invalid current password',
@@ -495,7 +499,7 @@ final class AccountEditTest extends SessionEndpointTestCase
         $this->pdo->exec('SET SESSION innodb_lock_wait_timeout = 1');
 
         try {
-            $this->service()->edit($user->id, 'wrong-password', 'bobby', null, null);
+            $this->service()->edit($user->id, self::$wrongPassword, 'bobby', null, null);
             $this->fail('Expected a lock wait timeout');
         } catch (PDOException $exception) {
             $this->assertStringContainsString('1205', (string) $exception->errorInfo[1]);
@@ -515,7 +519,7 @@ final class AccountEditTest extends SessionEndpointTestCase
 
         for ($attempt = 0; $attempt < self::MAX_ATTEMPTS + 3; $attempt++) {
             try {
-                $this->service()->edit($user->id, 'wrong-password', 'bobby', null, null);
+                $this->service()->edit($user->id, self::$wrongPassword, 'bobby', null, null);
             } catch (HttpException $error) {
                 $statuses[] = $error->status();
             }
@@ -577,7 +581,7 @@ final class AccountEditTest extends SessionEndpointTestCase
     private function wrongPassword(User $user): void
     {
         try {
-            $this->service()->edit($user->id, 'wrong-password', 'bobby', null, null);
+            $this->service()->edit($user->id, self::$wrongPassword, 'bobby', null, null);
             $this->fail('Expected a BadRequestException');
         } catch (BadRequestException) {
             // Counted, as expected.

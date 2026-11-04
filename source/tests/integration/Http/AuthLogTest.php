@@ -38,7 +38,7 @@ final class AuthLogTest extends SessionEndpointTestCase
     {
         parent::setUp();
 
-        $this->password = 'pw-' . bin2hex(random_bytes(12));
+        $this->password = self::randomPassword('pw-');
         $this->secrets = [$this->password];
         $this->router = require __DIR__ . '/../../../config/routes.php';
         $this->errorLog = (string) tempnam(sys_get_temp_dir(), 'pidgey-auth-log-');
@@ -237,10 +237,10 @@ final class AuthLogTest extends SessionEndpointTestCase
             ['username' => 'bob', 'password' => $this->password],
         ));
         $cookies = ['access_token' => $access];
-        $newPassword = 'new-' . bin2hex(random_bytes(12));
-        $wrong = 'wrong-' . bin2hex(random_bytes(12));
+        $newPassword = self::randomPassword('new-');
+        $wrongPassword = self::randomPassword('wrong-');
         $this->secrets[] = $newPassword;
-        $this->secrets[] = $wrong;
+        $this->secrets[] = $wrongPassword;
         $edit = fn (array $body, array $with = []): Response => $this->patch(
             $this->router,
             '/auth/account.json',
@@ -249,11 +249,11 @@ final class AuthLogTest extends SessionEndpointTestCase
         );
 
         $responses = [
-            $edit(['currentPassword' => $this->password, 'newPassword' => "a\0b"], $cookies),
+            $edit(['currentPassword' => $this->password, 'newPassword' => implode(chr(0), ['a', 'b'])], $cookies),
             $edit(['currentPassword' => $this->password], $cookies),
             $edit(['currentPassword' => $this->password, 'newPassword' => $newPassword], $cookies),
-            $edit(['currentPassword' => $wrong, 'newPassword' => $this->password], $cookies),
-            $edit(['currentPassword' => $wrong, 'username' => 'bobby'], $cookies),
+            $edit(['currentPassword' => $wrongPassword, 'newPassword' => $this->password], $cookies),
+            $edit(['currentPassword' => $wrongPassword, 'username' => 'bobby'], $cookies),
             $edit(['currentPassword' => $newPassword, 'username' => 'bobby'], $cookies),
             $edit(['currentPassword' => $newPassword, 'username' => 'bobby']),
         ];

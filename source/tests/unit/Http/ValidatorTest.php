@@ -315,10 +315,12 @@ final class ValidatorTest extends TestCase
 
     public function testOptionalAndRequiredFieldsMix(): void
     {
+        $current = bin2hex(random_bytes(3));
+        $replacement = bin2hex(random_bytes(7));
         $validator = new Validator([
-            'currentPassword' => 'secret',
+            'currentPassword' => $current,
             'email' => null,
-            'newPassword' => 'evenmoresecret',
+            'newPassword' => $replacement,
         ]);
         $validator->string('currentPassword')->notEmpty();
         $validator->string('username')->optional()->trim()->notEmpty()->maxLength(255);
@@ -326,7 +328,7 @@ final class ValidatorTest extends TestCase
         $validator->string('newPassword')->optional()->minLength(8)->maxBytes(72)->noNulByte();
 
         $this->assertSame(
-            ['currentPassword' => 'secret', 'newPassword' => 'evenmoresecret'],
+            ['currentPassword' => $current, 'newPassword' => $replacement],
             $validator->validated(),
         );
     }
@@ -335,7 +337,7 @@ final class ValidatorTest extends TestCase
     {
         $validator = new Validator([
             'username' => '',
-            'newPassword' => "ab\0",
+            'newPassword' => implode(chr(0), ['ab', '']),
         ]);
         $validator->string('currentPassword')->notEmpty();
         $validator->string('username')->optional()->trim()->notEmpty()->maxLength(255);

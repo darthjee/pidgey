@@ -118,6 +118,9 @@ final class AccountHandlerTest extends SessionEndpointTestCase
     /** A password generated once for the whole class, so no password literal is hardcoded. */
     private static string $password;
 
+    /** A password that never matches, generated once for the whole class. */
+    private static string $wrongPassword;
+
     /** A cheap bcrypt digest of the password. */
     private static string $digest;
 
@@ -127,7 +130,8 @@ final class AccountHandlerTest extends SessionEndpointTestCase
     {
         parent::setUpBeforeClass();
 
-        self::$password = 'pw-' . bin2hex(random_bytes(12));
+        self::$password = self::randomPassword('pw-');
+        self::$wrongPassword = self::randomPassword('wrong-');
         self::$digest = password_hash(self::$password, PASSWORD_BCRYPT, ['cost' => 4]);
     }
 
@@ -204,7 +208,8 @@ final class AccountHandlerTest extends SessionEndpointTestCase
     public function testEditsThePasswordAndTheNewOneLogsIn(): void
     {
         $user = $this->user('bob', 'bob@example.com');
-        $newPassword = ' new-' . bin2hex(random_bytes(8)) . ' ';
+        // Padded to one space on each side: the surrounding spaces are kept, not trimmed.
+        $newPassword = str_pad(self::randomPassword('new-', 8), 22, ' ', STR_PAD_BOTH);
 
         $response = $this->send(
             ['currentPassword' => self::$password, 'newPassword' => $newPassword],
@@ -251,7 +256,7 @@ final class AccountHandlerTest extends SessionEndpointTestCase
     {
         $user = $this->user('bob', 'bob@example.com');
 
-        $response = $this->sendAs($user, ['currentPassword' => 'wrong-password', ...$changes]);
+        $response = $this->sendAs($user, ['currentPassword' => self::$wrongPassword, ...$changes]);
 
         $this->assertError($response, 400, 'BAD_REQUEST', AccountHandler::NOTHING_TO_CHANGE);
         $this->assertNull($this->lockoutRow($user->id));
@@ -284,7 +289,7 @@ final class AccountHandlerTest extends SessionEndpointTestCase
                 ['email must be an email', 'email must be shorter than or equal to 255 characters'],
             ],
             'new password too short' => [
-                ['newPassword' => 'abcdefg'],
+                ['newPassword' => str_repeat('a', 7)],
                 ['newPassword must be longer than or equal to 8 characters'],
             ],
             'new password over 72 bytes' => [
@@ -292,7 +297,7 @@ final class AccountHandlerTest extends SessionEndpointTestCase
                 ['newPassword must be shorter than or equal to 72 bytes'],
             ],
             'new password with a NUL byte' => [
-                ['newPassword' => "abcd\0efgh"],
+                ['newPassword' => implode(chr(0), ['abcd', 'efgh'])],
                 ['newPassword must not contain a NUL byte'],
             ],
         ];
@@ -307,7 +312,7 @@ final class AccountHandlerTest extends SessionEndpointTestCase
     {
         $user = $this->user('bob', 'bob@example.com');
 
-        $response = $this->sendAs($user, ['currentPassword' => 'wrong-password', ...$body]);
+        $response = $this->sendAs($user, ['currentPassword' => self::$wrongPassword, ...$body]);
 
         $this->assertSame(400, $response->status());
         $this->assertSame('VALIDATION_FAILED', self::json($response)['error']['code']);
@@ -351,7 +356,7 @@ final class AccountHandlerTest extends SessionEndpointTestCase
     {
         $user = $this->user('bob', 'bob@example.com');
 
-        $response = $this->sendAs($user, ['currentPassword' => 'wrong-password', 'username' => 'bobby']);
+        $response = $this->sendAs($user, ['currentPassword' => self::$wrongPassword, 'username' => 'bobby']);
 
         $this->assertError($response, 400, 'BAD_REQUEST', 'Invalid current password');
         $this->assertSame('1', (string) $this->lockoutRow($user->id)['failed_attempts']);
@@ -396,11 +401,11 @@ final class AccountHandlerTest extends SessionEndpointTestCase
         putenv('ACCOUNT_EDIT_MAX_ATTEMPTS=2');
         $user = $this->user('bob', 'bob@example.com');
         $cookie = $this->accessCookie($user);
-        $wrong = ['currentPassword' => 'wrong-password', 'username' => 'bobby'];
+        $wrongAttempt = ['currentPassword' => self::$wrongPassword, 'username' => 'bobby'];
 
         $statuses = [
-            $this->send($wrong, $cookie)->status(),
-            $this->send($wrong, $cookie)->status(),
+            $this->send($wrongAttempt, $cookie)->status(),
+            $this->send($wrongAttempt, $cookie)->status(),
         ];
         $locked = $this->send(['currentPassword' => self::$password, 'username' => 'bobby'], $cookie);
 

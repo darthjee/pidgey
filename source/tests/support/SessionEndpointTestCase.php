@@ -255,6 +255,15 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
     }
 
     /**
+     * Builds a random password (the prefix followed by `$bytes` random bytes in hex), so no
+     * password literal is hardcoded.
+     */
+    protected static function randomPassword(string $prefix = '', int $bytes = 12): string
+    {
+        return $prefix . bin2hex(random_bytes($bytes));
+    }
+
+    /**
      * Builds a container over the real database, reading the current environment.
      */
     protected function container(): Container
