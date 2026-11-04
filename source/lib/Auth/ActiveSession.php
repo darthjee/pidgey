@@ -24,4 +24,22 @@ final readonly class ActiveSession
         public User $user,
     ) {
     }
+
+    /**
+     * Debug view (`var_dump`, `print_r`): the token without its digest and the user reduced to
+     * its id and username (no password digest, no email).
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'token' => [
+                'id' => $this->token->id,
+                'userId' => $this->token->userId,
+                'sessionUuid' => $this->token->sessionUuid,
+            ],
+            'user' => ['id' => $this->user->id, 'username' => $this->user->username],
+        ];
+    }
 }

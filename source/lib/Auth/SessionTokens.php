@@ -64,7 +64,8 @@ final readonly class SessionTokens
     }
 
     /**
-     * Debug view (`var_dump`, `print_r`) with both tokens redacted.
+     * Debug view (`var_dump`, `print_r`) with both tokens redacted and the user reduced to its id
+     * and username (no password digest, no email).
      *
      * @return array<string, mixed>
      */
@@ -74,7 +75,7 @@ final readonly class SessionTokens
             'refreshToken' => self::REDACTED,
             'accessToken' => self::REDACTED,
             'sessionUuid' => $this->sessionUuid,
-            'user' => $this->user,
+            'user' => ['id' => $this->user->id, 'username' => $this->user->username],
         ];
     }
 }

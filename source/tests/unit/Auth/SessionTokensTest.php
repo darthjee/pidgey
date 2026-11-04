@@ -39,6 +39,19 @@ final class SessionTokensTest extends TestCase
         $this->assertSame(self::SESSION, $debug['sessionUuid']);
     }
 
+    public function testDebugInfoShowsOnlyTheUsersIdAndUsername(): void
+    {
+        $this->assertSame(['id' => 7, 'username' => 'bob'], $this->tokens()->__debugInfo()['user']);
+    }
+
+    public function testPrintRShowsNeitherDigestNorEmail(): void
+    {
+        $output = print_r($this->tokens(), true);
+
+        $this->assertStringNotContainsString('$2y$10$digest', $output);
+        $this->assertStringNotContainsString('bob@example.com', $output);
+    }
+
     public function testPrintRShowsNeitherToken(): void
     {
         $output = print_r($this->tokens(), true);
