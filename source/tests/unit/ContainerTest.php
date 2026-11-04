@@ -12,6 +12,8 @@ use PHPUnit\Framework\TestCase;
 use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccessTokenClaims;
 use Pidgey\Auth\Base64Url;
+use Pidgey\Auth\Passwords;
+use Pidgey\Auth\Registration;
 use Pidgey\Auth\SecretKeys;
 use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
@@ -37,6 +39,8 @@ use RuntimeException;
 #[UsesClass(AccessToken::class)]
 #[UsesClass(AccessTokenClaims::class)]
 #[UsesClass(Base64Url::class)]
+#[UsesClass(Passwords::class)]
+#[UsesClass(Registration::class)]
 #[UsesClass(SecretKeys::class)]
 #[UsesClass(SessionRotation::class)]
 #[UsesClass(Sessions::class)]
@@ -366,6 +370,30 @@ final class ContainerTest extends TestCase
         $this->expectExceptionMessage('REFRESH_TOKEN_TTL');
 
         (new Container($factory))->sessions();
+    }
+
+    public function testPasswordsIsMemoizedAndOpensNoConnection(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $passwords = $container->passwords();
+
+        $this->assertInstanceOf(Passwords::class, $passwords);
+        $this->assertSame($passwords, $container->passwords());
+    }
+
+    public function testRegistrationIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $registration = $container->registration();
+
+        $this->assertInstanceOf(Registration::class, $registration);
+        $this->assertSame($registration, $container->registration());
+        $container->sessions();
+        $container->transaction();
     }
 
     public function testUserApprovalIsRequiredByDefaultAndOpensNoConnection(): void

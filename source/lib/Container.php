@@ -6,6 +6,8 @@ namespace Pidgey;
 
 use PDO;
 use Pidgey\Auth\AccessToken;
+use Pidgey\Auth\Passwords;
+use Pidgey\Auth\Registration;
 use Pidgey\Auth\SecretKeys;
 use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
@@ -61,6 +63,10 @@ final class Container
     private ?Sessions $sessions = null;
 
     private ?SessionRotation $sessionRotation = null;
+
+    private ?Passwords $passwords = null;
+
+    private ?Registration $registration = null;
 
     /**
      * Creates an empty container; nothing is built yet.
@@ -151,6 +157,37 @@ final class Container
             $this->transaction(),
             $this->accessToken(),
             self::refreshTokenTtl(),
+        );
+    }
+
+    /**
+     * Returns the password hashing and verification helper (opens no connection).
+     *
+     * @return Passwords
+     */
+    public function passwords(): Passwords
+    {
+        return $this->passwords ??= new Passwords();
+    }
+
+    /**
+     * Returns the registration service, built from the request's connection, the sessions
+     * service and `USER_APPROVAL_REQUIRED` on the first call (which opens the connection).
+     *
+     * @return Registration
+     *
+     * @throws RuntimeException When `SECRET_KEY`, a TTL or a required DB_* variable is missing or
+     *                          invalid.
+     */
+    public function registration(): Registration
+    {
+        return $this->registration ??= new Registration(
+            $this->transaction(),
+            $this->organizationRepository(),
+            $this->userRepository(),
+            $this->sessions(),
+            $this->passwords(),
+            $this->userApprovalRequired(),
         );
     }
 
