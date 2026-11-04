@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Pidgey\Tests\Integration\Http;
 
+use PDO;
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Pidgey\Http\Response;
 use Pidgey\Http\Router;
 use Pidgey\Tests\Support\SessionEndpointTestCase;
 
 /**
- * End-to-end register and login through config/routes.php: the origin check applies, and no
- * password, digest, refresh token or access token ever reaches a log, on success or failure.
+ * End-to-end session endpoints (register, login, refresh, logoff, status) through
+ * config/routes.php: the origin check applies, and no password, digest, refresh token, token hash
+ * or access token ever reaches a log, on success or failure.
  *
  * Both the error formatter's logger and PHP's `error_log` (redirected to a temporary file) are
  * captured.
@@ -131,6 +134,99 @@ final class AuthLogTest extends SessionEndpointTestCase
     }
 
     /**
+     * @return array<string, array{string, string}>
+     */
+    public static function sessionRoutes(): array
+    {
+        return [
+            'refresh' => ['POST', '/auth/refresh.json'],
+            'logoff' => ['DELETE', '/auth/logoff.json'],
+            'status' => ['POST', '/auth/status.json'],
+        ];
+    }
+
+    #[DataProvider('sessionRoutes')]
+    public function testACrossSiteSessionRequestIsRejectedBeforeTheHandler(string $method, string $path): void
+    {
+        $token = $this->registered();
+        $before = $this->tokenRows();
+
+        $response = $this->dispatch($this->router, $method, $path, ['refreshToken' => $token], [
+            'Sec-Fetch-Site' => 'cross-site',
+            'Origin' => 'https://evil.example',
+        ]);
+
+        $this->assertSame(403, $response->status());
+        $this->assertSame('FORBIDDEN', self::json($response)['error']['code']);
+        $this->assertSame([], self::cookies($response));
+        $this->assertSame($before, $this->tokenRows());
+        $this->assertNothingSecretWasLogged();
+    }
+
+    public function testASessionFlowWithSameOriginRequests(): void
+    {
+        putenv('USER_APPROVAL_REQUIRED=false');
+        $sameOrigin = ['Sec-Fetch-Site' => 'same-origin'];
+        $first = $this->registered();
+
+        $refreshed = $this->post($this->router, '/auth/refresh.json', ['refreshToken' => $first], $sameOrigin);
+        $this->remember($refreshed);
+        $token = (string) self::json($refreshed)['refreshToken'];
+        $status = $this->post($this->router, '/auth/status.json', ['refreshToken' => $token], $sameOrigin);
+        $logoff = $this->delete($this->router, '/auth/logoff.json', ['refreshToken' => $token], $sameOrigin);
+        $after = $this->post($this->router, '/auth/refresh.json', ['refreshToken' => $token], $sameOrigin);
+
+        $this->assertSame(201, $refreshed->status());
+        $this->assertSame(['loggedIn' => true, 'isAdmin' => false], self::json($status));
+        $this->assertSame(204, $logoff->status());
+        $this->assertSame(401, $after->status());
+        $this->assertNothingSecretWasLogged();
+    }
+
+    public function testSessionRequestsLogNoSecret(): void
+    {
+        $token = $this->registered();
+        $other = $this->post($this->router, '/auth/login.json', ['username' => 'bob', 'password' => $this->password]);
+        $this->remember($other);
+        $otherToken = (string) self::json($other)['refreshToken'];
+        $unknown = 'unknown-' . bin2hex(random_bytes(16));
+        $this->secrets[] = $unknown;
+
+        $refreshed = $this->post($this->router, '/auth/refresh.json', ['refreshToken' => $token]);
+        $this->remember($refreshed);
+        $this->rememberTokenHashes();
+        $responses = [
+            $refreshed,
+            $this->post($this->router, '/auth/refresh.json', ['refreshToken' => $unknown]),
+            $this->post($this->router, '/auth/refresh.json', ['refreshToken' => ' ' . $token]),
+            $this->post($this->router, '/auth/status.json', ['refreshToken' => $unknown]),
+            $this->post($this->router, '/auth/status.json', ['refreshToken' => $otherToken]),
+            $this->delete($this->router, '/auth/logoff.json', ['refreshToken' => $unknown]),
+            $this->delete($this->router, '/auth/logoff.json', ['refreshToken' => $otherToken]),
+            $this->post($this->router, '/auth/refresh.json', ['refreshToken' => $token]),
+            $this->post($this->router, '/auth/refresh.json', '{"refreshToken": ""}'),
+        ];
+        $statuses = array_map(static fn (Response $response): int => $response->status(), $responses);
+
+        $this->assertSame([201, 401, 401, 201, 201, 204, 204, 401, 400], $statuses);
+        $this->assertNothingSecretWasLogged();
+    }
+
+    #[DataProvider('sessionRoutes')]
+    public function testAnUnexpectedSessionErrorLogsNoSecret(string $method, string $path): void
+    {
+        $token = $this->registered();
+        $this->rememberTokenHashes();
+        putenv('REFRESH_TOKEN_TTL=soon');
+
+        $response = $this->dispatch($this->router, $method, $path, ['refreshToken' => $token]);
+
+        $this->assertSame(500, $response->status());
+        $this->assertNotSame([], $this->logged);
+        $this->assertNothingSecretWasLogged();
+    }
+
+    /**
      * @return array<string, string> A valid register body using the generated password.
      */
     private function register(): array
@@ -156,6 +252,36 @@ final class AuthLogTest extends SessionEndpointTestCase
         }
 
         $this->secrets[] = (string) $this->row('users', 'username', 'bob')['password_digest'];
+    }
+
+    /**
+     * Registers bob and returns the session's refresh token, remembering its secrets.
+     */
+    private function registered(): string
+    {
+        $response = $this->post($this->router, '/auth/register.json', $this->register());
+        $this->assertSame(201, $response->status());
+        $this->remember($response);
+
+        return (string) self::json($response)['refreshToken'];
+    }
+
+    /**
+     * Records every stored refresh token hash as a secret.
+     */
+    private function rememberTokenHashes(): void
+    {
+        foreach ($this->tokenRows() as $row) {
+            $this->secrets[] = (string) $row['token_hash'];
+        }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function tokenRows(): array
+    {
+        return $this->pdo->query('SELECT * FROM refresh_tokens ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
     }
 
     private function assertNothingSecretWasLogged(): void
