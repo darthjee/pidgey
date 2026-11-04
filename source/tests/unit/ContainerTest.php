@@ -11,6 +11,7 @@ use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccessTokenClaims;
+use Pidgey\Auth\AccountEdit;
 use Pidgey\Auth\Base64Url;
 use Pidgey\Auth\Login;
 use Pidgey\Auth\Passwords;
@@ -39,6 +40,7 @@ use RuntimeException;
 #[CoversClass(Container::class)]
 #[UsesClass(AccessToken::class)]
 #[UsesClass(AccessTokenClaims::class)]
+#[UsesClass(AccountEdit::class)]
 #[UsesClass(Base64Url::class)]
 #[UsesClass(Login::class)]
 #[UsesClass(Passwords::class)]
@@ -72,6 +74,8 @@ final class ContainerTest extends TestCase
         'ACCESS_TOKEN_TTL',
         'REFRESH_TOKEN_TTL',
         'USER_APPROVAL_REQUIRED',
+        'ACCOUNT_EDIT_MAX_ATTEMPTS',
+        'ACCOUNT_EDIT_LOCK_TTL',
     ];
 
     private const SECRET_KEY = 'container-test-secret-key-0123456789abcdef';
@@ -95,6 +99,8 @@ final class ContainerTest extends TestCase
         putenv('ACCESS_TOKEN_TTL');
         putenv('REFRESH_TOKEN_TTL');
         putenv('USER_APPROVAL_REQUIRED');
+        putenv('ACCOUNT_EDIT_MAX_ATTEMPTS');
+        putenv('ACCOUNT_EDIT_LOCK_TTL');
     }
 
     protected function tearDown(): void
@@ -409,6 +415,43 @@ final class ContainerTest extends TestCase
         $this->assertInstanceOf(Login::class, $login);
         $this->assertSame($login, $container->login());
         $container->sessions();
+    }
+
+    public function testAccountEditIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $accountEdit = $container->accountEdit();
+
+        $this->assertInstanceOf(AccountEdit::class, $accountEdit);
+        $this->assertSame($accountEdit, $container->accountEdit());
+        $container->transaction();
+    }
+
+    public function testAccountEditRejectsAnInvalidMaxAttempts(): void
+    {
+        $factory = $this->createStub(ConnectionFactory::class);
+        $factory->method('create')->willReturn($this->createStub(PDO::class));
+        putenv('ACCOUNT_EDIT_MAX_ATTEMPTS=many');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ACCOUNT_EDIT_MAX_ATTEMPTS');
+
+        (new Container($factory))->accountEdit();
+    }
+
+    public function testAccountEditRejectsAnInvalidLockTtl(): void
+    {
+        $factory = $this->createStub(ConnectionFactory::class);
+        $factory->method('create')->willReturn($this->createStub(PDO::class));
+        putenv('ACCOUNT_EDIT_LOCK_TTL=-1');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ACCOUNT_EDIT_LOCK_TTL');
+
+        (new Container($factory))->accountEdit();
     }
 
     public function testUserApprovalIsRequiredByDefaultAndOpensNoConnection(): void
