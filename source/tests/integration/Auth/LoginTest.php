@@ -171,6 +171,45 @@ final class LoginTest extends SessionEndpointTestCase
         $this->assertTrue(password_verify(self::PASSWORD, $digest));
     }
 
+    public function testAnOutdatedDigestIsRehashedForAPasswordOfExactly72Bytes(): void
+    {
+        $password = str_repeat('a', 72);
+        $old = password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]);
+        $id = $this->user(digest: $old);
+
+        $this->login(password: $password);
+
+        $digest = (string) $this->row('users', 'id', $id)['password_digest'];
+        $this->assertNotSame($old, $digest);
+        $this->assertTrue(password_verify($password, $digest));
+    }
+
+    public function testAPasswordOver72BytesLogsInWithoutARehash(): void
+    {
+        $password = str_repeat('a', 80);
+        $old = password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]);
+        $id = $this->user(digest: $old);
+
+        $tokens = $this->login(password: $password);
+
+        $this->assertSame($id, $tokens->user->id);
+        $this->assertSame($old, $this->row('users', 'id', $id)['password_digest']);
+        $this->assertSame(1, $this->rowCount('refresh_tokens'));
+    }
+
+    public function testAPasswordWithANulByteLogsInWithoutARehash(): void
+    {
+        $old = password_hash(self::PASSWORD, PASSWORD_BCRYPT, ['cost' => 4]);
+        $id = $this->user(digest: $old);
+
+        // bcrypt stops at the NUL byte, so this matches the digest of PASSWORD.
+        $tokens = $this->login(password: self::PASSWORD . "\0suffix");
+
+        $this->assertSame($id, $tokens->user->id);
+        $this->assertSame($old, $this->row('users', 'id', $id)['password_digest']);
+        $this->assertSame(1, $this->rowCount('refresh_tokens'));
+    }
+
     public function testACurrentDigestIsNotRewritten(): void
     {
         $id = $this->user();

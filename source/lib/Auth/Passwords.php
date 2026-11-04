@@ -23,6 +23,9 @@ final class Passwords
      */
     public const DUMMY_DIGEST = '$2y$12$mV.fFfQHSZaUZCy60Qny.ukI2luAYMAjAUIHV3tud1o38gSktFWfG';
 
+    /** The longest password bcrypt hashes in full; longer ones would be silently truncated. */
+    public const MAX_BYTES = 72;
+
     /**
      * Hashes a new password with `PASSWORD_DEFAULT`.
      *
@@ -33,6 +36,19 @@ final class Passwords
     public function hash(#[SensitiveParameter] string $password): string
     {
         return password_hash($password, PASSWORD_DEFAULT);
+    }
+
+    /**
+     * Tells whether `hash()` can digest a password in full: at most `MAX_BYTES` bytes and no NUL
+     * byte (`password_hash()` throws a `ValueError` on a NUL byte). These are the register rules.
+     *
+     * @param string $password The plain password, as sent.
+     *
+     * @return boolean
+     */
+    public function canHash(#[SensitiveParameter] string $password): bool
+    {
+        return strlen($password) <= self::MAX_BYTES && !str_contains($password, "\0");
     }
 
     /**

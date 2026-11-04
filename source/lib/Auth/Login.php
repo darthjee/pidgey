@@ -39,7 +39,8 @@ final class Login
     }
 
     /**
-     * Checks the credentials, rehashes an outdated digest, then starts a new session.
+     * Checks the credentials, rehashes an outdated digest when the password can be hashed in
+     * full, then starts a new session.
      *
      * @param string $username Trimmed, validated username (compared through the collation).
      * @param string $password Validated password, never trimmed.
@@ -55,6 +56,7 @@ final class Login
     {
         $user = $this->users->findByUsername($username);
 
+        // `$user === null` is redundant after verify(); it only narrows the type for static analysis.
         if (!$this->passwords->verify($password, $user?->passwordDigest) || $user === null) {
             throw new UnauthorizedException(self::INVALID_CREDENTIALS);
         }
@@ -63,7 +65,9 @@ final class Login
             throw new ForbiddenException('This account has been denied access', 'USER_DENIED');
         }
 
-        if ($this->passwords->needsRehash($user->passwordDigest)) {
+        // A password register would reject (over 72 bytes or with a NUL byte) can still match a
+        // digest, but cannot be hashed in full: keep the old digest and still log the user in.
+        if ($this->passwords->canHash($password) && $this->passwords->needsRehash($user->passwordDigest)) {
             $this->users->updatePasswordDigest($user->id, $this->passwords->hash($password));
         }
 

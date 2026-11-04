@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pidgey\Http\Handler;
 
 use Pidgey\Auth\AccessToken;
+use Pidgey\Auth\Passwords;
 use Pidgey\Auth\Registration;
 use Pidgey\Auth\SessionResponse;
 use Pidgey\Container;
@@ -27,7 +28,7 @@ final class RegisterHandler extends RequestHandler
 
     private const PASSWORD_MIN_CHARACTERS = 8;
 
-    private const PASSWORD_MAX_BYTES = 72;
+    private const PASSWORD_MAX_BYTES = Passwords::MAX_BYTES;
 
     /**
      * Builds the handler.

@@ -53,4 +53,17 @@ final class PasswordsTest extends TestCase
     {
         $this->assertFalse((new Passwords())->verify('s3cretpass', 'not-a-digest'));
     }
+
+    public function testCanHashFollowsTheRegisterRules(): void
+    {
+        $passwords = new Passwords();
+
+        $this->assertTrue($passwords->canHash('s3cretpass'));
+        $this->assertTrue($passwords->canHash(str_repeat('a', Passwords::MAX_BYTES)));
+        $this->assertTrue($passwords->canHash(str_repeat('é', 36)));
+        $this->assertFalse($passwords->canHash(str_repeat('a', Passwords::MAX_BYTES + 1)));
+        $this->assertFalse($passwords->canHash(str_repeat('é', 37)));
+        $this->assertFalse($passwords->canHash("s3cret\0pass"));
+        $this->assertFalse($passwords->canHash("\0"));
+    }
 }
