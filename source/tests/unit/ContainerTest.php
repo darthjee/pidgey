@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccessTokenClaims;
 use Pidgey\Auth\Base64Url;
+use Pidgey\Auth\Login;
 use Pidgey\Auth\Passwords;
 use Pidgey\Auth\Registration;
 use Pidgey\Auth\SecretKeys;
@@ -39,6 +40,7 @@ use RuntimeException;
 #[UsesClass(AccessToken::class)]
 #[UsesClass(AccessTokenClaims::class)]
 #[UsesClass(Base64Url::class)]
+#[UsesClass(Login::class)]
 #[UsesClass(Passwords::class)]
 #[UsesClass(Registration::class)]
 #[UsesClass(SecretKeys::class)]
@@ -394,6 +396,19 @@ final class ContainerTest extends TestCase
         $this->assertSame($registration, $container->registration());
         $container->sessions();
         $container->transaction();
+    }
+
+    public function testLoginIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $login = $container->login();
+
+        $this->assertInstanceOf(Login::class, $login);
+        $this->assertSame($login, $container->login());
+        $container->sessions();
     }
 
     public function testUserApprovalIsRequiredByDefaultAndOpensNoConnection(): void

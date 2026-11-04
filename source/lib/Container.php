@@ -6,6 +6,7 @@ namespace Pidgey;
 
 use PDO;
 use Pidgey\Auth\AccessToken;
+use Pidgey\Auth\Login;
 use Pidgey\Auth\Passwords;
 use Pidgey\Auth\Registration;
 use Pidgey\Auth\SecretKeys;
@@ -67,6 +68,8 @@ final class Container
     private ?Passwords $passwords = null;
 
     private ?Registration $registration = null;
+
+    private ?Login $login = null;
 
     /**
      * Creates an empty container; nothing is built yet.
@@ -189,6 +192,20 @@ final class Container
             $this->passwords(),
             $this->userApprovalRequired(),
         );
+    }
+
+    /**
+     * Returns the login service, built from the request's connection and the sessions service on
+     * the first call (which opens the connection).
+     *
+     * @return Login
+     *
+     * @throws RuntimeException When `SECRET_KEY`, a TTL or a required DB_* variable is missing or
+     *                          invalid.
+     */
+    public function login(): Login
+    {
+        return $this->login ??= new Login($this->userRepository(), $this->sessions(), $this->passwords());
     }
 
     /**
