@@ -77,7 +77,9 @@ final class Registration
      *
      * A unique-index violation on the user insert (a concurrent register took the username or
      * email after the pre-check) rolls the whole transaction back, organization included, and is
-     * answered with the same `409` as the pre-check. Public so the race can be tested by skipping
+     * answered with the same `409` as the pre-check. Any other integrity violation is rethrown as a
+     * generic `PDOException` carrying only the SQLSTATE, as the driver message quotes user data.
+     * Public so the race can be tested by skipping
      * the pre-check.
      *
      * @param string $username         Trimmed, validated username.
@@ -112,7 +114,11 @@ final class Registration
 
             $this->precheck($username, $email);
 
-            throw $exception;
+            // Not chained: the driver message quotes the duplicate value (e.g. the email).
+            throw new PDOException(sprintf(
+                'Integrity constraint violation (SQLSTATE %s) on register with no taken username or email',
+                self::INTEGRITY_VIOLATION,
+            ));
         }
     }
 

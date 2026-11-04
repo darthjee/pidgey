@@ -279,6 +279,27 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
         $this->assertSame([], self::cookies($response));
     }
 
+    public function testAnUnexplainedIntegrityViolationAnswers500AndLogsNoUserData(): void
+    {
+        // A temporary unique index makes the organization insert fail with SQLSTATE 23000.
+        $this->fixtures->organization("Bob's Shop");
+        $this->pdo->exec('ALTER TABLE organizations ADD UNIQUE INDEX organizations_name_test (name)');
+
+        try {
+            $response = $this->send(self::BODY);
+        } finally {
+            $this->pdo->exec('ALTER TABLE organizations DROP INDEX organizations_name_test');
+        }
+
+        $this->assertSame(500, $response->status());
+        $this->assertSame('INTERNAL_ERROR', self::json($response)['error']['code']);
+        $this->assertCount(1, $this->logged);
+        $this->assertStringContainsString('SQLSTATE 23000', $this->logged[0]);
+        $this->assertStringNotContainsString("Bob's Shop", $this->logged[0]);
+        $this->assertStringNotContainsString('bob@example.com', $this->logged[0]);
+        $this->assertStringNotContainsString('Duplicate entry', $this->logged[0]);
+    }
+
     /**
      * @param array<string, mixed>|string $body
      */

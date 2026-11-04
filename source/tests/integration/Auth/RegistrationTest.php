@@ -207,6 +207,30 @@ final class RegistrationTest extends SessionEndpointTestCase
         }
     }
 
+    public function testAnUnexplainedIntegrityViolationIsRethrownWithoutUserData(): void
+    {
+        // A temporary unique index makes the organization insert fail with SQLSTATE 23000 (the
+        // driver message quotes the name) while no username or email is taken.
+        $this->fixtures->organization("Bob's Shop");
+        $this->pdo->exec('ALTER TABLE organizations ADD UNIQUE INDEX organizations_name_test (name)');
+
+        try {
+            $this->create();
+            $this->fail('Expected a PDOException.');
+        } catch (PDOException $exception) {
+            $this->assertSame(
+                'Integrity constraint violation (SQLSTATE 23000) on register with no taken username or email',
+                $exception->getMessage(),
+            );
+            $this->assertNull($exception->getPrevious());
+        } finally {
+            $this->pdo->exec('ALTER TABLE organizations DROP INDEX organizations_name_test');
+        }
+
+        $this->assertSame(1, $this->rowCount('organizations'));
+        $this->assertSame(0, $this->rowCount('users'));
+    }
+
     private function register(string $username = 'bob'): SessionTokens
     {
         return $this->container()->registration()->register(
