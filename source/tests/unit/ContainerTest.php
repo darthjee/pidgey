@@ -13,6 +13,8 @@ use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccessTokenClaims;
 use Pidgey\Auth\Base64Url;
 use Pidgey\Auth\SecretKeys;
+use Pidgey\Auth\SessionRotation;
+use Pidgey\Auth\Sessions;
 use Pidgey\Container;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
@@ -35,6 +37,8 @@ use RuntimeException;
 #[UsesClass(AccessTokenClaims::class)]
 #[UsesClass(Base64Url::class)]
 #[UsesClass(SecretKeys::class)]
+#[UsesClass(SessionRotation::class)]
+#[UsesClass(Sessions::class)]
 #[UsesClass(SystemWallClock::class)]
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(Env::class)]
@@ -58,6 +62,7 @@ final class ContainerTest extends TestCase
         'SECRET_KEY',
         'PREVIOUS_SECRET_KEYS',
         'ACCESS_TOKEN_TTL',
+        'REFRESH_TOKEN_TTL',
     ];
 
     private const SECRET_KEY = 'container-test-secret-key-0123456789abcdef';
@@ -79,6 +84,7 @@ final class ContainerTest extends TestCase
         putenv('SECRET_KEY=' . self::SECRET_KEY);
         putenv('PREVIOUS_SECRET_KEYS');
         putenv('ACCESS_TOKEN_TTL');
+        putenv('REFRESH_TOKEN_TTL');
     }
 
     protected function tearDown(): void
@@ -317,6 +323,45 @@ final class ContainerTest extends TestCase
         $this->expectExceptionMessage('SECRET_KEY');
 
         (new Container($this->unusedConnections()))->accessToken();
+    }
+
+    public function testSessionsIsLazyAndMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $sessions = $container->sessions();
+
+        $this->assertInstanceOf(Sessions::class, $sessions);
+        $this->assertSame($sessions, $container->sessions());
+        $container->refreshTokenRepository();
+        $container->transaction();
+    }
+
+    public function testSessionRotationIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $rotation = $container->sessionRotation();
+
+        $this->assertInstanceOf(SessionRotation::class, $rotation);
+        $this->assertSame($rotation, $container->sessionRotation());
+        $container->sessions();
+    }
+
+    public function testSessionsReportsAnInvalidRefreshTokenTtl(): void
+    {
+        putenv('REFRESH_TOKEN_TTL=soon');
+        $factory = $this->createStub(ConnectionFactory::class);
+        $factory->method('create')->willReturn($this->createStub(PDO::class));
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('REFRESH_TOKEN_TTL');
+
+        (new Container($factory))->sessions();
     }
 
     private function unusedConnections(): ConnectionFactory

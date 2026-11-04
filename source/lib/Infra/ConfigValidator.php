@@ -20,6 +20,9 @@ final class ConfigValidator
     /** Default `ACCESS_TOKEN_TTL`, in seconds. */
     public const DEFAULT_ACCESS_TOKEN_TTL = 900;
 
+    /** Default `REFRESH_TOKEN_TTL`, in seconds. */
+    public const DEFAULT_REFRESH_TOKEN_TTL = 604800;
+
     /** Settings that must be set and non-empty. */
     private const REQUIRED = ['DB_HOST', 'DB_NAME', 'DB_USER'];
 
@@ -43,8 +46,6 @@ final class ConfigValidator
 
     /** Counts that may be zero: non-negative integers when set. */
     private const NON_NEGATIVE_INTEGERS = ['TRUSTED_PROXY_HOPS'];
-
-    private const DEFAULT_REFRESH_TOKEN_TTL = '604800';
 
     /** PHP_ENV values that are not production; any other value, or none, counts as production. */
     private const NON_PRODUCTION_ENVIRONMENTS = ['development', 'test'];
@@ -192,7 +193,7 @@ final class ConfigValidator
     private function checkTokenTtls(): array
     {
         $access = (string) Env::get('ACCESS_TOKEN_TTL', (string) self::DEFAULT_ACCESS_TOKEN_TTL);
-        $refresh = (string) Env::get('REFRESH_TOKEN_TTL', self::DEFAULT_REFRESH_TOKEN_TTL);
+        $refresh = (string) Env::get('REFRESH_TOKEN_TTL', (string) self::DEFAULT_REFRESH_TOKEN_TTL);
 
         if (
             preg_match(self::POSITIVE_INTEGER_PATTERN, $access) !== 1

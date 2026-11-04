@@ -9,6 +9,7 @@ use LogicException;
 use PDO;
 use PDOException;
 use Pidgey\Model\RefreshToken;
+use Pidgey\Model\RevokedReason;
 
 /**
  * Reads and writes the `refresh_tokens` table.
@@ -111,6 +112,86 @@ final class RefreshTokenRepository
     }
 
     /**
+     * Revokes one refresh token, only if it is still active (not revoked and not expired at `$now`).
+     *
+     * This is the conditional revoke of rotation: 0 rows means a concurrent request revoked the
+     * row first, or it expired, and the caller must not treat the token as rotated.
+     *
+     * @param integer           $id     Primary key.
+     * @param RevokedReason     $reason Why the token is revoked; written with `revoked_at`.
+     * @param DateTimeImmutable $now    Current time, from `WallClock`.
+     *
+     * @return integer Number of rows revoked (0 or 1).
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function revokeIfActive(int $id, RevokedReason $reason, DateTimeImmutable $now): int
+    {
+        return $this->execute(
+            'UPDATE refresh_tokens SET revoked_at = :revoked_at, revoked_reason = :reason '
+            . 'WHERE id = :id AND revoked_at IS NULL AND expires_at > :now',
+            [
+                'revoked_at' => Sql::dateTime($now),
+                'reason' => $reason->value,
+                'id' => $id,
+                'now' => Sql::dateTime($now),
+            ],
+        );
+    }
+
+    /**
+     * Revokes every active (not yet revoked) refresh token of a user.
+     *
+     * Already-revoked rows keep their original time and reason.
+     *
+     * @param integer           $userId Owner of the tokens.
+     * @param RevokedReason     $reason Why the tokens are revoked; written with `revoked_at`.
+     * @param DateTimeImmutable $now    Current time, from `WallClock`.
+     *
+     * @return integer Number of rows revoked.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function revokeActiveForUser(int $userId, RevokedReason $reason, DateTimeImmutable $now): int
+    {
+        return $this->execute(
+            'UPDATE refresh_tokens SET revoked_at = :revoked_at, revoked_reason = :reason '
+            . 'WHERE user_id = :user_id AND revoked_at IS NULL',
+            ['revoked_at' => Sql::dateTime($now), 'reason' => $reason->value, 'user_id' => $userId],
+        );
+    }
+
+    /**
+     * Revokes every active (not yet revoked) refresh token of one session of a user.
+     *
+     * @param integer           $userId      Owner of the session.
+     * @param string            $sessionUuid Session id.
+     * @param RevokedReason     $reason      Why the tokens are revoked; written with `revoked_at`.
+     * @param DateTimeImmutable $now         Current time, from `WallClock`.
+     *
+     * @return integer Number of rows revoked.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function revokeActiveForSession(
+        int $userId,
+        string $sessionUuid,
+        RevokedReason $reason,
+        DateTimeImmutable $now,
+    ): int {
+        return $this->execute(
+            'UPDATE refresh_tokens SET revoked_at = :revoked_at, revoked_reason = :reason '
+            . 'WHERE user_id = :user_id AND session_uuid = :session_uuid AND revoked_at IS NULL',
+            [
+                'revoked_at' => Sql::dateTime($now),
+                'reason' => $reason->value,
+                'user_id' => $userId,
+                'session_uuid' => $sessionUuid,
+            ],
+        );
+    }
+
+    /**
      * Runs a single-row query and builds the refresh token, if any.
      *
      * @param string               $sql    Statement with named placeholders.
@@ -127,5 +208,23 @@ final class RefreshTokenRepository
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         return $row === false ? null : RefreshToken::fromRow($row);
+    }
+
+    /**
+     * Runs a data-changing statement and returns the number of rows it affected.
+     *
+     * @param string               $sql    Statement with named placeholders.
+     * @param array<string, mixed> $params Placeholder name => value.
+     *
+     * @return integer
+     *
+     * @throws PDOException When the statement fails.
+     */
+    private function execute(string $sql, array $params): int
+    {
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($params);
+
+        return $statement->rowCount();
     }
 }
