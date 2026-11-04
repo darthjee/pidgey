@@ -19,28 +19,24 @@ use Pidgey\Tests\Support\SessionEndpointTestCase;
 #[CoversNothing]
 final class AuthLogTest extends SessionEndpointTestCase
 {
-    private const PASSWORD = 'pl41n-p4ssw0rd-never-logged';
-
-    private const REGISTER = [
-        'username' => 'bob',
-        'email' => 'bob@example.com',
-        'password' => self::PASSWORD,
-        'organizationName' => "Bob's Shop",
-    ];
-
     private Router $router;
 
     private string $errorLog;
 
     private string|false $previousErrorLog;
 
+    /** A valid register password generated per test, so no password literal is hardcoded. */
+    private string $password;
+
     /** @var list<string> Secrets seen in responses and in the database during the test. */
-    private array $secrets = [self::PASSWORD];
+    private array $secrets = [];
 
     protected function setUp(): void
     {
         parent::setUp();
 
+        $this->password = 'pw-' . bin2hex(random_bytes(12));
+        $this->secrets = [$this->password];
         $this->router = require __DIR__ . '/../../../config/routes.php';
         $this->errorLog = (string) tempnam(sys_get_temp_dir(), 'pidgey-auth-log-');
         $this->previousErrorLog = ini_set('error_log', $this->errorLog);
@@ -56,7 +52,7 @@ final class AuthLogTest extends SessionEndpointTestCase
 
     public function testACrossSiteRegisterIsRejectedBeforeTheHandler(): void
     {
-        $response = $this->post($this->router, '/auth/register.json', self::REGISTER, [
+        $response = $this->post($this->router, '/auth/register.json', $this->register(), [
             'Sec-Fetch-Site' => 'cross-site',
             'Origin' => 'https://evil.example',
         ]);
@@ -72,7 +68,7 @@ final class AuthLogTest extends SessionEndpointTestCase
         $response = $this->post(
             $this->router,
             '/auth/login.json',
-            ['username' => 'bob', 'password' => self::PASSWORD],
+            ['username' => 'bob', 'password' => $this->password],
             ['Sec-Fetch-Site' => 'cross-site', 'Origin' => 'https://evil.example'],
         );
 
@@ -85,12 +81,12 @@ final class AuthLogTest extends SessionEndpointTestCase
     {
         $sameOrigin = ['Sec-Fetch-Site' => 'same-origin'];
 
-        $registered = $this->post($this->router, '/auth/register.json', self::REGISTER, $sameOrigin);
+        $registered = $this->post($this->router, '/auth/register.json', $this->register(), $sameOrigin);
         $this->remember($registered);
         $loggedIn = $this->post(
             $this->router,
             '/auth/login.json',
-            ['username' => 'bob', 'password' => self::PASSWORD],
+            ['username' => 'bob', 'password' => $this->password],
             $sameOrigin,
         );
         $this->remember($loggedIn);
@@ -102,18 +98,18 @@ final class AuthLogTest extends SessionEndpointTestCase
 
     public function testFailuresLogNoSecret(): void
     {
-        $this->remember($this->post($this->router, '/auth/register.json', self::REGISTER));
+        $this->remember($this->post($this->router, '/auth/register.json', $this->register()));
         $this->secrets[] = (string) $this->row('users', 'username', 'bob')['password_digest'];
         $this->pdo->exec("UPDATE users SET status = 'denied'");
 
         $register = '/auth/register.json';
         $login = '/auth/login.json';
         $responses = [
-            $this->post($this->router, $register, self::REGISTER),
-            $this->post($this->router, $register, [...self::REGISTER, 'password' => "a\0" . self::PASSWORD]),
-            $this->post($this->router, $login, ['username' => 'bob', 'password' => self::PASSWORD . 'x']),
-            $this->post($this->router, $login, ['username' => 'nobody', 'password' => self::PASSWORD]),
-            $this->post($this->router, $login, ['username' => 'bob', 'password' => self::PASSWORD]),
+            $this->post($this->router, $register, $this->register()),
+            $this->post($this->router, $register, [...$this->register(), 'password' => "a\0" . $this->password]),
+            $this->post($this->router, $login, ['username' => 'bob', 'password' => $this->password . 'x']),
+            $this->post($this->router, $login, ['username' => 'nobody', 'password' => $this->password]),
+            $this->post($this->router, $login, ['username' => 'bob', 'password' => $this->password]),
         ];
         $statuses = array_map(static fn (Response $response): int => $response->status(), $responses);
 
@@ -125,13 +121,26 @@ final class AuthLogTest extends SessionEndpointTestCase
     {
         putenv('REFRESH_TOKEN_TTL=soon');
 
-        $register = $this->post($this->router, '/auth/register.json', self::REGISTER);
-        $login = $this->post($this->router, '/auth/login.json', ['username' => 'bob', 'password' => self::PASSWORD]);
+        $register = $this->post($this->router, '/auth/register.json', $this->register());
+        $login = $this->post($this->router, '/auth/login.json', ['username' => 'bob', 'password' => $this->password]);
 
         $this->assertSame(500, $register->status());
         $this->assertSame(500, $login->status());
         $this->assertNotSame([], $this->logged);
         $this->assertNothingSecretWasLogged();
+    }
+
+    /**
+     * @return array<string, string> A valid register body using the generated password.
+     */
+    private function register(): array
+    {
+        return [
+            'username' => 'bob',
+            'email' => 'bob@example.com',
+            'password' => $this->password,
+            'organizationName' => "Bob's Shop",
+        ];
     }
 
     /**

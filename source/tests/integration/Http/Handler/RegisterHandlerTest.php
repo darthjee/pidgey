@@ -109,16 +109,10 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
 {
     private const PATH = '/auth/register.json';
 
-    private const BODY = [
-        'username' => 'bob',
-        'email' => 'bob@example.com',
-        'password' => 's3cretpass',
-        'organizationName' => "Bob's Shop",
-    ];
 
     public function testSuccessAnswers201WithTheUserPayloadAndTheRefreshToken(): void
     {
-        $response = $this->send(self::BODY);
+        $response = $this->send($this->body());
         $body = self::json($response);
         $user = $this->row('users', 'username', 'bob');
 
@@ -137,7 +131,7 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
 
     public function testSuccessSetsTheAccessTokenCookie(): void
     {
-        $response = $this->send(self::BODY);
+        $response = $this->send($this->body());
         $cookies = self::cookies($response);
 
         $this->assertCount(1, $cookies);
@@ -154,7 +148,7 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
 
     public function testTheBodyCarriesNoStatusNoDigestAndNoAccessToken(): void
     {
-        $response = $this->send(self::BODY);
+        $response = $this->send($this->body());
 
         $this->assertStringNotContainsString('status', $response->body());
         $this->assertStringNotContainsString('pending', $response->body());
@@ -214,7 +208,7 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
 
     public function testWhitespaceOnlyFieldsAreEmpty(): void
     {
-        $response = $this->send([...self::BODY, 'username' => '   ', 'organizationName' => "\t "]);
+        $response = $this->send([...$this->body(), 'username' => '   ', 'organizationName' => "\t "]);
 
         $this->assertValidationFailed(
             ['username should not be empty', 'organizationName should not be empty'],
@@ -233,7 +227,7 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
                 str_repeat('é', 36) . 'x',
                 ['password must be shorter than or equal to 72 bytes'],
             ],
-            'NUL byte' => ["s3cret\0pass", ['password must not contain a NUL byte']],
+            'NUL byte' => ["dummy\0value", ['password must not contain a NUL byte']],
         ];
     }
 
@@ -243,19 +237,19 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
     #[DataProvider('invalidPasswords')]
     public function testInvalidPasswordsAreRejected(string $password, array $details): void
     {
-        $this->assertValidationFailed($details, $this->send([...self::BODY, 'password' => $password]));
+        $this->assertValidationFailed($details, $this->send([...$this->body(), 'password' => $password]));
     }
 
     public function testA72BytePasswordIsAccepted(): void
     {
-        $this->assertSame(201, $this->send([...self::BODY, 'password' => str_repeat('é', 36)])->status());
+        $this->assertSame(201, $this->send([...$this->body(), 'password' => str_repeat('é', 36)])->status());
     }
 
     public function testATakenUsernameAnswers409(): void
     {
         $this->fixtures->user(username: 'BOB');
 
-        $response = $this->send(self::BODY);
+        $response = $this->send($this->body());
 
         $this->assertSame(409, $response->status());
         $this->assertSame(
@@ -269,7 +263,7 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
     {
         $this->fixtures->user(email: 'bob@example.com');
 
-        $response = $this->send(self::BODY);
+        $response = $this->send($this->body());
 
         $this->assertSame(409, $response->status());
         $this->assertSame(
@@ -286,7 +280,7 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
         $this->pdo->exec('ALTER TABLE organizations ADD UNIQUE INDEX organizations_name_test (name)');
 
         try {
-            $response = $this->send(self::BODY);
+            $response = $this->send($this->body());
         } finally {
             $this->pdo->exec('ALTER TABLE organizations DROP INDEX organizations_name_test');
         }
@@ -303,6 +297,19 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
     /**
      * @param array<string, mixed>|string $body
      */
+    /**
+     * @return array<string, string> A valid body whose password is generated at runtime.
+     */
+    private function body(): array
+    {
+        return [
+            'username' => 'bob',
+            'email' => 'bob@example.com',
+            'password' => 'pw-' . bin2hex(random_bytes(12)),
+            'organizationName' => "Bob's Shop",
+        ];
+    }
+
     private function send(array|string $body): Response
     {
         $router = new Router();

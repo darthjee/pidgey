@@ -65,6 +65,16 @@ use Pidgey\Tests\Support\SessionEndpointTestCase;
 #[UsesClass(UserStatus::class)]
 final class RegistrationTest extends SessionEndpointTestCase
 {
+    /** A valid register password generated per test, so no password literal is hardcoded. */
+    private string $password;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->password = 'pw-' . bin2hex(random_bytes(12));
+    }
+
     public function testRegisterCreatesTheOrganizationAndTheUser(): void
     {
         $tokens = $this->register();
@@ -85,9 +95,9 @@ final class RegistrationTest extends SessionEndpointTestCase
         $this->register();
 
         $digest = (string) $this->row('users', 'username', 'bob')['password_digest'];
-        $this->assertNotSame('s3cretpass', $digest);
-        $this->assertStringNotContainsString('s3cretpass', $digest);
-        $this->assertTrue(password_verify('s3cretpass', $digest));
+        $this->assertNotSame($this->password, $digest);
+        $this->assertStringNotContainsString($this->password, $digest);
+        $this->assertTrue(password_verify($this->password, $digest));
         $this->assertFalse(password_needs_rehash($digest, PASSWORD_DEFAULT));
     }
 
@@ -236,7 +246,7 @@ final class RegistrationTest extends SessionEndpointTestCase
         return $this->container()->registration()->register(
             $username,
             'bob@example.com',
-            's3cretpass',
+            $this->password,
             "Bob's Shop",
         );
     }

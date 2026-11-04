@@ -59,16 +59,18 @@ use Pidgey\Tests\Support\SessionEndpointTestCase;
 #[UsesClass(UserStatus::class)]
 final class LoginTest extends SessionEndpointTestCase
 {
-    private const PASSWORD = 's3cretpass';
+    /** A password generated once for the whole class, so no password literal is hardcoded. */
+    private static string $password;
 
-    /** A current `PASSWORD_DEFAULT` digest of PASSWORD, hashed once for the whole class. */
+    /** A current `PASSWORD_DEFAULT` digest of the password, hashed once for the whole class. */
     private static string $digest;
 
     public static function setUpBeforeClass(): void
     {
         parent::setUpBeforeClass();
 
-        self::$digest = password_hash(self::PASSWORD, PASSWORD_DEFAULT);
+        self::$password = 'pw-' . bin2hex(random_bytes(12));
+        self::$digest = password_hash(self::$password, PASSWORD_DEFAULT);
     }
 
     /**
@@ -160,7 +162,7 @@ final class LoginTest extends SessionEndpointTestCase
 
     public function testAnOutdatedDigestIsRehashed(): void
     {
-        $old = password_hash(self::PASSWORD, PASSWORD_BCRYPT, ['cost' => 4]);
+        $old = password_hash(self::$password, PASSWORD_BCRYPT, ['cost' => 4]);
         $id = $this->user(digest: $old);
 
         $this->login();
@@ -168,7 +170,7 @@ final class LoginTest extends SessionEndpointTestCase
         $digest = (string) $this->row('users', 'id', $id)['password_digest'];
         $this->assertNotSame($old, $digest);
         $this->assertFalse(password_needs_rehash($digest, PASSWORD_DEFAULT));
-        $this->assertTrue(password_verify(self::PASSWORD, $digest));
+        $this->assertTrue(password_verify(self::$password, $digest));
     }
 
     public function testAnOutdatedDigestIsRehashedForAPasswordOfExactly72Bytes(): void
@@ -199,11 +201,11 @@ final class LoginTest extends SessionEndpointTestCase
 
     public function testAPasswordWithANulByteLogsInWithoutARehash(): void
     {
-        $old = password_hash(self::PASSWORD, PASSWORD_BCRYPT, ['cost' => 4]);
+        $old = password_hash(self::$password, PASSWORD_BCRYPT, ['cost' => 4]);
         $id = $this->user(digest: $old);
 
-        // bcrypt stops at the NUL byte, so this matches the digest of PASSWORD.
-        $tokens = $this->login(password: self::PASSWORD . "\0suffix");
+        // bcrypt stops at the NUL byte, so this matches the digest of the password.
+        $tokens = $this->login(password: self::$password . "\0suffix");
 
         $this->assertSame($id, $tokens->user->id);
         $this->assertSame($old, $this->row('users', 'id', $id)['password_digest']);
@@ -221,7 +223,7 @@ final class LoginTest extends SessionEndpointTestCase
 
     public function testAWrongPasswordNeverRehashes(): void
     {
-        $old = password_hash(self::PASSWORD, PASSWORD_BCRYPT, ['cost' => 4]);
+        $old = password_hash(self::$password, PASSWORD_BCRYPT, ['cost' => 4]);
         $id = $this->user(digest: $old);
 
         $this->assertUnauthorized(fn () => $this->login(password: 'wrong-password'));
@@ -230,7 +232,7 @@ final class LoginTest extends SessionEndpointTestCase
 
     public function testADeniedUserIsNotRehashed(): void
     {
-        $old = password_hash(self::PASSWORD, PASSWORD_BCRYPT, ['cost' => 4]);
+        $old = password_hash(self::$password, PASSWORD_BCRYPT, ['cost' => 4]);
         $id = $this->user(digest: $old, status: 'denied');
 
         $this->expectException(ForbiddenException::class);
@@ -264,9 +266,9 @@ final class LoginTest extends SessionEndpointTestCase
         );
     }
 
-    private function login(string $username = 'bob', string $password = self::PASSWORD): SessionTokens
+    private function login(string $username = 'bob', ?string $password = null): SessionTokens
     {
-        return $this->container()->login()->login($username, $password);
+        return $this->container()->login()->login($username, $password ?? self::$password);
     }
 
     private function assertUnauthorized(callable $action): void

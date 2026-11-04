@@ -105,7 +105,8 @@ final class LoginHandlerTest extends SessionEndpointTestCase
 {
     private const PATH = '/auth/login.json';
 
-    private const PASSWORD = 's3cretpass';
+    /** A password generated once for the whole class, so no password literal is hardcoded. */
+    private static string $password;
 
     private static string $digest;
 
@@ -113,7 +114,8 @@ final class LoginHandlerTest extends SessionEndpointTestCase
     {
         parent::setUpBeforeClass();
 
-        self::$digest = password_hash(self::PASSWORD, PASSWORD_DEFAULT);
+        self::$password = 'pw-' . bin2hex(random_bytes(12));
+        self::$digest = password_hash(self::$password, PASSWORD_DEFAULT);
     }
 
     /**
@@ -132,7 +134,7 @@ final class LoginHandlerTest extends SessionEndpointTestCase
     {
         $id = $this->user(status: $status, isAdmin: true);
 
-        $response = $this->send(['username' => ' bob ', 'password' => self::PASSWORD]);
+        $response = $this->send(['username' => ' bob ', 'password' => self::$password]);
         $body = self::json($response);
         $cookies = self::cookies($response);
 
@@ -163,7 +165,7 @@ final class LoginHandlerTest extends SessionEndpointTestCase
     {
         $this->user();
 
-        $unknown = $this->send(['username' => 'alice', 'password' => self::PASSWORD]);
+        $unknown = $this->send(['username' => 'alice', 'password' => self::$password]);
         $wrong = $this->send(['username' => 'bob', 'password' => 'wrong-password']);
 
         $this->assertSame(401, $unknown->status());
@@ -194,7 +196,7 @@ final class LoginHandlerTest extends SessionEndpointTestCase
     {
         $this->user(status: 'denied');
 
-        $response = $this->send(['username' => 'bob', 'password' => self::PASSWORD]);
+        $response = $this->send(['username' => 'bob', 'password' => self::$password]);
 
         $this->assertSame(403, $response->status());
         $this->assertSame(
@@ -235,7 +237,7 @@ final class LoginHandlerTest extends SessionEndpointTestCase
                 ['username should not be empty', 'password should not be empty'],
             ],
             'whitespace-only username' => [
-                ['username' => " \t ", 'password' => self::PASSWORD],
+                ['username' => " \t ", 'password' => str_repeat('x', 8)],
                 ['username should not be empty'],
             ],
             'missing password' => [['username' => 'bob'], ['password should not be empty']],

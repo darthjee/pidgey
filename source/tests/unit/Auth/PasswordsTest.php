@@ -11,6 +11,16 @@ use Pidgey\Auth\Passwords;
 #[CoversClass(Passwords::class)]
 final class PasswordsTest extends TestCase
 {
+    /** A valid register password generated per test, so no password literal is hardcoded. */
+    private string $password;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->password = 'pw-' . bin2hex(random_bytes(12));
+    }
+
     public function testDummyDigestNeedsNoRehash(): void
     {
         $this->assertFalse(password_needs_rehash(Passwords::DUMMY_DIGEST, PASSWORD_DEFAULT));
@@ -24,7 +34,7 @@ final class PasswordsTest extends TestCase
 
     public function testVerifyWithoutADigestIsFalse(): void
     {
-        $this->assertFalse((new Passwords())->verify('s3cretpass', null));
+        $this->assertFalse((new Passwords())->verify($this->password, null));
         $this->assertFalse((new Passwords())->verify('', null));
     }
 
@@ -32,38 +42,38 @@ final class PasswordsTest extends TestCase
     {
         $passwords = new Passwords();
 
-        $digest = $passwords->hash('s3cretpass');
+        $digest = $passwords->hash($this->password);
 
-        $this->assertNotSame('s3cretpass', $digest);
+        $this->assertNotSame($this->password, $digest);
         $this->assertSame(PASSWORD_DEFAULT, password_get_info($digest)['algo']);
         $this->assertFalse($passwords->needsRehash($digest));
-        $this->assertTrue($passwords->verify('s3cretpass', $digest));
-        $this->assertFalse($passwords->verify('s3cretpasS', $digest));
+        $this->assertTrue($passwords->verify($this->password, $digest));
+        $this->assertFalse($passwords->verify(strtoupper($this->password), $digest));
     }
 
     public function testAnOutdatedDigestNeedsRehash(): void
     {
-        $digest = password_hash('s3cretpass', PASSWORD_BCRYPT, ['cost' => 4]);
+        $digest = password_hash($this->password, PASSWORD_BCRYPT, ['cost' => 4]);
 
         $this->assertTrue((new Passwords())->needsRehash($digest));
-        $this->assertTrue((new Passwords())->verify('s3cretpass', $digest));
+        $this->assertTrue((new Passwords())->verify($this->password, $digest));
     }
 
     public function testVerifyRejectsAMalformedDigest(): void
     {
-        $this->assertFalse((new Passwords())->verify('s3cretpass', 'not-a-digest'));
+        $this->assertFalse((new Passwords())->verify($this->password, 'not-a-digest'));
     }
 
     public function testCanHashFollowsTheRegisterRules(): void
     {
         $passwords = new Passwords();
 
-        $this->assertTrue($passwords->canHash('s3cretpass'));
+        $this->assertTrue($passwords->canHash($this->password));
         $this->assertTrue($passwords->canHash(str_repeat('a', Passwords::MAX_BYTES)));
         $this->assertTrue($passwords->canHash(str_repeat('é', 36)));
         $this->assertFalse($passwords->canHash(str_repeat('a', Passwords::MAX_BYTES + 1)));
         $this->assertFalse($passwords->canHash(str_repeat('é', 37)));
-        $this->assertFalse($passwords->canHash("s3cret\0pass"));
+        $this->assertFalse($passwords->canHash("dummy\0value"));
         $this->assertFalse($passwords->canHash("\0"));
     }
 }
