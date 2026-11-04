@@ -115,7 +115,6 @@ final class Container
         return $this->sessions ??= new Sessions(
             $this->refreshTokenRepository(),
             $this->userRepository(),
-            $this->transaction(),
             $this->sessionRotation(),
             $this->accessToken(),
             $this->wallClock(),

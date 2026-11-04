@@ -8,8 +8,8 @@ use DateInterval;
 use DateTimeImmutable;
 use LogicException;
 use PDOException;
-use Pidgey\Infra\Transaction;
 use Pidgey\Infra\WallClock;
+use Pidgey\Model\RefreshToken;
 use Pidgey\Model\RevokedReason;
 use Pidgey\Model\User;
 use Pidgey\Model\UserStatus;
@@ -22,8 +22,12 @@ use SensitiveParameter;
  * Owns the refresh-token rules of admin UI sessions: start, rotation, replay detection and
  * revocation (see `api/authentication/sessions.md`).
  *
- * Plain refresh tokens and access tokens are never stored, logged or put in exception messages.
- * Every `now` is read once per operation from the wall clock and bound into SQL.
+ * Plain refresh tokens and access tokens are never stored, logged or put in exception messages:
+ * the service takes no logger, and failures are a uniform null that does not say which rule
+ * failed. Every `now` is read once per operation from the wall clock and bound into SQL.
+ *
+ * Only the rotation (`SessionRotation`) opens a transaction; every other write is a single
+ * statement, so revocations made before a failure (replay, denied user) are committed.
  */
 final class Sessions
 {
@@ -32,7 +36,6 @@ final class Sessions
      *
      * @param RefreshTokenRepository $refreshTokens The `refresh_tokens` repository.
      * @param UserRepository         $users         The `users` repository.
-     * @param Transaction            $transaction   Transaction helper of the same connection.
      * @param SessionRotation        $rotation      The atomic rotation step of a refresh.
      * @param AccessToken            $accessToken   Issues the access tokens (JWT).
      * @param WallClock              $clock         Source of `now`, in UTC.
@@ -41,7 +44,6 @@ final class Sessions
     public function __construct(
         private readonly RefreshTokenRepository $refreshTokens,
         private readonly UserRepository $users,
-        private readonly Transaction $transaction,
         private readonly SessionRotation $rotation,
         private readonly AccessToken $accessToken,
         private readonly WallClock $clock,
@@ -141,6 +143,90 @@ final class Sessions
         }
 
         return $this->rotation->rotate($token, $user);
+    }
+
+    /**
+     * Logs out of the presented token's session: every active token of that session is revoked
+     * with `logout`.
+     *
+     * The token is looked up whatever its state, since an expired, rotated or revoked token still
+     * identifies its session. An unknown token is a silent no-op.
+     *
+     * @param string $plain The plain refresh token presented by the client.
+     *
+     * @return void
+     *
+     * @throws PDOException When a statement fails.
+     */
+    public function logout(#[SensitiveParameter] string $plain): void
+    {
+        $now = $this->clock->now();
+        $token = $this->refreshTokens->findByTokenHash(RefreshTokenValue::hash($plain));
+
+        if ($token !== null) {
+            $this->refreshTokens->revokeActiveForSession(
+                $token->userId,
+                $token->sessionUuid,
+                RevokedReason::Logout,
+                $now,
+            );
+        }
+    }
+
+    /**
+     * Revokes every active token of a user (password reset, admin deny, admin edit).
+     *
+     * Already-revoked tokens keep their original time and reason.
+     *
+     * @param integer       $userId The user.
+     * @param RevokedReason $reason Why the tokens are revoked.
+     *
+     * @return void
+     *
+     * @throws PDOException When a statement fails.
+     */
+    public function revokeAllForUser(int $userId, RevokedReason $reason): void
+    {
+        $this->refreshTokens->revokeActiveForUser($userId, $reason, $this->clock->now());
+    }
+
+    /**
+     * Passively looks up an active token (session status): found, not revoked, not expired,
+     * with an existing user. Never rotates, never runs replay detection and changes nothing.
+     *
+     * @param string $plain The plain refresh token presented by the client.
+     *
+     * @return ActiveSession|null The token and its user, or null when there is no active token.
+     *
+     * @throws PDOException When a statement fails.
+     */
+    public function findActive(#[SensitiveParameter] string $plain): ?ActiveSession
+    {
+        $now = $this->clock->now();
+        $token = $this->refreshTokens->findByTokenHash(RefreshTokenValue::hash($plain));
+
+        if ($token === null || $token->revokedAt !== null || $token->expiresAt <= $now) {
+            return null;
+        }
+
+        $user = $this->users->findById($token->userId);
+
+        return $user === null ? null : new ActiveSession($token, $user);
+    }
+
+    /**
+     * Revokes one token, only if it is still active (session status of a denied user).
+     *
+     * @param RefreshToken  $token  The token to revoke.
+     * @param RevokedReason $reason Why it is revoked.
+     *
+     * @return void
+     *
+     * @throws PDOException When a statement fails.
+     */
+    public function revoke(RefreshToken $token, RevokedReason $reason): void
+    {
+        $this->refreshTokens->revokeIfActive($token->id, $reason, $this->clock->now());
     }
 
     /**
