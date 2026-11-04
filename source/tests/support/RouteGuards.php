@@ -24,6 +24,9 @@ final class RouteGuards
         'GET /health.json',
         'POST /auth/register.json',
         'POST /auth/login.json',
+        'POST /auth/refresh.json',
+        'DELETE /auth/logoff.json',
+        'POST /auth/status.json',
     ];
 
     /** Future Bearer middleware of the /v1 API; referenced by name until it exists. */
