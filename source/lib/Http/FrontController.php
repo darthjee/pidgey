@@ -17,14 +17,16 @@ use Throwable;
  * through a HandlerFactory over it. The container is lazy, so a route that needs no service
  * (e.g. /health.json or the static files) opens no database connection.
  *
- * Later steps plug in here: the CORS step (before routing and on the final response) and
- * request logging.
+ * The CORS step answers preflights before routing and adds its headers to every final response,
+ * errors included. Request logging is a later step.
  */
 final class FrontController
 {
     private const ROUTES_FILE = __DIR__ . '/../../config/routes.php';
 
     private readonly Closure $containerFactory;
+
+    private readonly Cors $cors;
 
     /**
      * Builds the front controller.
@@ -33,13 +35,16 @@ final class FrontController
      * @param ErrorFormatter $errorFormatter   Turns any error into the JSON error envelope.
      * @param Closure|null   $containerFactory Closure(): Container, called once per request;
      *                                         defaults to `new Container()`.
+     * @param Cors|null      $cors             CORS step; defaults to `new Cors()` (origins from env).
      */
     public function __construct(
         private readonly Router $router,
         private readonly ErrorFormatter $errorFormatter = new ErrorFormatter(),
         ?Closure $containerFactory = null,
+        ?Cors $cors = null,
     ) {
         $this->containerFactory = $containerFactory ?? static fn (): Container => new Container();
+        $this->cors = $cors ?? new Cors();
     }
 
     /**
@@ -73,7 +78,8 @@ final class FrontController
     /**
      * Dispatches the request and returns the final response; produces no output.
      *
-     * No match answers 404 "Cannot <METHOD> <path>". Any Throwable becomes the error envelope.
+     * A CORS preflight is answered before routing. No match answers 404 "Cannot <METHOD> <path>".
+     * Any Throwable becomes the error envelope. The CORS headers are added to the final response.
      *
      * @param Request $request The request to dispatch.
      *
@@ -82,21 +88,37 @@ final class FrontController
     public function handle(Request $request): Response
     {
         try {
-            $match = $this->router->match($request);
-
-            if ($match === null) {
-                throw new NotFoundException('Cannot ' . $request->method() . ' ' . $request->path());
-            }
-
-            $processing = new ProcessingRequest($request, $match->params);
-            $factory = new HandlerFactory(($this->containerFactory)());
-            $handler = $factory->handler($match->handlerClass);
-            $middlewares = $factory->middlewares([...$this->router->globalMiddlewares(), ...$match->middlewares]);
-
-            return $handler->handle($processing, $middlewares);
+            $response = $this->cors->preflight($request) ?? $this->dispatch($request);
         } catch (Throwable $error) {
-            return $this->errorFormatter->format($error);
+            $response = $this->errorFormatter->format($error);
         }
+
+        return $this->cors->addHeaders($request, $response);
+    }
+
+    /**
+     * Routes the request and runs the matched handler with its middlewares.
+     *
+     * @param Request $request The request to dispatch.
+     *
+     * @return Response
+     *
+     * @throws NotFoundException When no route matches.
+     */
+    private function dispatch(Request $request): Response
+    {
+        $match = $this->router->match($request);
+
+        if ($match === null) {
+            throw new NotFoundException('Cannot ' . $request->method() . ' ' . $request->path());
+        }
+
+        $processing = new ProcessingRequest($request, $match->params);
+        $factory = new HandlerFactory(($this->containerFactory)());
+        $handler = $factory->handler($match->handlerClass);
+        $middlewares = $factory->middlewares([...$this->router->globalMiddlewares(), ...$match->middlewares]);
+
+        return $handler->handle($processing, $middlewares);
     }
 
     /**

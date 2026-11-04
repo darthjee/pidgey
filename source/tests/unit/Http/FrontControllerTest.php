@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Pidgey\Container;
 use Pidgey\Http\BadRequestException;
 use Pidgey\Http\BaseMiddleware;
+use Pidgey\Http\Cors;
 use Pidgey\Http\ErrorFormatter;
 use Pidgey\Http\ErrorResponse;
 use Pidgey\Http\ForbiddenException;
@@ -45,6 +46,7 @@ use Pidgey\Tests\Support\ThrowingHandler;
 #[UsesClass(BadRequestException::class)]
 #[UsesClass(BaseMiddleware::class)]
 #[UsesClass(Container::class)]
+#[UsesClass(Cors::class)]
 #[UsesClass(ErrorFormatter::class)]
 #[UsesClass(ErrorResponse::class)]
 #[UsesClass(Env::class)]
@@ -69,12 +71,22 @@ final class FrontControllerTest extends TestCase
 {
     public const TIMESTAMP = '2026-10-25T12:00:00.000Z';
 
+    private const TRUSTED = 'https://admin.test';
+
+    private const CORS_HEADERS = [
+        'Vary: Origin',
+        'Access-Control-Allow-Origin: ' . self::TRUSTED,
+        'Access-Control-Allow-Credentials: true',
+    ];
+
     /** @var list<string> */
     private array $logged = [];
 
     private FrontController $controller;
 
     private ErrorFormatter $formatter;
+
+    private Cors $cors;
 
     protected function setUp(): void
     {
@@ -93,7 +105,8 @@ final class FrontControllerTest extends TestCase
             $this->logged[] = $line;
         });
 
-        $this->controller = new FrontController($router, $this->formatter);
+        $this->cors = new Cors(new TrustedOrigins([self::TRUSTED]));
+        $this->controller = new FrontController($router, $this->formatter, cors: $this->cors);
     }
 
     public function testAnswersTheHealthCheck(): void
@@ -127,7 +140,7 @@ final class FrontControllerTest extends TestCase
         $response = $this->handle($method, $uri);
 
         $this->assertSame(404, $response->status());
-        $this->assertSame(['Content-Type: application/json'], $response->headers());
+        $this->assertSame(['Content-Type: application/json', 'Vary: Origin'], $response->headers());
         $this->assertSame(
             [
                 'error' => ['code' => 'NOT_FOUND', 'message' => $message],
@@ -178,7 +191,12 @@ final class FrontControllerTest extends TestCase
         $response = $this->handle('GET', '/items/1.json');
 
         $this->assertSame(
-            ['Content-Type: application/json', 'X-Trace: FirstTraceMiddleware', 'X-Trace: SecondTraceMiddleware'],
+            [
+                'Content-Type: application/json',
+                'X-Trace: FirstTraceMiddleware',
+                'X-Trace: SecondTraceMiddleware',
+                'Vary: Origin',
+            ],
             $response->headers(),
         );
     }
@@ -286,8 +304,133 @@ final class FrontControllerTest extends TestCase
         $this->assertSame(404, $response->status());
     }
 
-    private function handle(string $method, string $uri): Response
+    public function testAnswersAPreflightBeforeRouting(): void
     {
-        return $this->controller->handle(new Request(['method' => $method, 'uri' => $uri]));
+        $built = 0;
+        $controller = new FrontController(
+            new Router([FirstTraceMiddleware::class]),
+            $this->formatter,
+            static function () use (&$built): Container {
+                $built++;
+
+                return new Container();
+            },
+            $this->cors,
+        );
+
+        $response = $controller->handle(new Request([
+            'method' => 'OPTIONS',
+            'uri' => '/v1/not-routed.json',
+            'headers' => ['Origin' => self::TRUSTED, 'Access-Control-Request-Method' => 'POST'],
+        ]));
+
+        $this->assertSame(204, $response->status());
+        $this->assertSame('', $response->body());
+        $this->assertSame(
+            [
+                'Access-Control-Allow-Methods: GET, POST, PATCH, DELETE',
+                'Access-Control-Allow-Headers: Content-Type',
+                ...self::CORS_HEADERS,
+            ],
+            $response->headers(),
+        );
+        $this->assertSame(0, $built);
+        $this->assertSame([], $this->logged);
+    }
+
+    public function testAnswersAnUntrustedPreflightWithoutCorsHeaders(): void
+    {
+        $response = $this->handle(
+            'OPTIONS',
+            '/health.json',
+            ['Origin' => 'https://evil.test', 'Access-Control-Request-Method' => 'POST'],
+        );
+
+        $this->assertSame(204, $response->status());
+        $this->assertSame('', $response->body());
+        $this->assertSame(['Vary: Origin'], $response->headers());
+    }
+
+    public function testANonPreflightOptionsIsRouted(): void
+    {
+        $response = $this->handle('OPTIONS', '/health.json', ['Origin' => self::TRUSTED]);
+
+        $this->assertSame(404, $response->status());
+        $this->assertSame(
+            ['code' => 'NOT_FOUND', 'message' => 'Cannot OPTIONS /health.json'],
+            json_decode($response->body(), true)['error'],
+        );
+        $this->assertSame(['Content-Type: application/json', ...self::CORS_HEADERS], $response->headers());
+    }
+
+    /**
+     * @return array<string, array{string, string, integer, list<string>}>
+     */
+    public static function finalResponses(): array
+    {
+        return [
+            'health check' => [
+                'GET',
+                '/health.json',
+                200,
+                ['Content-Type: application/json', 'X-Trace: FirstTraceMiddleware'],
+            ],
+            'routing 404' => ['GET', '/nope.json', 404, ['Content-Type: application/json']],
+            'http exception' => ['GET', '/fail/http.json', 409, ['Content-Type: application/json']],
+            'internal error' => ['GET', '/fail/other.json', 500, ['Content-Type: application/json']],
+            'with middlewares' => ['GET', '/items/7.json', 200, [
+                'Content-Type: application/json',
+                'X-Trace: FirstTraceMiddleware',
+                'X-Trace: SecondTraceMiddleware',
+            ]],
+        ];
+    }
+
+    /**
+     * @param list<string> $headers
+     */
+    #[DataProvider('finalResponses')]
+    public function testAddsTheCorsHeadersToEveryFinalResponse(
+        string $method,
+        string $uri,
+        int $status,
+        array $headers,
+    ): void {
+        $plain = $this->handle($method, $uri);
+        $trusted = $this->handle($method, $uri, ['Origin' => self::TRUSTED]);
+        $untrusted = $this->handle($method, $uri, ['Origin' => 'https://evil.test']);
+
+        $this->assertSame($status, $trusted->status());
+        $this->assertSame($plain->status(), $trusted->status());
+        $this->assertSame($plain->body(), $trusted->body());
+        $this->assertSame([...$headers, ...self::CORS_HEADERS], $trusted->headers());
+        $this->assertSame($plain->status(), $untrusted->status());
+        $this->assertSame($plain->body(), $untrusted->body());
+        $this->assertSame([...$headers, 'Vary: Origin'], $untrusted->headers());
+    }
+
+    public function testAddsOnlyVaryToARequestRejectedByTheOriginCheck(): void
+    {
+        $router = new Router([OriginCheck::class]);
+        $router->post('/health.json', HealthHandler::class);
+        $controller = new FrontController($router, $this->formatter, cors: $this->cors);
+
+        $response = $controller->handle(new Request([
+            'method' => 'POST',
+            'uri' => '/health.json',
+            'headers' => ['Origin' => 'https://evil.test', 'Sec-Fetch-Site' => 'cross-site'],
+        ]));
+
+        $this->assertSame(403, $response->status());
+        $this->assertSame('FORBIDDEN', json_decode($response->body(), true)['error']['code']);
+        $this->assertSame(['Content-Type: application/json', 'Vary: Origin'], $response->headers());
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function handle(string $method, string $uri, array $headers = []): Response
+    {
+        return $this->controller->handle(new Request(['method' => $method, 'uri' => $uri, 'headers' => $headers]));
     }
 }

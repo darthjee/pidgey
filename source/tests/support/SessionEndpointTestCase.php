@@ -27,8 +27,8 @@ use SensitiveParameter;
  *
  * Runs without an outer test transaction, because registration opens its own: every table is
  * emptied before and after each test instead. The settings the services read are pinned
- * (`SECRET_KEY`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `USER_APPROVAL_REQUIRED`) and restored
- * afterwards; a test changes them with putenv() before building a container.
+ * (`SECRET_KEY`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `USER_APPROVAL_REQUIRED`, the trusted
+ * origins) and restored afterwards; a test changes them with putenv() before building a container.
  */
 abstract class SessionEndpointTestCase extends IntegrationTestCase
 {
@@ -37,7 +37,8 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
     public const ACCESS_TOKEN_TTL = 600;
 
     private const VARIABLES = ['SECRET_KEY', 'PREVIOUS_SECRET_KEYS', 'ACCESS_TOKEN_TTL', 'REFRESH_TOKEN_TTL',
-        'USER_APPROVAL_REQUIRED', 'ACCOUNT_EDIT_MAX_ATTEMPTS', 'ACCOUNT_EDIT_LOCK_TTL'];
+        'USER_APPROVAL_REQUIRED', 'ACCOUNT_EDIT_MAX_ATTEMPTS', 'ACCOUNT_EDIT_LOCK_TTL', 'ALLOWED_ORIGINS',
+        'FRONTEND_BASE_URL'];
 
     protected PDO $pdo;
 
