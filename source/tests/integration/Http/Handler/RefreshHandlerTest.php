@@ -179,7 +179,7 @@ final class RefreshHandlerTest extends SessionEndpointTestCase
         $other = $this->startSession($user);
         $rotated = self::json($this->refresh($session->refreshToken()))['refreshToken'];
 
-        $this->assertUnauthorized($this->refresh($session->refreshToken()));
+        $this->assertSameAsAnUnknownToken($this->refresh($session->refreshToken()));
         $this->assertSame('replay_detected', $this->tokenRow($rotated)['revoked_reason']);
         $this->assertSame('replay_detected', $this->tokenRow($other->refreshToken())['revoked_reason']);
         $this->assertSame('rotated', $this->tokenRow($session->refreshToken())['revoked_reason']);
@@ -212,7 +212,7 @@ final class RefreshHandlerTest extends SessionEndpointTestCase
         $session = $this->startSession($user);
         $other = $this->startSession($user);
 
-        $this->assertUnauthorized($this->refresh($session->refreshToken()));
+        $this->assertSameAsAnUnknownToken($this->refresh($session->refreshToken()));
         $this->assertSame('admin_denied', $this->tokenRow($session->refreshToken())['revoked_reason']);
         $this->assertNull($this->tokenRow($other->refreshToken())['revoked_at']);
     }
@@ -250,6 +250,24 @@ final class RefreshHandlerTest extends SessionEndpointTestCase
         $this->assertSame(401, $response->status());
         $this->assertSame(self::UNAUTHORIZED, self::json($response)['error']);
         $this->assertSame([], self::cookies($response));
+    }
+
+    /**
+     * Asserts the response is indistinguishable from an unknown token's: same status, headers and
+     * body (only the `timestamp` value may differ), so it never reveals which check failed.
+     */
+    private function assertSameAsAnUnknownToken(Response $response): void
+    {
+        $unknown = $this->refresh('unknown-' . bin2hex(random_bytes(16)));
+        $expected = self::json($unknown);
+        $actual = self::json($response);
+
+        $this->assertUnauthorized($response);
+        $this->assertSame($unknown->status(), $response->status());
+        $this->assertSame($unknown->headers(), $response->headers());
+        $this->assertSame(array_keys($expected), array_keys($actual));
+        unset($expected['timestamp'], $actual['timestamp']);
+        $this->assertSame($expected, $actual);
     }
 
     private function deleteUser(int $id): void

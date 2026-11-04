@@ -230,9 +230,10 @@ final class LogoffHandlerTest extends SessionEndpointTestCase
     {
         $this->assertSame(204, $response->status());
         $this->assertSame('', $response->body());
-        $this->assertSame([AccessTokenCookie::clear()->line()], $response->headers());
-        $this->assertStringContainsString('Max-Age=0', $response->headers()[0]);
-        $this->assertStringContainsString('Expires=Thu, 01 Jan 1970 00:00:00 GMT', $response->headers()[0]);
+        $this->assertSame([
+            'Set-Cookie: access_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0; '
+            . 'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+        ], $response->headers());
     }
 
     private function logoff(string $plain): Response
