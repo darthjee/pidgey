@@ -23,6 +23,7 @@ use Pidgey\Auth\SessionTokens;
 use Pidgey\Auth\SessionUuid;
 use Pidgey\Auth\UserPayload;
 use Pidgey\Container;
+use Pidgey\Http\Cors;
 use Pidgey\Http\ErrorFormatter;
 use Pidgey\Http\ErrorResponse;
 use Pidgey\Http\FieldRules;
@@ -39,6 +40,7 @@ use Pidgey\Http\Route;
 use Pidgey\Http\RouteMatch;
 use Pidgey\Http\Router;
 use Pidgey\Http\SetCookie;
+use Pidgey\Http\TrustedOrigins;
 use Pidgey\Http\UnauthorizedException;
 use Pidgey\Http\ValidationFailedException;
 use Pidgey\Http\Validator;
@@ -64,6 +66,7 @@ use Pidgey\Tests\Support\SessionEndpointTestCase;
 #[UsesClass(AccessTokenCookie::class)]
 #[UsesClass(Base64Url::class)]
 #[UsesClass(Container::class)]
+#[UsesClass(Cors::class)]
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(ErrorFormatter::class)]
@@ -97,6 +100,7 @@ use Pidgey\Tests\Support\SessionEndpointTestCase;
 #[UsesClass(Sql::class)]
 #[UsesClass(SystemWallClock::class)]
 #[UsesClass(Transaction::class)]
+#[UsesClass(TrustedOrigins::class)]
 #[UsesClass(UnauthorizedException::class)]
 #[UsesClass(User::class)]
 #[UsesClass(UserPayload::class)]

@@ -25,6 +25,7 @@ use Pidgey\Auth\SessionUuid;
 use Pidgey\Container;
 use Pidgey\Http\BadRequestException;
 use Pidgey\Http\ConflictException;
+use Pidgey\Http\Cors;
 use Pidgey\Http\ErrorFormatter;
 use Pidgey\Http\ErrorResponse;
 use Pidgey\Http\FieldRules;
@@ -41,6 +42,7 @@ use Pidgey\Http\Response;
 use Pidgey\Http\Route;
 use Pidgey\Http\RouteMatch;
 use Pidgey\Http\Router;
+use Pidgey\Http\TrustedOrigins;
 use Pidgey\Http\UnauthorizedException;
 use Pidgey\Http\ValidationFailedException;
 use Pidgey\Http\Validator;
@@ -73,6 +75,7 @@ use Pidgey\Tests\Support\SessionEndpointTestCase;
 #[UsesClass(Base64Url::class)]
 #[UsesClass(ConflictException::class)]
 #[UsesClass(Container::class)]
+#[UsesClass(Cors::class)]
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(ErrorFormatter::class)]
@@ -105,6 +108,7 @@ use Pidgey\Tests\Support\SessionEndpointTestCase;
 #[UsesClass(Sql::class)]
 #[UsesClass(SystemWallClock::class)]
 #[UsesClass(Transaction::class)]
+#[UsesClass(TrustedOrigins::class)]
 #[UsesClass(UnauthorizedException::class)]
 #[UsesClass(User::class)]
 #[UsesClass(UserRepository::class)]
@@ -464,6 +468,27 @@ final class AccountHandlerTest extends SessionEndpointTestCase
         $this->assertNull($this->lockoutRow($user->id));
     }
 
+    public function testTheGate401CarriesTheCorsHeadersForATrustedOrigin(): void
+    {
+        putenv('ALLOWED_ORIGINS=https://admin.test');
+        $user = $this->user('bob', 'bob@example.com');
+        $body = ['currentPassword' => self::$password, 'username' => 'bobby'];
+
+        $plain = $this->send($body);
+        $trusted = $this->patch($this->router, self::PATH, $body, [], ['Origin' => 'https://admin.test']);
+
+        $this->assertGateRefused($trusted, $user);
+        $this->assertSame($plain->status(), $trusted->status());
+        $this->assertSame(self::envelope($plain), self::envelope($trusted));
+        $this->assertSame([
+            'Content-Type: application/json',
+            'Vary: Origin',
+            'Access-Control-Allow-Origin: https://admin.test',
+            'Access-Control-Allow-Credentials: true',
+        ], $trusted->headers());
+        $this->assertSame(['Content-Type: application/json', 'Vary: Origin'], $plain->headers());
+    }
+
     /**
      * Builds an email address of the given length (at least 200): `bob@` and 63-character labels.
      *
@@ -508,6 +533,19 @@ final class AccountHandlerTest extends SessionEndpointTestCase
         );
 
         return (new UserRepository($this->pdo))->findById($id) ?? self::fail('The fixture user is missing.');
+    }
+
+    /**
+     * Returns the error envelope without its timestamp.
+     *
+     * @return array<string, mixed>
+     */
+    private static function envelope(Response $response): array
+    {
+        $body = self::json($response);
+        unset($body['timestamp']);
+
+        return $body;
     }
 
     private function assertGateRefused(Response $response, User $user): void
