@@ -7,6 +7,7 @@ namespace Pidgey;
 use PDO;
 use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\SecretKeys;
+use Pidgey\Auth\Sessions;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
@@ -55,6 +56,8 @@ final class Container
 
     private ?AccessToken $accessToken = null;
 
+    private ?Sessions $sessions = null;
+
     /**
      * Creates an empty container; nothing is built yet.
      *
@@ -92,6 +95,27 @@ final class Container
             SecretKeys::fromEnv(),
             Env::integer('ACCESS_TOKEN_TTL', ConfigValidator::DEFAULT_ACCESS_TOKEN_TTL),
             $this->wallClock(),
+        );
+    }
+
+    /**
+     * Returns the sessions service, built from the request's connection, the access-token service,
+     * the wall clock and `REFRESH_TOKEN_TTL` on the first call (which opens the connection).
+     *
+     * @return Sessions
+     *
+     * @throws RuntimeException When `SECRET_KEY`, a TTL or a required DB_* variable is missing or
+     *                          invalid.
+     */
+    public function sessions(): Sessions
+    {
+        return $this->sessions ??= new Sessions(
+            $this->refreshTokenRepository(),
+            $this->userRepository(),
+            $this->transaction(),
+            $this->accessToken(),
+            $this->wallClock(),
+            Env::integer('REFRESH_TOKEN_TTL', ConfigValidator::DEFAULT_REFRESH_TOKEN_TTL),
         );
     }
 
