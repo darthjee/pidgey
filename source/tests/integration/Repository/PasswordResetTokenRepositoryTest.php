@@ -132,6 +132,35 @@ final class PasswordResetTokenRepositoryTest extends RepositoryTestCase
         );
     }
 
+    public function testMarkAllUnusedUsedTouchesOnlyTheUsersUnusedTokens(): void
+    {
+        $userId = $this->fixtures->user();
+        $first = $this->fixtures->passwordResetToken(userId: $userId);
+        $second = $this->fixtures->passwordResetToken(userId: $userId, expiresAt: '2020-01-01 00:00:00');
+        $used = $this->fixtures->passwordResetToken(userId: $userId, usedAt: '2026-03-02 10:00:00');
+        $other = $this->fixtures->passwordResetToken();
+
+        $count = $this->repository->markAllUnusedUsed($userId, $this->utc('2026-03-05 12:30:00'));
+
+        $this->assertSame(2, $count);
+        $this->assertSame('2026-03-05 12:30:00', $this->usedAt($first));
+        $this->assertSame('2026-03-05 12:30:00', $this->usedAt($second));
+        $this->assertSame('2026-03-02 10:00:00', $this->usedAt($used));
+        $this->assertNull($this->usedAt($other));
+    }
+
+    public function testMarkAllUnusedUsedReturnsZeroWithoutTokens(): void
+    {
+        $count = $this->repository->markAllUnusedUsed($this->fixtures->user(), $this->utc('2026-03-05 12:30:00'));
+
+        $this->assertSame(0, $count);
+    }
+
+    private function usedAt(int $id): ?string
+    {
+        return $this->repository->findById($id)?->usedAt?->format('Y-m-d H:i:s');
+    }
+
     private function createToken(string $tokenHash, int $userId): PasswordResetToken
     {
         return $this->repository->create(
