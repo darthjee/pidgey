@@ -23,6 +23,12 @@ final class ConfigValidator
     /** Default `REFRESH_TOKEN_TTL`, in seconds. */
     public const DEFAULT_REFRESH_TOKEN_TTL = 604800;
 
+    /** Default `ACCOUNT_EDIT_MAX_ATTEMPTS`: failed account edits before locking. */
+    public const DEFAULT_ACCOUNT_EDIT_MAX_ATTEMPTS = 5;
+
+    /** Default `ACCOUNT_EDIT_LOCK_TTL`, in seconds. */
+    public const DEFAULT_ACCOUNT_EDIT_LOCK_TTL = 300;
+
     /** Settings that must be set and non-empty. */
     private const REQUIRED = ['DB_HOST', 'DB_NAME', 'DB_USER'];
 

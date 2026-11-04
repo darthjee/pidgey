@@ -444,6 +444,65 @@ final class UserRepositoryTest extends RepositoryTestCase
         $this->assertNull($this->repository->findApprovedBySession($userId, self::SESSION, $this->now()));
     }
 
+    public function testUsernameTakenByOtherIgnoresTheCallersOwnRow(): void
+    {
+        $user = $this->createUser('Bob', 'bob@example.com');
+
+        $this->assertFalse($this->repository->usernameTakenByOther('Bob', $user->id));
+        $this->assertFalse($this->repository->usernameTakenByOther('bob', $user->id));
+    }
+
+    public function testUsernameTakenByOtherMatchesAnotherUserCaseAndAccentInsensitively(): void
+    {
+        $user = $this->createUser('alice', 'alice@example.com');
+        $this->createUser('José', 'jose@example.com');
+
+        $this->assertTrue($this->repository->usernameTakenByOther('José', $user->id));
+        $this->assertTrue($this->repository->usernameTakenByOther('JOSE', $user->id));
+        $this->assertFalse($this->repository->usernameTakenByOther('josé ', $user->id));
+        $this->assertFalse($this->repository->usernameTakenByOther('nobody', $user->id));
+    }
+
+    public function testEmailTakenByOtherIgnoresTheCallersOwnRow(): void
+    {
+        $user = $this->createUser('bob', 'Bob@Example.com');
+
+        $this->assertFalse($this->repository->emailTakenByOther('bob@example.com', $user->id));
+    }
+
+    public function testEmailTakenByOtherMatchesAnotherUserCaseInsensitively(): void
+    {
+        $user = $this->createUser('alice', 'alice@example.com');
+        $this->createUser('carol', 'carol@example.com');
+
+        $this->assertTrue($this->repository->emailTakenByOther('CAROL@example.com', $user->id));
+        $this->assertFalse($this->repository->emailTakenByOther('dave@example.com', $user->id));
+    }
+
+    public function testUpdateAccountStoresEveryValue(): void
+    {
+        $user = $this->createUser('bob', 'bob@example.com');
+        $other = $this->createUser('carol', 'carol@example.com');
+
+        $this->repository->updateAccount($user->id, 'bobby', 'bobby@example.com', '$2y$10$new-digest');
+
+        $updated = $this->repository->findById($user->id);
+        $this->assertSame('bobby', $updated?->username);
+        $this->assertSame('bobby@example.com', $updated?->email);
+        $this->assertSame('$2y$10$new-digest', $updated?->passwordDigest);
+        $this->assertEquals($other, $this->repository->findById($other->id));
+    }
+
+    public function testUpdateAccountRejectsAUsernameTakenByAnotherUser(): void
+    {
+        $user = $this->createUser('bob', 'bob@example.com');
+        $this->createUser('carol', 'carol@example.com');
+
+        $this->expectException(PDOException::class);
+
+        $this->repository->updateAccount($user->id, 'Carol', 'bob@example.com', Fixtures::PASSWORD_DIGEST);
+    }
+
     private function now(): DateTimeImmutable
     {
         return new DateTimeImmutable('now', new DateTimeZone('UTC'));

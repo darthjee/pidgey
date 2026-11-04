@@ -179,6 +179,75 @@ final class UserRepository
     }
 
     /**
+     * Tells whether another user than the given one has this username, regardless of case and
+     * accents (the account edit "taken" check).
+     *
+     * A locking read (`FOR SHARE`): inside a REPEATABLE READ transaction it sees the latest
+     * committed rows rather than the transaction's snapshot, and it locks the matching index
+     * range on `users.username` until the transaction ends. Unscoped on purpose: usernames are
+     * unique across organizations.
+     *
+     * @param string  $username Username, compared as given with the column collation.
+     * @param integer $userId   The caller, whose own row is excluded.
+     *
+     * @return boolean
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function usernameTakenByOther(string $username, int $userId): bool
+    {
+        return $this->exists(
+            'SELECT 1 FROM users WHERE username = :username AND id <> :id LIMIT 1 FOR SHARE',
+            ['username' => $username, 'id' => $userId],
+        );
+    }
+
+    /**
+     * Tells whether another user than the given one has this email, regardless of case and
+     * accents (the account edit "taken" check).
+     *
+     * A locking read (`FOR SHARE`): inside a REPEATABLE READ transaction it sees the latest
+     * committed rows rather than the transaction's snapshot, and it locks the matching index
+     * range on `users.email` until the transaction ends. Unscoped on purpose: emails are unique
+     * across organizations.
+     *
+     * @param string  $email  Email address, compared as given with the column collation.
+     * @param integer $userId The caller, whose own row is excluded.
+     *
+     * @return boolean
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function emailTakenByOther(string $email, int $userId): bool
+    {
+        return $this->exists(
+            'SELECT 1 FROM users WHERE email = :email AND id <> :id LIMIT 1 FOR SHARE',
+            ['email' => $email, 'id' => $userId],
+        );
+    }
+
+    /**
+     * Stores a user's username, email and password digest in one statement (the account edit).
+     *
+     * Unscoped on purpose: the account edit acts on the session's own user.
+     *
+     * @param integer $id       Primary key.
+     * @param string  $username Username, stored as given.
+     * @param string  $email    Email address, stored as given.
+     * @param string  $digest   Password digest, from `password_hash()`.
+     *
+     * @return void
+     *
+     * @throws PDOException When the statement fails (e.g. a duplicate username or email).
+     */
+    public function updateAccount(int $id, string $username, string $email, #[SensitiveParameter] string $digest): void
+    {
+        $this->pdo->prepare(
+            'UPDATE users SET username = :username, email = :email, password_digest = :password_digest WHERE id = :id',
+        )->execute(['username' => $username, 'email' => $email, 'password_digest' => $digest, 'id' => $id]);
+    }
+
+    /**
      * Finds a user by id within one organization.
      *
      * @param integer $organizationId Organization the user must belong to.
@@ -227,6 +296,24 @@ final class UserRepository
                 'id' => $userId,
             ],
         );
+    }
+
+    /**
+     * Tells whether a query returns at least one row.
+     *
+     * @param string               $sql    Statement with named placeholders.
+     * @param array<string, mixed> $params Placeholder name => value.
+     *
+     * @return boolean
+     *
+     * @throws PDOException When the statement fails.
+     */
+    private function exists(string $sql, array $params): bool
+    {
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($params);
+
+        return $statement->fetchColumn() !== false;
     }
 
     /**

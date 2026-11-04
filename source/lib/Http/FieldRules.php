@@ -11,10 +11,13 @@ use Closure;
  *
  * A missing, null, wrong-type or (with notEmpty()) empty value gets exactly one message;
  * otherwise every other rule runs, in declaration order, and each failure adds its message.
- * Messages follow api/conventions/validation.md.
+ * An optional() field that is absent or null gets no message and is omitted from the validated
+ * values. Messages follow api/conventions/validation.md.
  */
 final class FieldRules
 {
+    private bool $optional = false;
+
     private bool $trim = false;
 
     private bool $notEmpty = false;
@@ -29,6 +32,19 @@ final class FieldRules
      */
     public function __construct(private readonly string $field)
     {
+    }
+
+    /**
+     * Makes the field optional: an absent or null value is "not present", gets no message and is
+     * omitted from the validated values. A present value still runs every rule.
+     *
+     * @return self
+     */
+    public function optional(): self
+    {
+        $this->optional = true;
+
+        return $this;
     }
 
     /**
@@ -138,6 +154,10 @@ final class FieldRules
      */
     public function errors(array $body): array
     {
+        if ($this->isOmitted($body)) {
+            return [];
+        }
+
         $value = $body[$this->field] ?? null;
 
         if ($value === null) {
@@ -165,6 +185,18 @@ final class FieldRules
         }
 
         return $errors;
+    }
+
+    /**
+     * Tells whether the field is optional and absent or null in the body, i.e. "not present".
+     *
+     * @param array<string, mixed> $body Decoded request body.
+     *
+     * @return boolean
+     */
+    public function isOmitted(array $body): bool
+    {
+        return $this->optional && ($body[$this->field] ?? null) === null;
     }
 
     /**

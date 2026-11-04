@@ -104,6 +104,29 @@ final class PasswordResetTokenRepository
     }
 
     /**
+     * Marks every unused reset token of a user as used (an account edit of the email or password).
+     *
+     * Unscoped on purpose: the account edit acts on the session's own user (see
+     * api/endpoints/auth/account.md).
+     *
+     * @param integer           $userId User whose tokens are invalidated.
+     * @param DateTimeImmutable $now    Current time, from `WallClock`, stored as `used_at`.
+     *
+     * @return integer The number of tokens marked.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function markAllUnusedUsed(int $userId, DateTimeImmutable $now): int
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE password_reset_tokens SET used_at = :now WHERE user_id = :user_id AND used_at IS NULL',
+        );
+        $statement->execute(['now' => Sql::dateTime($now), 'user_id' => $userId]);
+
+        return $statement->rowCount();
+    }
+
+    /**
      * Runs a single-row query and builds the reset token, if any.
      *
      * @param string               $sql    Statement with named placeholders.

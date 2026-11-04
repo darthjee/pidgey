@@ -6,6 +6,7 @@ namespace Pidgey;
 
 use PDO;
 use Pidgey\Auth\AccessToken;
+use Pidgey\Auth\AccountEdit;
 use Pidgey\Auth\Login;
 use Pidgey\Auth\Passwords;
 use Pidgey\Auth\Registration;
@@ -70,6 +71,8 @@ final class Container
     private ?Registration $registration = null;
 
     private ?Login $login = null;
+
+    private ?AccountEdit $accountEdit = null;
 
     /**
      * Creates an empty container; nothing is built yet.
@@ -206,6 +209,30 @@ final class Container
     public function login(): Login
     {
         return $this->login ??= new Login($this->userRepository(), $this->sessions(), $this->passwords());
+    }
+
+    /**
+     * Returns the account edit service, built from the request's connection, the wall clock,
+     * `ACCOUNT_EDIT_MAX_ATTEMPTS` and `ACCOUNT_EDIT_LOCK_TTL` on the first call (which opens the
+     * connection).
+     *
+     * @return AccountEdit
+     *
+     * @throws RuntimeException When a setting or a required DB_* variable is missing or invalid.
+     */
+    public function accountEdit(): AccountEdit
+    {
+        return $this->accountEdit ??= new AccountEdit(
+            $this->transaction(),
+            $this->accountEditLockoutRepository(),
+            $this->userRepository(),
+            $this->passwordResetTokenRepository(),
+            $this->passwords(),
+            $this->passwords(),
+            $this->wallClock(),
+            Env::integer('ACCOUNT_EDIT_MAX_ATTEMPTS', ConfigValidator::DEFAULT_ACCOUNT_EDIT_MAX_ATTEMPTS),
+            Env::integer('ACCOUNT_EDIT_LOCK_TTL', ConfigValidator::DEFAULT_ACCOUNT_EDIT_LOCK_TTL),
+        );
     }
 
     /**
