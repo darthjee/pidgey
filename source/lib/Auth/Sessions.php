@@ -6,13 +6,17 @@ namespace Pidgey\Auth;
 
 use DateInterval;
 use DateTimeImmutable;
+use LogicException;
 use PDOException;
 use Pidgey\Infra\Transaction;
 use Pidgey\Infra\WallClock;
+use Pidgey\Model\RevokedReason;
 use Pidgey\Model\User;
+use Pidgey\Model\UserStatus;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\UserRepository;
 use Random\RandomException;
+use SensitiveParameter;
 
 /**
  * Owns the refresh-token rules of admin UI sessions: start, rotation, replay detection and
@@ -29,6 +33,7 @@ final class Sessions
      * @param RefreshTokenRepository $refreshTokens The `refresh_tokens` repository.
      * @param UserRepository         $users         The `users` repository.
      * @param Transaction            $transaction   Transaction helper of the same connection.
+     * @param SessionRotation        $rotation      The atomic rotation step of a refresh.
      * @param AccessToken            $accessToken   Issues the access tokens (JWT).
      * @param WallClock              $clock         Source of `now`, in UTC.
      * @param integer                $refreshTtl    Refresh token lifetime in seconds (`REFRESH_TOKEN_TTL`).
@@ -37,6 +42,7 @@ final class Sessions
         private readonly RefreshTokenRepository $refreshTokens,
         private readonly UserRepository $users,
         private readonly Transaction $transaction,
+        private readonly SessionRotation $rotation,
         private readonly AccessToken $accessToken,
         private readonly WallClock $clock,
         private readonly int $refreshTtl,
@@ -78,6 +84,63 @@ final class Sessions
             $sessionUuid,
             $user,
         );
+    }
+
+    /**
+     * Refreshes a session: rotates the presented refresh token, following the order of the
+     * refresh table of `api/endpoints/auth/session.md`.
+     *
+     * Every failure is the same null, so callers cannot tell the cases apart:
+     * - an unknown or expired token;
+     * - a token revoked as `rotated`, a replay: every active token of the user is revoked with
+     *   `replay_detected` first (committed);
+     * - a token revoked for any other reason;
+     * - a missing user;
+     * - a denied user: the presented token is revoked with `admin_denied` first (committed);
+     * - a lost rotation race (rolled back, no side effect).
+     *
+     * Opens its own transaction for the rotation, so it must not run inside another one.
+     *
+     * @param string $plain The plain refresh token presented by the client.
+     *
+     * @return SessionTokens|null The session's new tokens, or null on any failure.
+     *
+     * @throws PDOException    When a statement fails.
+     * @throws LogicException  When a transaction is already active on the connection.
+     * @throws RandomException When no source of randomness is available.
+     */
+    public function refresh(#[SensitiveParameter] string $plain): ?SessionTokens
+    {
+        $now = $this->clock->now();
+        $token = $this->refreshTokens->findByTokenHash(RefreshTokenValue::hash($plain));
+
+        if ($token === null || $token->expiresAt <= $now) {
+            return null;
+        }
+
+        if ($token->revokedReason === RevokedReason::Rotated) {
+            $this->refreshTokens->revokeActiveForUser($token->userId, RevokedReason::ReplayDetected, $now);
+
+            return null;
+        }
+
+        if ($token->revokedAt !== null) {
+            return null;
+        }
+
+        $user = $this->users->findById($token->userId);
+
+        if ($user === null) {
+            return null;
+        }
+
+        if ($user->status === UserStatus::Denied) {
+            $this->refreshTokens->revokeIfActive($token->id, RevokedReason::AdminDenied, $now);
+
+            return null;
+        }
+
+        return $this->rotation->rotate($token, $user);
     }
 
     /**

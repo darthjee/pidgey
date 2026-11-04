@@ -8,12 +8,15 @@ use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccessTokenClaims;
 use Pidgey\Auth\Base64Url;
 use Pidgey\Auth\RefreshTokenValue;
+use Pidgey\Auth\RotationLost;
 use Pidgey\Auth\SecretKeys;
+use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
 use Pidgey\Auth\SessionTokens;
 use Pidgey\Auth\SessionUuid;
@@ -48,7 +51,9 @@ use Pidgey\Tests\Support\IntegrationTestCase;
 #[UsesClass(RefreshTokenRepository::class)]
 #[UsesClass(RefreshTokenValue::class)]
 #[UsesClass(Row::class)]
+#[UsesClass(RotationLost::class)]
 #[UsesClass(SecretKeys::class)]
+#[UsesClass(SessionRotation::class)]
 #[UsesClass(SessionTokens::class)]
 #[UsesClass(SessionUuid::class)]
 #[UsesClass(Sql::class)]
@@ -63,6 +68,10 @@ final class SessionsTest extends IntegrationTestCase
     private const NOW = 1_800_000_000;
 
     private const TTL = 604800;
+
+    private const ISSUED = self::NOW - 3600;
+
+    private const STARTED = self::NOW - 86400;
 
     private PDO $pdo;
 
@@ -81,10 +90,13 @@ final class SessionsTest extends IntegrationTestCase
         $this->fixtures = new Fixtures($this->pdo);
         $clock = self::clockAt(self::NOW);
         $this->accessToken = new AccessToken(new SecretKeys(self::KEY), 900, $clock);
+        $refreshTokens = new RefreshTokenRepository($this->pdo);
+        $transaction = new Transaction($this->pdo);
         $this->sessions = new Sessions(
-            new RefreshTokenRepository($this->pdo),
+            $refreshTokens,
             new UserRepository($this->pdo),
-            new Transaction($this->pdo),
+            $transaction,
+            new SessionRotation($refreshTokens, $transaction, $this->accessToken, $clock, self::TTL),
             $this->accessToken,
             $clock,
             self::TTL,
@@ -163,11 +175,208 @@ final class SessionsTest extends IntegrationTestCase
         $this->assertSame($tokens->sessionUuid, $this->onlyRow()['session_uuid']);
     }
 
-    private function user(): User
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function liveStatuses(): array
     {
-        $id = $this->fixtures->user(username: 'alice');
+        return ['approved' => ['approved'], 'pending' => ['pending']];
+    }
+
+    #[DataProvider('liveStatuses')]
+    public function testRefreshRotatesTheTokenOfALiveUser(string $status): void
+    {
+        $user = $this->user($status);
+        $session = '6f1c2a4e-8b3d-4c5f-9a7e-0d1b2c3e4f5a';
+        $presented = $this->token($user->id, 'presented', sessionUuid: $session);
+
+        $tokens = $this->sessions->refresh('presented');
+
+        $this->assertNotNull($tokens);
+        $this->assertSame($session, $tokens->sessionUuid);
+        $this->assertSame($user->id, $tokens->user->id);
+        $this->assertSame($session, $this->accessToken->verify($tokens->accessToken)?->sessionId);
+        $new = $this->rowByHash(hash('sha256', $tokens->refreshToken));
+        $this->assertSame($session, $new['session_uuid']);
+        $this->assertSame(self::at(self::STARTED), $new['started_at']);
+        $this->assertSame(self::at(self::NOW), $new['issued_at']);
+        $this->assertSame(self::at(self::NOW + self::TTL), $new['expires_at']);
+        $this->assertNull($new['revoked_reason']);
+        $old = $this->rows()[$presented];
+        $this->assertSame('rotated', $old['revoked_reason']);
+        $this->assertSame(self::at(self::NOW), $old['revoked_at']);
+    }
+
+    public function testRefreshWithAnUnknownTokenFails(): void
+    {
+        $this->token($this->user()->id, 'known');
+        $before = $this->rows();
+
+        $this->assertNull($this->sessions->refresh('unknown'));
+        $this->assertSame($before, $this->rows());
+    }
+
+    public function testRefreshWithAnExpiredTokenFails(): void
+    {
+        $this->token($this->user()->id, 'expired', expiresAt: self::NOW);
+        $before = $this->rows();
+
+        $this->assertNull($this->sessions->refresh('expired'));
+        $this->assertSame($before, $this->rows());
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function nonRotatedReasons(): array
+    {
+        return [
+            'logout' => ['logout'],
+            'password_reset' => ['password_reset'],
+            'admin_denied' => ['admin_denied'],
+            'admin_edit' => ['admin_edit'],
+            'replay_detected' => ['replay_detected'],
+        ];
+    }
+
+    #[DataProvider('nonRotatedReasons')]
+    public function testRefreshWithATokenRevokedForAnotherReasonFailsWithoutSideEffect(string $reason): void
+    {
+        $user = $this->user();
+        $this->token($user->id, 'revoked', revokedReason: $reason);
+        $this->token($user->id, 'other-session');
+        $before = $this->rows();
+
+        $this->assertNull($this->sessions->refresh('revoked'));
+        $this->assertSame($before, $this->rows());
+    }
+
+    public function testReplayingARotatedTokenRevokesEveryActiveTokenOfTheUser(): void
+    {
+        $user = $this->user();
+        $other = $this->user();
+        $replayed = $this->token($user->id, 'replayed', revokedReason: 'rotated');
+        $first = $this->token($user->id, 'first-session');
+        $second = $this->token($user->id, 'second-session');
+        $loggedOut = $this->token($user->id, 'logged-out', revokedReason: 'logout');
+        $othersToken = $this->token($other->id, 'other-user');
+        $before = $this->rows();
+
+        $this->assertNull($this->sessions->refresh('replayed'));
+
+        $after = $this->rows();
+        foreach ([$first, $second] as $id) {
+            $this->assertSame('replay_detected', $after[$id]['revoked_reason']);
+            $this->assertSame(self::at(self::NOW), $after[$id]['revoked_at']);
+        }
+        $this->assertSame($before[$replayed], $after[$replayed]);
+        $this->assertSame($before[$loggedOut], $after[$loggedOut]);
+        $this->assertSame($before[$othersToken], $after[$othersToken]);
+        $this->assertCount(count($before), $after);
+    }
+
+    public function testRefreshOfADeniedUserRevokesOnlyThePresentedToken(): void
+    {
+        $user = $this->user('denied');
+        $presented = $this->token($user->id, 'presented');
+        $otherSession = $this->token($user->id, 'other-session');
+        $before = $this->rows();
+
+        $this->assertNull($this->sessions->refresh('presented'));
+
+        $after = $this->rows();
+        $this->assertSame('admin_denied', $after[$presented]['revoked_reason']);
+        $this->assertSame(self::at(self::NOW), $after[$presented]['revoked_at']);
+        $this->assertSame($before[$otherSession], $after[$otherSession]);
+        $this->assertCount(count($before), $after);
+    }
+
+    public function testRefreshFailsWhenTheUserRowIsMissing(): void
+    {
+        $user = $this->user();
+        $this->token($user->id, 'orphan');
+        $this->pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+
+        try {
+            $this->pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $user->id]);
+        } finally {
+            $this->pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+        }
+        $before = $this->rows();
+
+        $this->assertNull($this->sessions->refresh('orphan'));
+        $this->assertSame($before, $this->rows());
+    }
+
+    public function testARotatedChainDetectsTheReplayOfAnOldToken(): void
+    {
+        $user = $this->user();
+        $this->token($user->id, 'first');
+
+        $second = $this->sessions->refresh('first');
+        $this->assertNotNull($second);
+        $third = $this->sessions->refresh($second->refreshToken);
+        $this->assertNotNull($third);
+
+        $this->assertNull($this->sessions->refresh('first'));
+        $latest = $this->rowByHash(hash('sha256', $third->refreshToken));
+        $this->assertSame('replay_detected', $latest['revoked_reason']);
+        $this->assertNull($this->sessions->refresh($third->refreshToken));
+    }
+
+    private function user(string $status = 'approved'): User
+    {
+        $id = $this->fixtures->user(status: $status);
 
         return (new UserRepository($this->pdo))->findById($id) ?? self::fail('The fixture user is missing.');
+    }
+
+    private function token(
+        int $userId,
+        string $plain,
+        ?string $sessionUuid = null,
+        ?int $expiresAt = null,
+        ?string $revokedReason = null,
+    ): int {
+        return $this->fixtures->refreshToken(
+            userId: $userId,
+            tokenHash: hash('sha256', $plain),
+            sessionUuid: $sessionUuid,
+            issuedAt: self::at(self::ISSUED),
+            expiresAt: self::at($expiresAt ?? self::NOW + 86400),
+            revokedAt: $revokedReason === null ? null : self::at(self::ISSUED + 60),
+            revokedReason: $revokedReason,
+            startedAt: self::at(self::STARTED),
+        );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function rows(): array
+    {
+        $rows = [];
+
+        $statement = $this->pdo->query('SELECT * FROM refresh_tokens ORDER BY id');
+
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $rows[(int) $row['id']] = $row;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rowByHash(string $tokenHash): array
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM refresh_tokens WHERE token_hash = :hash');
+        $statement->execute(['hash' => $tokenHash]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        $this->assertIsArray($row);
+
+        return $row;
     }
 
     /**

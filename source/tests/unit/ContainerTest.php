@@ -13,6 +13,7 @@ use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccessTokenClaims;
 use Pidgey\Auth\Base64Url;
 use Pidgey\Auth\SecretKeys;
+use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
 use Pidgey\Container;
 use Pidgey\Infra\ConnectionFactory;
@@ -36,6 +37,7 @@ use RuntimeException;
 #[UsesClass(AccessTokenClaims::class)]
 #[UsesClass(Base64Url::class)]
 #[UsesClass(SecretKeys::class)]
+#[UsesClass(SessionRotation::class)]
 #[UsesClass(Sessions::class)]
 #[UsesClass(SystemWallClock::class)]
 #[UsesClass(DatabaseConfig::class)]
@@ -335,6 +337,19 @@ final class ContainerTest extends TestCase
         $this->assertSame($sessions, $container->sessions());
         $container->refreshTokenRepository();
         $container->transaction();
+    }
+
+    public function testSessionRotationIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $rotation = $container->sessionRotation();
+
+        $this->assertInstanceOf(SessionRotation::class, $rotation);
+        $this->assertSame($rotation, $container->sessionRotation());
+        $container->sessions();
     }
 
     public function testSessionsReportsAnInvalidRefreshTokenTtl(): void
