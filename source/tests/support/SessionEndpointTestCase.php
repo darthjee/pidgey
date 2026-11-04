@@ -71,9 +71,10 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
      * Sends a JSON POST through a front controller with a fresh container per request; the
      * error formatter's log lines are kept in `$logged`.
      *
-     * @param array<string, mixed>|string $body Encoded as JSON unless already a string.
+     * @param array<string, mixed>|string $body    Encoded as JSON unless already a string.
+     * @param array<string, string>       $headers Extra request headers (e.g. `Origin`).
      */
-    protected function post(Router $router, string $path, array|string $body): Response
+    protected function post(Router $router, string $path, array|string $body, array $headers = []): Response
     {
         $logger = function (string $line): void {
             $this->logged[] = $line;
@@ -83,7 +84,7 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
         return $controller->handle(new Request([
             'method' => 'POST',
             'uri' => $path,
-            'headers' => ['Content-Type' => 'application/json'],
+            'headers' => ['Content-Type' => 'application/json', ...$headers],
             'cookies' => [],
             'body' => is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR),
         ]));

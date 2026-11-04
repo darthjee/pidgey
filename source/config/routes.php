@@ -17,6 +17,7 @@ $router = new Router([OriginCheck::class]);
 
 require __DIR__ . '/routes/frontend.php';
 require __DIR__ . '/routes/operational.php';
+require __DIR__ . '/routes/auth.php';
 
 $router->fallback(HashRedirectHandler::class);
 

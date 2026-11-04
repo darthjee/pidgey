@@ -44,6 +44,8 @@ final class RoutesSecurityTest extends TestCase
             'GET /' => ['GET', '/'],
             'GET /assets/*' => ['GET', '/assets/*'],
             'GET /health.json' => ['GET', '/health.json'],
+            'POST /auth/register.json' => ['POST', '/auth/register.json'],
+            'POST /auth/login.json' => ['POST', '/auth/login.json'],
         ];
     }
 
@@ -64,6 +66,8 @@ final class RoutesSecurityTest extends TestCase
         return [
             'another GET' => ['GET', '/me.json'],
             'POST to a public path' => ['POST', '/health.json'],
+            'GET of a public POST path' => ['GET', '/auth/login.json'],
+            'another auth endpoint' => ['POST', '/auth/account.json'],
             'a sub-path of a public prefix' => ['GET', '/assets/x/*'],
         ];
     }
