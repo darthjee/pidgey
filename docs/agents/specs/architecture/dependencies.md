@@ -5,7 +5,15 @@ Purpose: constrain what libraries the project may depend on.
 ## Backend (Composer)
 
 - **Runtime (`require`)**: `php` (8.4) and `monolog/monolog` only. Required PHP extensions:
-  `pdo_mysql` (plus what the base image provides).
+  `pdo_mysql` and `sodium` (plus what the base image provides).
+  - `sodium` encrypts the stored SMTP passwords (see
+    [email/password-encryption.md](../email/password-encryption.md)). It is declared as
+    `"ext-sodium": "*"` in `require` of `source/composer.json` (added by the implementation
+    issue), so `composer install` / `composer check-platform-reqs` fail on a PHP without it.
+  - The official `php:8.4` images compile `sodium` in; the CircleCI image, which has a
+    different base, must be confirmed to have it wherever PHPUnit runs. The production host
+    is covered by `bin/check-config` (see [configuration.md](configuration.md#bin-check-config)),
+    which runs before every release.
 - **Dev (`require-dev`)**: `phpunit/phpunit`, `squizlabs/php_codesniffer`,
   `slevomat/coding-standard`, `phpmd/phpmd` (as used in the tent repository).
 - **phpdocumentor** is the documentation tool but is **not** a Composer dependency: every
