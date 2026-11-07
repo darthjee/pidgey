@@ -31,9 +31,10 @@ Security:
 - The password is write-only in the API/UI: never returned in responses (nor logged). The
   API exposes only `hasPassword`, a boolean saying whether one is stored.
 - `username` and `password` are both set or both empty.
+- The encryption mechanism, keys, rotation and decrypt failures are defined in
+  [password-encryption.md](password-encryption.md).
 
 **Pending decisions:**
-- Encryption mechanism for the stored password (e.g. `sodium_crypto_secretbox`).
 - Whether `POST /v1/messages` requests may select a non-active connection explicitly (the
   test email already does, see the endpoints above).
 - A `deactivate` endpoint and a database-level "at most one active" constraint (see

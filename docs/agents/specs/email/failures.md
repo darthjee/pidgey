@@ -10,6 +10,7 @@ API uses the same envelope as every other endpoint.
 | --- | --- | --- |
 | `VALIDATION_FAILED` | Payload invalid (missing fields, bad address). | 400 |
 | `NO_SMTP_CONNECTION` | Organization has no active SMTP connection. | 409 |
+| `SMTP_PASSWORD_UNREADABLE` | The stored SMTP password could not be decrypted (wrong or removed key, corrupt bytes, associated-data mismatch); the server is never contacted. | 409 |
 | `SMTP_CONNECTION_FAILED` | DNS/TCP connect failure or timeout. | 502 |
 | `SMTP_TLS_FAILED` | STARTTLS/SSL negotiation or certificate failure. | 502 |
 | `SMTP_AUTH_FAILED` | Server rejected credentials. | 502 |
@@ -27,15 +28,19 @@ API uses the same envelope as every other endpoint.
 - `error.smtp` carries only the server's reply to the failing command, never client-side
   data (e.g. the `AUTH` payload). Its `message` has CR, LF and other control characters
   stripped and its length capped.
-- For `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED` and `SMTP_TIMEOUT`, `error.message` is a
-  fixed string, never raw exception text:
+- For `SMTP_PASSWORD_UNREADABLE`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED` and
+  `SMTP_TIMEOUT`, `error.message` is a fixed string, never raw exception text:
 
   | Code | `error.message` |
   | --- | --- |
+  | `SMTP_PASSWORD_UNREADABLE` | `The stored SMTP password could not be decrypted; set it again` |
   | `SMTP_CONNECTION_FAILED` | `Could not connect to the SMTP server` |
   | `SMTP_TLS_FAILED` | `TLS negotiation with the SMTP server failed` |
   | `SMTP_TIMEOUT` | `The SMTP server timed out` |
 
+- `SMTP_PASSWORD_UNREADABLE` applies to the test email and `POST /v1/messages`: the stored
+  password is decrypted before any connection, and every decrypt failure (see
+  [password-encryption.md](password-encryption.md#read-path)) gets this code.
 - Endpoints reachable without login that send email (password recovery, registration)
   never surface these codes or `error.smtp`: they answer their normal, enumeration-safe
   response and log the failure.

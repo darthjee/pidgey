@@ -57,6 +57,15 @@ Purpose: list every environment variable the application reads, with its default
 | `SMTP_HOST` | none | SMTP host used by the development and test setup (Mailpit). Organizations' own SMTP connections are stored in the database, not configured here (see [email/smtp-connections.md](../email/smtp-connections.md)). |
 | `SMTP_PORT` | none | SMTP port of the development and test setup (Mailpit: `1025`). |
 
+### SMTP password encryption
+
+Used by [email/password-encryption.md](../email/password-encryption.md).
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `SMTP_ENCRYPTION_KEY` | required | Encrypts and decrypts the stored SMTP connection passwords. A dedicated key, not derived from `SECRET_KEY`. See [SMTP encryption keys](#smtp-encryption-keys). |
+| `PREVIOUS_SMTP_ENCRYPTION_KEYS` | empty | Comma-separated previous keys, used **only to decrypt** passwords during a key rotation (see [password-encryption.md](../email/password-encryption.md#rotation) and [SMTP encryption keys](#smtp-encryption-keys)). |
+
 ### Authentication
 
 Used by [api/authentication.md](../api/authentication.md) and, for the `AUTHORIZATION_REQUEST_*`
@@ -153,6 +162,39 @@ sent through the system organization's active SMTP connection (see
   error is logged and a `500 INTERNAL_ERROR` envelope is answered, see
   [request-handler/front-controller.md](../request-handler/front-controller.md#failures-outside-the-wrapper)).
 
+### SMTP encryption keys
+
+`SMTP_ENCRYPTION_KEY` and `PREVIOUS_SMTP_ENCRYPTION_KEYS` follow the same rules as
+`SECRET_KEY` and `PREVIOUS_SECRET_KEYS` (see [Secret keys](#secret-keys)):
+
+- A key is the raw environment string, at least **32 bytes**, with no `,`, generated from at
+  least 32 CSPRNG bytes (e.g. `openssl rand -hex 32`).
+- The app **refuses to boot** when `SMTP_ENCRYPTION_KEY` is missing or shorter than 32 bytes.
+- `PREVIOUS_SMTP_ENCRYPTION_KEYS` is split on `,` and each entry is trimmed; an empty entry
+  refuses boot, and every entry follows the same length rule.
+- **Same as `SECRET_KEY`:** boot is refused when `SMTP_ENCRYPTION_KEY` or any
+  `PREVIOUS_SMTP_ENCRYPTION_KEYS` entry is byte-equal to `SECRET_KEY`.
+- **Duplicate key:** boot is refused when two configured SMTP keys (the current key and the
+  previous keys) share a key id (see
+  [password-encryption.md](../email/password-encryption.md#keys)), e.g. the current key also
+  listed in `PREVIOUS_SMTP_ENCRYPTION_KEYS`, or a previous key listed twice.
+- **Development key:** exactly `pidgey-development-only-insecure-smtp-key-0000000` (49 bytes,
+  no `,`). It lives in the root `.env` (`SMTP_ENCRYPTION_KEY=<development key>`) and in the
+  code constant `ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY`, which must both hold
+  exactly this value. It is recognized by exact byte comparison (for `SMTP_ENCRYPTION_KEY`
+  and each trimmed `PREVIOUS_SMTP_ENCRYPTION_KEYS` entry) and refused unless `PHP_ENV` is
+  exactly `development` or `test`, as for the [`SECRET_KEY` development key](#development-key).
+- Keys are never logged or returned by any endpoint, and live only in the environment (the
+  production env file on the host), never in the database. Losing the key means every stored
+  SMTP password must be re-entered, so it is backed up separately from the database.
+- **Failure names** (each reported at most once, never with a value):
+  - `SMTP_ENCRYPTION_KEY: missing`, `SMTP_ENCRYPTION_KEY: too short`,
+    `SMTP_ENCRYPTION_KEY: development key`, `SMTP_ENCRYPTION_KEY: same as SECRET_KEY`;
+  - `PREVIOUS_SMTP_ENCRYPTION_KEYS: empty entry`, `PREVIOUS_SMTP_ENCRYPTION_KEYS: too short`,
+    `PREVIOUS_SMTP_ENCRYPTION_KEYS: development key`,
+    `PREVIOUS_SMTP_ENCRYPTION_KEYS: same as SECRET_KEY`,
+    `PREVIOUS_SMTP_ENCRYPTION_KEYS: duplicate key`.
+
 ## Env file
 
 An optional env file supplies configuration where the process environment does not, as on the
@@ -190,12 +232,16 @@ the staging folder before migrating and swapping (see
 
 - Loads the env file (as every `bin/*` does), then runs the same validation the app runs at
   boot: every rule on this page that refuses boot, including the `SECRET_KEY` and
-  `PREVIOUS_SECRET_KEYS` rules, the required `DB_*` settings, the `DB_MIGRATE_*` pairing
+  `PREVIOUS_SECRET_KEYS` rules, the [SMTP encryption key](#smtp-encryption-keys) rules, the
+  `sodium` extension check (below), the required `DB_*` settings, the `DB_MIGRATE_*` pairing
   rule (see [Runtime and database](#runtime-and-database)) and the `ALLOWED_ORIGINS` rules
   (see [Origins](#origins)).
 - Also checks that the running PHP is **8.4.x**, since production is pinned to PHP 8.4 (see
   [deployment/server.md](../../deployment/server.md#host-requirements)). This catches a wrong
   `PHP_BIN` or a host change.
+- Checks that the `sodium` PHP extension is loaded (`extension_loaded('sodium')`), needed to
+  encrypt and decrypt SMTP passwords (see [dependencies.md](dependencies.md)). Unlike the PHP
+  version check, this check also runs at web boot.
 - It does not connect to the database.
 - **Exit codes:** `0` when every check passes; `1` when one or more checks fail.
 - **Output:** names each failed check (e.g. `SECRET_KEY: too short`,
@@ -205,13 +251,15 @@ the staging folder before migrating and swapping (see
   (see [Development key](#development-key)).
   The [`ALLOWED_ORIGINS` rules](#origins) report `ALLOWED_ORIGINS: invalid origin` and
   `ALLOWED_ORIGINS: not https`.
+  The [SMTP encryption key rules](#smtp-encryption-keys) report the failure names listed
+  there, and a missing `sodium` extension reports `PHP extension: sodium missing`.
   The `DB_MIGRATE_*` pairing rule reports:
   - `DB_MIGRATE_PASSWORD: missing` when `DB_MIGRATE_USER` is set and `DB_MIGRATE_PASSWORD` is
     not;
   - `DB_MIGRATE_USER: missing` when `DB_MIGRATE_PASSWORD` is set and `DB_MIGRATE_USER` is not;
   - nothing when neither is set (the fallback applies).
-- **Web boot refusal:** the web boot runs the same validation (without the PHP version check)
-  before routing. On any failure it refuses through the invalid-configuration path (the
+- **Web boot refusal:** the web boot runs the same validation (without the PHP version check,
+  but with the `sodium` extension check) before routing. On any failure it refuses through the invalid-configuration path (the
   failure names, never values, are logged and a `500 INTERNAL_ERROR` envelope is answered, see
   [request-handler/front-controller.md](../request-handler/front-controller.md#failures-outside-the-wrapper)).
   Every request, static files included, therefore needs a valid configuration.

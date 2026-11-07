@@ -174,3 +174,37 @@ access tokens signed with a key that is no longer `SECRET_KEY` or in `PREVIOUS_S
 Clients get a `401` and refresh; refresh tokens are not signed with the key, so nobody is
 logged out unless their refresh token has also expired. Today no endpoint reads `SECRET_KEY`
 yet, so a rotation has no visible effect until authentication ships.
+
+## Rotate `SMTP_ENCRYPTION_KEY`
+
+Stored SMTP passwords are encrypted with `SMTP_ENCRYPTION_KEY`; keys in
+`PREVIOUS_SMTP_ENCRYPTION_KEYS` are used only to decrypt (see
+[email/password-encryption.md](../specs/email/password-encryption.md)).
+
+1. Generate a new key: `openssl rand -hex 32` (at least 32 bytes, no `,`, different from
+   `SECRET_KEY`).
+2. Edit the shared `.env` on the host (`$REMOTE_HOME/$SHARED_DIR/.env`): move the current
+   `SMTP_ENCRYPTION_KEY` into `PREVIOUS_SMTP_ENCRYPTION_KEYS`, then set the new
+   `SMTP_ENCRYPTION_KEY`.
+3. Check the file: `cd <live> && $PHP_BIN bin/check-config`.
+4. Re-encrypt: `$PHP_BIN bin/reencrypt-smtp-passwords`, then run
+   `$PHP_BIN bin/reencrypt-smtp-passwords --check` until it reports no row under an old key and
+   no unreadable row.
+5. Remove the old key from `PREVIOUS_SMTP_ENCRYPTION_KEYS`.
+
+- **Leaked key:** same steps, but remove the leaked key right after step 4 instead of keeping
+  it around.
+- No deploy is needed: `public/index.php` loads `config/.env` on every request. The deploy
+  never runs `bin/reencrypt-smtp-passwords` itself.
+- Removing an old key before step 4 has finished leaves its rows unreadable: the test email
+  (and later sends) answer `409 SMTP_PASSWORD_UNREADABLE` until the key is restored as a
+  previous key or the password is set again. Back up every key separately from the database
+  (see [server.md](server.md#shared-env)).
+
+## Add `SMTP_ENCRYPTION_KEY` before the first release that validates it
+
+`bin/check-config` refuses a missing `SMTP_ENCRYPTION_KEY` once the encryption ships, and the
+release pipeline runs it before the swap. Add the key to the shared `.env` (step 1 and 2 of
+the rotation above, with no previous key) **before** deploying that release, otherwise the
+release stops before going live. No SMTP rows exist in production yet, so nothing needs
+migrating.

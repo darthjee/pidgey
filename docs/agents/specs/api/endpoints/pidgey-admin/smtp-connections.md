@@ -4,8 +4,9 @@ Purpose: define the `/smtp-connections*.json` endpoints: list, create, read, upd
 activate and send a test email through an organization's SMTP connections.
 
 Shared rules (access, guards, `:id` handling, field rules, operator log) are in
-[pidgey-admin.md](../pidgey-admin.md). The meaning of each setting and the password
-encryption are in [email/smtp-connections.md](../../../email/smtp-connections.md); the table in
+[pidgey-admin.md](../pidgey-admin.md). The meaning of each setting is in
+[email/smtp-connections.md](../../../email/smtp-connections.md), the password encryption in
+[email/password-encryption.md](../../../email/password-encryption.md); the table in
 [organizations/data-model/smtp-connections.md](../../../organizations/data-model/smtp-connections.md).
 Errors use [conventions/errors.md](../../conventions/errors.md).
 
@@ -46,7 +47,7 @@ An unknown id, an id out of range, or another organization's connection answers
 | `id` | `smtp_connections.id`. |
 | `name`, `host`, `port`, `encryption` | Stored values. |
 | `username` | Stored SMTP username, or `null` when none is set. |
-| `hasPassword` | `true` when a password is stored (`password IS NOT NULL`), otherwise `false`. |
+| `hasPassword` | `true` when a password is stored (`password IS NOT NULL`), otherwise `false`. It stays `true` when the stored password cannot be decrypted (list and show never decrypt). |
 | `fromAddress` | `smtp_connections.from_address`. |
 | `active` | Whether this is the organization's active connection. |
 | `createdAt`, `updatedAt` | ISO 8601 UTC with milliseconds. |
@@ -54,7 +55,7 @@ An unknown id, an id out of range, or another organization's connection answers
 - **`password` is write-only:** it is never returned, in any response (item, list, error or
   test email), and never logged. `hasPassword` is the only hint that one is stored.
 - The stored password is encrypted at rest, as defined in
-  [email/smtp-connections.md](../../../email/smtp-connections.md).
+  [email/password-encryption.md](../../../email/password-encryption.md).
 - `organizationId` is not exposed: it is always the caller's organization.
 
 ## Field rules
@@ -116,6 +117,14 @@ Request:
 - `active` is **not accepted** (dropped like any unknown field): a new connection always
   starts **inactive**, even when it is the organization's first. It becomes active only
   through [activate](#post-smtp-connectionsidactivatejson).
+- **Ordering**, in the create's transaction: `INSERT` the row with `password = NULL`, read
+  the new id (`lastInsertId`), encrypt the password with the associated data built from the
+  organization id and that id, then `UPDATE smtp_connections SET password = ? WHERE id = ?`
+  (see [email/password-encryption.md](../../../email/password-encryption.md#write-path)). Any
+  failure rolls the whole create back; a row without its password is never visible. Without
+  credentials the encrypt/update step is skipped.
+- An encryption failure answers `500 INTERNAL_ERROR` (the real error is logged without any
+  password data).
 
 Success: **`201`**, `{ "smtpConnection": <SMTP connection item> }`. One operator log line
 (`smtp-connection-create`, the new id).
@@ -146,6 +155,10 @@ Request (any subset of the fields):
 - The credential pairing rule is checked on the merged state, so sending only `password` on a
   connection that has a `username` is allowed (it rotates the password).
 - Changes apply to the next send; changing the active connection keeps it active.
+- A new `password` is encrypted with a fresh nonce and the current key; without one, the
+  stored bytes are kept as is (no re-encryption), even when `username`, `host` or `port`
+  change (see [email/password-encryption.md](../../../email/password-encryption.md#write-path)).
+  An encryption failure rolls the update back and answers `500 INTERNAL_ERROR`.
 
 Success: **`200`**, `{ "smtpConnection": <SMTP connection item> }`, reloaded after the update.
 
@@ -217,6 +230,13 @@ Behavior:
 - It uses the **given** connection, **active or not**, so a connection can be tested before
   it is activated. It never changes `active` or any other data.
 - The send-flow log line identifies the acting user instead of a token.
+- When credentials are stored, the password is decrypted before connecting. If it cannot be
+  decrypted (wrong or removed key, corrupt bytes, associated-data mismatch, malformed bytes,
+  unknown key id), the answer is `409 SMTP_PASSWORD_UNREADABLE` —
+  `The stored SMTP password could not be decrypted; set it again`, and the SMTP server is
+  **never contacted** (see
+  [email/password-encryption.md](../../../email/password-encryption.md#read-path)). Recovery:
+  `PATCH` a new `password`, or clear both credentials.
 
 Success: **`201`**, the same shape as the `POST /v1/messages` success body:
 
@@ -238,6 +258,7 @@ address beyond what the send flow already logs.
 | --- | --- |
 | Invalid `to` | `400 VALIDATION_FAILED` |
 | Unknown or foreign connection | `404 NOT_FOUND` — `SMTP connection not found` |
+| Stored password cannot be decrypted | `409 SMTP_PASSWORD_UNREADABLE` — `The stored SMTP password could not be decrypted; set it again` |
 | Connect, TLS, auth, rejection, temporary failure, timeout | `502` / `503` / `504` with the `SMTP_*` code and, when available, `error.smtp` |
 | Sent | `201 { "status": "sent", "smtp": … }` |
 
@@ -250,6 +271,7 @@ address beyond what the send flow already logs.
 | Malformed `:id` | `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` |
 | Validation failure | `400 VALIDATION_FAILED` |
 | Unknown, out of range or foreign `:id` | `404 NOT_FOUND` — `SMTP connection not found` |
+| Stored password cannot be decrypted (test email only) | `409 SMTP_PASSWORD_UNREADABLE`, see [email/failures.md](../../../email/failures.md) |
 | SMTP failure (test email only) | `502` / `503` / `504`, see [email/failures.md](../../../email/failures.md) |
 
 ## Known limitations
@@ -306,6 +328,11 @@ The implementation must cover at least:
   `409 NO_SMTP_CONNECTION`;
 - test email through Mailpit (success, `201`) and failure codes (unreachable host, wrong
   credentials); on an inactive connection; never `NO_SMTP_CONNECTION`;
+- create ordering: the stored password decrypts with the new row's associated data, and a
+  failure during encryption leaves no row;
+- update without `password` keeps the stored bytes; with one, they change;
+- test email with an undecryptable stored password → `409 SMTP_PASSWORD_UNREADABLE`, the SMTP
+  server never contacted, `hasPassword` still `true`;
 - operator log lines for every state change and test, with field names only and no secrets.
 
 ## Pending decisions
