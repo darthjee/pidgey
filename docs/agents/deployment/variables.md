@@ -75,6 +75,7 @@ the deploy.
 
 ## App settings are not CircleCI variables
 
-`SECRET_KEY`, `DB_*`, `PHP_ENV`, `USER_APPROVAL_REQUIRED`, `TRUSTED_PROXY_HOPS` and every
+`SECRET_KEY`, `SMTP_ENCRYPTION_KEY`, `PREVIOUS_SMTP_ENCRYPTION_KEYS`, `DB_*`, `PHP_ENV`,
+`USER_APPROVAL_REQUIRED`, `TRUSTED_PROXY_HOPS` and every
 other setting the app reads live **only** in the shared `.env` on the host (see
 [server.md](server.md#shared-env)). CI never sees them.

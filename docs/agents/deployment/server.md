@@ -87,17 +87,21 @@ Keys it must hold:
 | `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (and `DB_PORT` when not `3306`) | The production database. `DB_HOST`, `DB_NAME` and `DB_USER` are required by `bin/check-config`. |
 | `DB_MIGRATE_USER`, `DB_MIGRATE_PASSWORD` | Optional. The migration user, used by `bin/migrate` (and `bin/create-db` / `bin/drop-db`). When neither is set, those commands fall back to `DB_USER` / `DB_PASSWORD`. If one is set, both must be (`bin/check-config`). See [operations.md](operations.md#switch-to-separate-db-users). |
 | `SECRET_KEY` | At least 32 CSPRNG bytes, hex-encoded (e.g. `openssl rand -hex 32`). Required by `bin/check-config`. |
+| `SMTP_ENCRYPTION_KEY` | At least 32 CSPRNG bytes, hex-encoded (e.g. `openssl rand -hex 32`), no `,`, and different from `SECRET_KEY`. Encrypts the stored SMTP passwords. Required by `bin/check-config`; add it before the first release that validates it (see [operations.md](operations.md#add-smtp_encryption_key-before-the-first-release-that-validates-it)). |
+| `PREVIOUS_SMTP_ENCRYPTION_KEYS` | Optional. Comma-separated old SMTP keys, used only to decrypt during a rotation (see [operations.md](operations.md#rotate-smtp_encryption_key)). |
 | `USER_APPROVAL_REQUIRED` | `true` (see [known-gaps.md](known-gaps.md#no-proxy-rate-limiting)). |
 | `TRUSTED_PROXY_HOPS` | `0`: no reverse proxy sits in front of Apache on this host (see [known-gaps.md](known-gaps.md#trusted_proxy_hops-not-verified)). |
 | `ALLOWED_ORIGINS` or `FRONTEND_BASE_URL` | `https://<domain>`. |
 
 Every other setting may be left out to take its default.
 
-Why: the `.env` holds the only real secrets of the deployment (`SECRET_KEY`, the database
-passwords). Modes `700` / `600` keep other users of the host out; keeping it outside every
+Why: the `.env` holds the only real secrets of the deployment (`SECRET_KEY`,
+`SMTP_ENCRYPTION_KEY`, the database passwords). Modes `700` / `600` keep other users of the host out; keeping it outside every
 release and outside `public/` means no web request can read it and no release can overwrite
 it; keeping it out of CI means a CircleCI compromise or a careless log line cannot leak it.
-`TRUSTED_PROXY_HOPS` must match the real number of `X-Forwarded-For` hops: a value that is too
+`SMTP_ENCRYPTION_KEY` (and any `PREVIOUS_SMTP_ENCRYPTION_KEYS`) must be **backed up separately
+from the database**: database dumps and backups hold only ciphertext, and losing the key means
+every stored SMTP password must be re-entered. `TRUSTED_PROXY_HOPS` must match the real number of `X-Forwarded-For` hops: a value that is too
 high lets clients spoof their IP.
 
 ## Host requirements
