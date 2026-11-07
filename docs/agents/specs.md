@@ -25,6 +25,7 @@ plans (see [contributing.md](contributing.md#deployment-changes)).
 | [api](specs/api.md) | JSON API v1 surface, token authentication and scopes, conventions. |
 | [frontend](specs/frontend.md) | React admin UI stack, layout, client layer, screens, build. |
 | [testing](specs/testing.md) | Backend and frontend testing, linting, definition of done. |
+| [implement-email](specs/implement-email.md) | Temporary: implementation spec of epic #149; removed when #149 closes. |
 
 ## Spec granularity rule
 
