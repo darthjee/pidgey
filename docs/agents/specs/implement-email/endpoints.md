@@ -1,7 +1,8 @@
 # Implement Email: Connection Endpoints
 
-Purpose: map the SMTP connection endpoints (CRUD, activate, test email) and their operator
-log to the implementation work and list the hardening and lifecycle decisions owned by #153.
+Purpose: map the SMTP connection endpoints (CRUD, activate, deactivate, test email) and their
+operator log to the implementation work; the hardening and lifecycle decisions owned by #153
+are settled in the permanent specs linked below.
 
 > Temporary — part of epic #149. Permanent specs win on conflict; update them, not this
 > file, when a decision changes the target behavior.
@@ -10,58 +11,63 @@ Index: [implement-email.md](../implement-email.md).
 
 ## Open items
 
-- [ ] **Pending decision:** SMTP host deny-list / allow-list against server-side request
-  forgery ([api/pending.md](../api/pending.md),
-  [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#known-limitations)):
-  whether it exists, its configuration, whether it is checked on create / update, at send
-  time, or both, and the error answered.
-- [ ] **Pending decision:** DNS rebinding. A host check at validation time can be bypassed by
-  a name that resolves to an allowed address first and an internal one at send time; whether
-  the send flow resolves the name once, checks the resolved addresses and connects to the
-  checked address (keeping `host` for TLS peer verification).
-- [ ] **Pending decision:** credential redirection. Require `password` to be re-sent (or
-  cleared) in the same `PATCH` when `host`, `port` or `encryption` changes on a connection
-  that has credentials ([api/pending.md](../api/pending.md)); the validation message if
-  adopted.
-- [ ] **Pending decision:** test-email rate limit ([api/pending.md](../api/pending.md)): scope
-  (per user, per organization, per connection, per IP), window and count, storage, and the
-  `429` answer. It also covers **worker exhaustion** (slow SMTP servers holding PHP workers up
-  to the send-flow timeouts, possibly a cap on concurrent test emails) and **arbitrary `to`**
-  (the test email can send to any address, a spam / reputation vector).
-- [ ] **Pending decision:** a `deactivate` endpoint
-  (`POST /smtp-connections/:id/deactivate.json`).
-- [ ] **Pending decision:** a database-level "at most one active connection per organization"
-  constraint (v1 relies on the locked transaction of activate; see also
-  [persistence/schema-migrations.md](../persistence/schema-migrations.md)).
-- [ ] **Pending decision (inconsistency):**
-  [organizations/data-model/smtp-connections.md](../organizations/data-model/smtp-connections.md)
-  states "Pending decisions: None" while the database-level constraint above is pending in
-  [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#pending-decisions)
-  and [email/smtp-connections.md](../email/smtp-connections.md); and the pending summary of
-  [api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#pending-decisions) omits
-  the credential-redirection, rate-limit and message-template items.
-- [ ] **Pending decision:** a connection edited or deleted while its test email is in flight:
-  whether the test uses a snapshot of the row read at the start (and the result still
-  reports it), and what the operator log line says when the row no longer exists.
-- [ ] **Pending decision:** `PATCH` racing `activate` on the same connection (or on another
-  connection of the organization): whether `PATCH` also takes the organization lock, and
-  whether a `PATCH` may be lost or may overwrite `active`.
-- [ ] **Pending decision:** adopting the messages for numeric ranges, hostnames and control
-  characters as shared templates in
-  [api/conventions/validation.md](../api/conventions/validation.md#message-templates) (pending
-  in [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#pending-decisions)).
-- [ ] **Pending decision:** operator log destination and format. The code has no monolog
-  logger wired yet (existing handlers log through `error_log()`); whether a logger factory in
-  `Pidgey\Infra\` is introduced here, the line format (structured context or text), and the
-  log level (the log-level variable is pending in
-  [architecture/configuration.md](../architecture/configuration.md#pending-decisions)).
+All settled by #153.
+
+- [x] **SMTP host deny-list (SSRF):** checked **at send time only** (test email and
+  `POST /v1/messages`); `SMTP_ALLOW_PRIVATE_HOSTS` (default `false`, `true` in development
+  and test) skips the denied ranges; a denied address answers
+  `409 SMTP_HOST_NOT_ALLOWED`; ports are not restricted, the reachability oracle on public
+  hosts stays a known limitation —
+  [email/send-flow.md](../email/send-flow.md#host-check),
+  [email/smtp-connections.md](../email/smtp-connections.md#host-policy),
+  [email/failures.md](../email/failures.md#fixed-messages),
+  [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#known-limitations).
+- [x] **DNS rebinding:** `host` is resolved once, every address is checked, and the
+  transport connects to the checked IP (IPv4 preferred, no fallback in v1), with `host` kept
+  as TLS peer name and SNI — [email/send-flow.md](../email/send-flow.md#host-check).
+- [x] **Credential redirection:** a `PATCH` changing `host`, `port` or `encryption` on a
+  connection that keeps credentials must send a non-empty `password` or clear both;
+  otherwise `400` — `password must be sent again when host, port or encryption changes` —
+  [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#field-rules).
+- [x] **Test-email rate limit:** per organization, fixed window (`SMTP_TEST_MAX_ATTEMPTS` /
+  `SMTP_TEST_WINDOW`), one test in flight (lease), `429 TOO_MANY_REQUESTS` with
+  `Retry-After`; `to` restricted to the organization's users —
+  [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#test-email-limit),
+  [organizations/data-model/smtp-test-limits.md](../organizations/data-model/smtp-test-limits.md),
+  [api/conventions/errors.md](../api/conventions/errors.md#too-many-requests).
+- [x] **`deactivate` endpoint:** `POST /smtp-connections/:id/deactivate.json`, organization
+  lock, idempotent, `200` with the item —
+  [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsiddeactivatejson).
+- [x] **Database-level "at most one active":** generated stored column
+  `active_organization_id` with a unique index (migration `0010`), defense in depth —
+  [organizations/data-model/smtp-connections.md](../organizations/data-model/smtp-connections.md#at-most-one-active-connection).
+- [x] **Spec inconsistency:** the data-model spec now holds the constraint and states no
+  pending decision; the pending summary of
+  [api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#pending-decisions) lists
+  what remains.
+- [x] **Edited or deleted during the test email:** the test uses the snapshot read at its
+  start; the outcome is answered and logged with the connection id, without re-checking the
+  row — [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson).
+- [x] **`PATCH` racing `activate`:** `PATCH` locks the connection row
+  (`SELECT … FOR UPDATE`), does not take the organization lock, never writes `active` —
+  [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#patch-smtp-connectionsidjson).
+- [x] **Shared message templates:** integer, range, hostname, control-character and
+  line-break templates — [api/conventions/validation.md](../api/conventions/validation.md#message-templates).
+- [x] **Operator log destination and format:** `Pidgey\Infra\LoggerFactory` (Monolog,
+  `ErrorLogHandler`), `info`, message = action name, JSON context `userId`,
+  `organizationId`, `connectionId`, `fields`; `LOG_LEVEL` (default `info`) —
+  [api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#operator-log),
+  [architecture/backend.md](../architecture/backend.md#logging),
+  [architecture/configuration.md](../architecture/configuration.md#logging).
 
 ## Building block: connection endpoints
 
 - **Responsibility:** `GET` / `POST /smtp-connections.json` and `GET` / `PATCH` / `DELETE
-  /smtp-connections/:id.json`: validate the body with the field rules, enforce credential
-  pairing on the merged state, encrypt a new password, persist, and answer the SMTP connection
-  item. They never return the password and never change `active`.
+  /smtp-connections/:id.json`: validate the body with the field rules (shared message
+  templates), enforce credential pairing, credentials-require-encryption and the
+  credential-redirection rule on the merged state, encrypt a new password, persist, and
+  answer the SMTP connection item. `PATCH` locks the connection row for
+  read-merge-validate-write. They never return the password and never change `active`.
 - **Proposed names:** `Pidgey\Http\Handler\SmtpConnectionsHandler` (list, create) and
   `Pidgey\Http\Handler\SmtpConnectionHandler` (read, update, delete), a field-rule set
   `Pidgey\Http\SmtpConnectionRules`, a serializer `Pidgey\Http\SmtpConnectionPayload`, and
@@ -75,8 +81,8 @@ Index: [implement-email.md](../implement-email.md).
   [api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md) (access, guards, `:id`,
   shared rules); [organizations/scope.md](../organizations/scope.md);
   [api/conventions/validation.md](../api/conventions/validation.md).
-- **Open items:** host deny-list, credential redirection, message templates, the
-  inconsistency item.
+- **Settled:** credential redirection, message templates, `PATCH` row lock (see
+  [Open items](#open-items)).
 
 ### Shared contract: SMTP connection item
 
@@ -87,49 +93,93 @@ and is not copied here. It carries `id`, `name`, `host`, `port`, `encryption`, `
 `organizationId`. The frontend `SmtpConnectionsClient` reads the same shape
 ([frontend.md](frontend.md)).
 
-## Building block: activate
+## Building block: activate and deactivate
 
 - **Responsibility:** `POST /smtp-connections/:id/activate.json`: in one transaction, lock the
   organization row, load the target, deactivate every other connection of the organization
-  and activate the target. Idempotent.
-- **Proposed names:** `Pidgey\Http\Handler\SmtpConnectionActivateHandler`, with the
-  transactional step in the repository (e.g. `SmtpConnectionRepository::activate`) or a small
+  and activate the target. `POST /smtp-connections/:id/deactivate.json`: in one transaction,
+  lock the organization row, load the target, set `active = false`. Both idempotent, both
+  answer `200` with the item. Migration `0010_add_smtp_connections_active_unique.sql` adds
+  the generated `active_organization_id` column and its unique index (defense in depth).
+- **Proposed names:** `Pidgey\Http\Handler\SmtpConnectionActivateHandler` and
+  `Pidgey\Http\Handler\SmtpConnectionDeactivateHandler`, with the transactional steps in the
+  repository (e.g. `SmtpConnectionRepository::activate` / `::deactivate`) or a small
   `Pidgey\Email\ConnectionActivation`. Proposals only.
 - **Collaborators:** `Pidgey\Infra\Transaction`, `Pidgey\Repository\OrganizationRepository`
   (row lock), `Pidgey\Repository\SmtpConnectionRepository`, the operator log.
-- **Governing specs:** [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson);
+- **Governing specs:** [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson)
+  and [deactivate](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsiddeactivatejson);
   [email/smtp-connections.md](../email/smtp-connections.md) (Active connection);
+  [organizations/data-model/smtp-connections.md](../organizations/data-model/smtp-connections.md#at-most-one-active-connection);
   [persistence/connection.md](../persistence/connection.md).
-- **Open items:** `deactivate`, database-level constraint, `PATCH` racing `activate`.
+- **Settled:** `deactivate`, database-level constraint, `PATCH` racing `activate` (see
+  [Open items](#open-items)).
 
 ## Building block: test email
 
 - **Responsibility:** `POST /smtp-connections/:id/test.json`: validate `to` (default: the
-  caller's own email), load the given connection (active or not), run the send flow
-  ([transport.md](transport.md#building-block-send-flow)) with the fixed test content, and
-  answer `201` or the `SMTP_*` error. It never changes any data.
+  caller's own email; must be the email of a user of the organization), load the given
+  connection once (active or not; the snapshot used for the whole send), apply the
+  test-email limit (window and lease in `smtp_test_limits`, short locked transaction, no lock
+  during the send, lease cleared after it), run the send flow
+  ([transport.md](transport.md#building-block-send-flow), including the host check) with the
+  fixed test content, and answer `201`, `429` with `Retry-After`, or the `SMTP_*` error. It
+  never changes connection data. Migration `0011_create_smtp_test_limits.sql` creates the
+  limit table.
 - **Proposed names:** `Pidgey\Http\Handler\SmtpConnectionTestHandler`, the fixed content in
-  `Pidgey\Email\TestEmail`. Proposals only.
+  `Pidgey\Email\TestEmail`, the limit in `Pidgey\Repository\SmtpTestLimitRepository` (with a
+  small `Pidgey\Email\TestEmailLimit` applying the window and lease), the host check in
+  `Pidgey\Smtp\HostPolicy` (see [transport.md](transport.md#building-block-send-flow)).
+  Proposals only.
 - **Collaborators:** the send flow, `Pidgey\Repository\SmtpConnectionRepository`,
-  `Pidgey\Repository\UserRepository` (the caller's email), `Pidgey\Http\Validator`, the
-  operator log.
+  `Pidgey\Repository\UserRepository` (the caller's email, the organization-user check of
+  `to`), `Pidgey\Repository\SmtpTestLimitRepository`, `Pidgey\Infra\Transaction`,
+  `Pidgey\Infra\Clock`, `Pidgey\Http\Validator`, the operator log.
 - **Governing specs:** [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson);
   [email/send-flow.md](../email/send-flow.md) (steps 5–8);
-  [email/failures.md](../email/failures.md); [api/pending.md](../api/pending.md).
-- **Open items:** rate limit (worker exhaustion, arbitrary `to`), DNS rebinding, edited or
-  deleted during the test.
+  [email/failures.md](../email/failures.md);
+  [organizations/data-model/smtp-test-limits.md](../organizations/data-model/smtp-test-limits.md);
+  [api/conventions/errors.md](../api/conventions/errors.md#too-many-requests).
+- **Settled:** rate limit (worker exhaustion, arbitrary `to`), host check and DNS rebinding,
+  edited or deleted during the test (see [Open items](#open-items)).
 
 ## Building block: operator log
 
 - **Responsibility:** one line per successful state change (`smtp-connection-create`,
-  `-update`, `-delete`, `-activate`) and one per test attempt that reached the send
+  `-update`, `-delete`, `-activate`, `-deactivate`) and one per test attempt that reached the send
   (`smtp-connection-test` with the outcome), holding the user id, organization id, action,
   connection id and, for updates, the changed field **names** only. Never passwords, never
   the recipient beyond what the send flow logs.
-- **Proposed names:** `Pidgey\Infra\LoggerFactory` (monolog) and a small
-  `Pidgey\Http\OperatorLog` writing the lines. Proposals only.
+- **Format:** a Monolog `info` line, message = the action name, JSON context `userId`,
+  `organizationId`, `connectionId`, `fields` (names only), through an `ErrorLogHandler` (same
+  destination as today's `error_log()`); minimum level `LOG_LEVEL`.
+- **Names:** `Pidgey\Infra\LoggerFactory` (decided) and a small `Pidgey\Http\OperatorLog`
+  writing the lines (proposal).
 - **Collaborators:** `monolog/monolog`, `Pidgey\Container`, the handlers above.
 - **Governing specs:** [api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#operator-log);
   [email/send-flow.md](../email/send-flow.md) (step 8);
-  [architecture/backend.md](../architecture/backend.md#principles).
-- **Open items:** operator log destination and format.
+  [architecture/backend.md](../architecture/backend.md#logging);
+  [architecture/configuration.md](../architecture/configuration.md#logging).
+- **Settled:** operator log destination and format (see [Open items](#open-items)).
+
+## Implementation work
+
+Names are **proposals** (see the lifecycle rules in [implement-email.md](../implement-email.md)).
+
+1. **Handlers and routes** — list / create / read / update / delete, activate, deactivate and
+   test email handlers, registered in `source/config/routes/organization.php`
+   ([request-handler/routing.md](../request-handler/routing.md#route-files)).
+2. **Validation** — the shared message templates, the credential-redirection rule on
+   `PATCH`, and the organization-user rule of the test email `to`.
+3. **Migrations** — `0010_add_smtp_connections_active_unique.sql` (generated
+   `active_organization_id` and its unique index) and `0011_create_smtp_test_limits.sql`.
+4. **Host policy** — `Pidgey\Smtp\HostPolicy` in the send flow: resolve once, denied ranges,
+   connect to the checked IP ([transport.md](transport.md#building-block-send-flow)).
+5. **Test-email limit** — `Pidgey\Repository\SmtpTestLimitRepository`: window, lease and
+   `Retry-After`.
+6. **Logger** — `Pidgey\Infra\LoggerFactory` (Monolog, `ErrorLogHandler`, `LOG_LEVEL`) wired
+   in `Pidgey\Container`; the operator log lines.
+7. **Configuration** — `ConfigValidator` / `bin/check-config`: `SMTP_ALLOW_PRIVATE_HOSTS`,
+   `SMTP_TEST_MAX_ATTEMPTS`, `SMTP_TEST_WINDOW`, `LOG_LEVEL` and their failure names
+   ([architecture/configuration.md](../architecture/configuration.md#smtp-transport)); the
+   development `.env` and the test / CI environment set `SMTP_ALLOW_PRIVATE_HOSTS=true`.

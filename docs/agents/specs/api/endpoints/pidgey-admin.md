@@ -153,7 +153,7 @@ body values, passwords or tokens.
 Each detail file lists its own:
 
 - [organization.md](pidgey-admin/organization.md#pending-decisions);
-- [smtp-connections.md](pidgey-admin/smtp-connections.md#pending-decisions) (a `deactivate`
-  endpoint, a database-level "at most one active" constraint, an SMTP host deny-list /
-  allow-list);
+- [smtp-connections.md](pidgey-admin/smtp-connections.md#pending-decisions) (none left; the
+  general API rate limits and the pagination of lists stay in
+  [api/pending.md](../pending.md));
 - [api-tokens.md](pidgey-admin/api-tokens.md#pending-decisions).

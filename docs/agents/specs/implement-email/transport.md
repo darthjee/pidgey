@@ -95,7 +95,10 @@ All settled by #152.
 ## Building block: send flow
 
 - **Responsibility:** given a connection, a recipient and the message fields, runs the
-  send-time checks (`SMTP_INSECURE_CREDENTIALS`, then decrypt / `SMTP_PASSWORD_UNREADABLE`),
+  send-time checks (`SMTP_INSECURE_CREDENTIALS`, then the host check / `SMTP_HOST_NOT_ALLOWED`
+  — resolve `host` once and check every address unless `SMTP_ALLOW_PRIVATE_HOSTS` is `true` —
+  then decrypt / `SMTP_PASSWORD_UNREADABLE`), passes the **checked IP** to the transport as
+  the connect target (with `host` kept as TLS peer name and SNI),
   builds the MIME message, runs the transport, maps the outcome to a success body or an
   `SMTP_*` error (with echo redaction and sanitization of the reply text), and writes the
   attempt log line (step 8 of [email/send-flow.md](../email/send-flow.md#attempt-log)). It
@@ -103,7 +106,8 @@ All settled by #152.
   load the connection (the caller does).
 - **Proposed names** (namespace `Pidgey\Email\`): `Pidgey\Email\SendFlow` (or
   `Pidgey\Email\Mailer`), `Pidgey\Email\Message`, `Pidgey\Email\MimeBuilder`,
-  `Pidgey\Email\SendOutcome`, `Pidgey\Email\SecretString`; and an HTTP exception
+  `Pidgey\Email\SendOutcome`, `Pidgey\Email\SecretString`; the host check
+  `Pidgey\Smtp\HostPolicy` (resolve once, denied ranges, IPv4 preferred); and an HTTP exception
   `Pidgey\Http\SmtpFailureException` carrying `error.smtp`. Proposals only.
 - **Collaborators:** the SMTP transport (above), the password encryption service
   ([encryption.md](encryption.md)), `Pidgey\Infra\Clock` (`Date` header), `Pidgey\Infra\Env`
@@ -111,7 +115,9 @@ All settled by #152.
   application logger (monolog, see [endpoints.md](endpoints.md#building-block-operator-log)),
   `Pidgey\Http\HttpException` / `Pidgey\Http\ErrorResponse` / `Pidgey\Http\ErrorFormatter` (the
   error envelope).
-- **Governing specs:** [email/send-flow.md](../email/send-flow.md) (steps 5–8);
+- **Governing specs:** [email/send-flow.md](../email/send-flow.md) (steps 5–8,
+  [host check](../email/send-flow.md#host-check));
+  [email/smtp-connections.md](../email/smtp-connections.md#host-policy);
   [email/message-scope.md](../email/message-scope.md#message-format);
   [email/failures.md](../email/failures.md);
   [api/conventions/errors.md](../api/conventions/errors.md#smtp-send-failures).
@@ -139,7 +145,8 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
 6. **Secret value object** — `Pidgey\Email\SecretString`, `#[SensitiveParameter]` on every
    secret-carrying parameter, `sodium_memzero()` after the session
    ([Secret hygiene](../email/send-flow.md#secret-hygiene)).
-7. **Send flow** — `Pidgey\Email\SendFlow`: send-time checks, echo redaction,
+7. **Send flow** — `Pidgey\Email\SendFlow`: send-time checks (including the host check
+   through `Pidgey\Smtp\HostPolicy`, [Host check](../email/send-flow.md#host-check)), echo redaction,
    sanitization, outcome mapping, the attempt log line
    ([Send-time checks](../email/send-flow.md#send-time-checks),
    [`error.smtp`](../email/failures.md#errorsmtp)).
@@ -166,7 +173,7 @@ Described by what each carries; signatures are left to `plan-issue`.
 
 | Direction | Carries |
 | --- | --- |
-| Input: connection settings | `host`, `port`, `encryption` (`none` / `tls` / `ssl`). |
+| Input: connection settings | `host` (TLS peer name and SNI), the **checked IP** to connect to (see [Host check](../email/send-flow.md#host-check)), `port`, `encryption` (`none` / `tls` / `ssl`). |
 | Input: session settings | connect, command and total timeouts; the CA file (or none); the `EHLO` name (or none: the local address literal). |
 | Input: credentials | `username` and the **decrypted** password as a `SecretString`, or none. Never logged. |
 | Input: envelope | the sender (`fromAddress`) and the recipient list (one address in v1). |
@@ -179,7 +186,7 @@ The transport reads and writes through a stream abstraction, so a fake SMTP serv
 without a socket (unit tests) and a socket fixture or Mailpit plugs in for integration tests
 (see [testing.md](testing.md)). It carries:
 
-- **open** a target (host, port, implicit TLS or not, CA file) within a given timeout (the
+- **open** a target (the checked IP, port, the peer name `host`, implicit TLS or not, CA file) within a given timeout (the
   connect timeout, capped by the deadline);
 - **local address** of the open socket (for the `EHLO` address literal);
 - **write** a line (CRLF added), **read** a line (up to 2048 bytes), each within a given
@@ -210,8 +217,9 @@ It becomes the success body `{ "status": "sent", "smtp": { "code", "message" } }
 | `reason` | Optional: the OpenSSL reason of a TLS failure, for the log line only. |
 
 Mapping to HTTP, per [email/failures.md](../email/failures.md#fixed-messages). The send-time
-codes `SMTP_INSECURE_CREDENTIALS` and `SMTP_PASSWORD_UNREADABLE` (`409`, never
-`error.smtp`) come from the send flow, not the transport.
+codes `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED` and `SMTP_PASSWORD_UNREADABLE`
+(`409`, never `error.smtp`) come from the send flow, not the transport; a host that cannot be
+resolved is `SMTP_CONNECTION_FAILED`.
 
 | `failureCode` | HTTP status | `error.message` | `error.smtp` |
 | --- | --- | --- | --- |
@@ -232,3 +240,4 @@ codes `SMTP_INSECURE_CREDENTIALS` and `SMTP_PASSWORD_UNREADABLE` (`409`, never
 | `SMTP_TOTAL_TIMEOUT` | Seconds for the whole session (default `25`). | Decided, same section. |
 | `SMTP_CA_FILE` | Optional PEM bundle replacing the system CA store (test CA in test / CI). | Decided, same section. |
 | `SMTP_EHLO_NAME` | Optional client name for `EHLO`. | Decided, same section. |
+| `SMTP_ALLOW_PRIVATE_HOSTS` | Boolean (default `false`; `true` in the development and test env files): skip the denied ranges of the host check. | Decided by #153, same section. |
