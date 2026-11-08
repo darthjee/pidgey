@@ -110,6 +110,23 @@ final class ConfigValidator
     }
 
     /**
+     * Runs only the SMTP encryption key rules and the `sodium` check, for the commands that use
+     * the keys without serving requests (`bin/reencrypt-smtp-passwords`).
+     *
+     * The rules are the same ones `validate()` runs, with the same failure lines.
+     *
+     * @return list<string> Failure lines, empty when the keys are usable.
+     */
+    public function validateSmtpEncryption(): array
+    {
+        return [
+            ...$this->checkSmtpEncryptionKey(),
+            ...$this->checkPreviousSmtpEncryptionKeys(),
+            ...$this->checkSodium(),
+        ];
+    }
+
+    /**
      * Checks that `SECRET_KEY` is set and long enough.
      *
      * @return list<string>

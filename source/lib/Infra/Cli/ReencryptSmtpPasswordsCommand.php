@@ -8,6 +8,7 @@ use Closure;
 use Pidgey\Container;
 use Pidgey\Crypto\DecryptionFailed;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Infra\ConfigValidator;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Throwable;
 
@@ -20,6 +21,10 @@ use Throwable;
  * re-checked, so a row already written with the current key is skipped and never overwritten.
  * An unreadable row is skipped and reported; processing continues. With `--check` every row is
  * decrypted and nothing is written.
+ *
+ * Before any row is read, in both modes, the SMTP encryption key rules and the `sodium` check of
+ * the boot validation run; on failure only the failure lines (never a value) are printed on
+ * stderr, nothing is read or written and the command exits 1.
  *
  * Prints the counts and the unreadable ids on stdout, never any password data. Exits 0 when no
  * row is unreadable, 1 otherwise or on any error (message on stderr), 2 on invalid usage.
@@ -47,9 +52,15 @@ final class ReencryptSmtpPasswordsCommand
      * @param Closure  $containerFactory Closure(): Container, called once per run.
      * @param resource $stdout           Stream for normal output.
      * @param resource $stderr           Stream for error output.
+     * @param Closure  $validator        Closure(): list<string>, returns the SMTP encryption key
+     *                                   failures; checked before any row is processed.
      */
-    public function __construct(private readonly Closure $containerFactory, $stdout, $stderr)
-    {
+    public function __construct(
+        private readonly Closure $containerFactory,
+        $stdout,
+        $stderr,
+        private readonly Closure $validator,
+    ) {
         $this->stdout = $stdout;
         $this->stderr = $stderr;
     }
@@ -65,7 +76,14 @@ final class ReencryptSmtpPasswordsCommand
      */
     public static function fromEnvironment($stdout, $stderr): self
     {
-        return new self(static fn (): Container => new Container(), $stdout, $stderr);
+        $validator = new ConfigValidator();
+
+        return new self(
+            static fn (): Container => new Container(),
+            $stdout,
+            $stderr,
+            static fn (): array => $validator->validateSmtpEncryption(),
+        );
     }
 
     /**
@@ -81,6 +99,16 @@ final class ReencryptSmtpPasswordsCommand
             fwrite($this->stderr, "Usage: reencrypt-smtp-passwords [--check]\n");
 
             return self::EXIT_USAGE;
+        }
+
+        $failures = ($this->validator)();
+
+        if ($failures !== []) {
+            foreach ($failures as $failure) {
+                fwrite($this->stderr, $failure . "\n");
+            }
+
+            return self::EXIT_FAILURE;
         }
 
         $check = $arguments === ['--check'];

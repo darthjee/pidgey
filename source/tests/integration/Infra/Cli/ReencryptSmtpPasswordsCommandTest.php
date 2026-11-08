@@ -6,12 +6,14 @@ namespace Pidgey\Tests\Integration\Infra\Cli;
 
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use Pidgey\Container;
 use Pidgey\Crypto\DecryptionFailed;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
 use Pidgey\Infra\Cli\ReencryptSmtpPasswordsCommand;
+use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
@@ -29,6 +31,7 @@ use Pidgey\Tests\Support\LockHookPdo;
  */
 #[CoversClass(ReencryptSmtpPasswordsCommand::class)]
 #[CoversClass(SmtpConnectionRepository::class)]
+#[UsesClass(ConfigValidator::class)]
 #[UsesClass(Container::class)]
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(DecryptionFailed::class)]
@@ -48,7 +51,9 @@ final class ReencryptSmtpPasswordsCommandTest extends IntegrationTestCase
     private const PASSWORD = 'distinctive-rotation-password-5e8d1b';
     private const UPDATED_AT = '2020-01-02 03:04:05';
 
-    private const VARIABLES = ['SMTP_ENCRYPTION_KEY', 'PREVIOUS_SMTP_ENCRYPTION_KEYS'];
+    private const VARIABLES = ['SMTP_ENCRYPTION_KEY', 'PREVIOUS_SMTP_ENCRYPTION_KEYS', 'SECRET_KEY', 'PHP_ENV'];
+
+    private const SECRET_KEY = 'reencrypt-test-secret-key-not-a-real-secret-0123456789';
 
     private PDO $pdo;
 
@@ -73,6 +78,8 @@ final class ReencryptSmtpPasswordsCommandTest extends IntegrationTestCase
 
         putenv('SMTP_ENCRYPTION_KEY=' . self::NEW_KEY);
         putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::OLD_KEY);
+        putenv('SECRET_KEY=' . self::SECRET_KEY);
+        putenv('PHP_ENV=test');
 
         $this->pdo = self::pdo();
         DatabaseCleaner::truncateAll($this->pdo);
@@ -209,6 +216,7 @@ final class ReencryptSmtpPasswordsCommandTest extends IntegrationTestCase
             static fn (): Container => new Container($connections),
             $this->stdout,
             $this->stderr,
+            static fn (): array => (new ConfigValidator())->validateSmtpEncryption(),
         );
 
         $this->assertSame(0, $command->run([]));
@@ -229,9 +237,120 @@ final class ReencryptSmtpPasswordsCommandTest extends IntegrationTestCase
         putenv('SMTP_ENCRYPTION_KEY');
 
         $this->assertSame(1, $this->command()->run([]));
-        $this->assertStringContainsString('SMTP_ENCRYPTION_KEY', $this->read($this->stderr));
-        $this->assertStringNotContainsString(self::OLD_KEY, $this->read($this->stderr));
+        $this->assertSame("SMTP_ENCRYPTION_KEY: missing\n", $this->read($this->stderr));
         $this->assertSame('', $this->read($this->stdout));
+    }
+
+    /**
+     * @return array<string, array{array<string, string>, string}>
+     */
+    public static function invalidKeyProvider(): array
+    {
+        $development = ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY;
+
+        return [
+            'development key in production' => [
+                ['PHP_ENV' => 'production', 'SMTP_ENCRYPTION_KEY' => $development],
+                "SMTP_ENCRYPTION_KEY: development key\n",
+            ],
+            'development key without PHP_ENV' => [
+                ['PHP_ENV' => '', 'SMTP_ENCRYPTION_KEY' => $development],
+                "SMTP_ENCRYPTION_KEY: development key\n",
+            ],
+            'short key' => [
+                ['SMTP_ENCRYPTION_KEY' => 'short-smtp-key'],
+                "SMTP_ENCRYPTION_KEY: too short\n",
+            ],
+            'same as SECRET_KEY' => [
+                ['SMTP_ENCRYPTION_KEY' => self::SECRET_KEY],
+                "SMTP_ENCRYPTION_KEY: same as SECRET_KEY\n",
+            ],
+            'previous key is the development key in production' => [
+                ['PHP_ENV' => 'production', 'PREVIOUS_SMTP_ENCRYPTION_KEYS' => self::OLD_KEY . ',' . $development],
+                "PREVIOUS_SMTP_ENCRYPTION_KEYS: development key\n",
+            ],
+            'previous key duplicates the current key' => [
+                ['PREVIOUS_SMTP_ENCRYPTION_KEYS' => self::OLD_KEY . ',' . self::NEW_KEY],
+                "PREVIOUS_SMTP_ENCRYPTION_KEYS: duplicate key\n",
+            ],
+            'previous key too short' => [
+                ['PREVIOUS_SMTP_ENCRYPTION_KEYS' => self::OLD_KEY . ',short'],
+                "PREVIOUS_SMTP_ENCRYPTION_KEYS: too short\n",
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string, string> $variables
+     */
+    #[DataProvider('invalidKeyProvider')]
+    public function testInvalidKeysRefuseToRunAndLeaveRowsUntouched(array $variables, string $expected): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $id = $this->connection($organizationId, self::OLD_KEY);
+        $stored = $this->storedPassword($id);
+
+        foreach ($variables as $name => $value) {
+            putenv("{$name}={$value}");
+        }
+
+        foreach ([[], ['--check']] as $arguments) {
+            ftruncate($this->stderr, 0);
+            rewind($this->stderr);
+
+            $this->assertSame(1, $this->command()->run($arguments));
+            $stderr = $this->read($this->stderr);
+            $this->assertSame($expected, $stderr);
+            $this->assertSame('', $this->read($this->stdout));
+            $this->assertStringNotContainsString(ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY, $stderr);
+            $this->assertStringNotContainsString(self::SECRET_KEY, $stderr);
+            $this->assertNoSecretIn($stderr, $stored);
+            $this->assertSame($stored, $this->storedPassword($id));
+            $this->assertSame(self::UPDATED_AT, $this->updatedAt($id));
+        }
+    }
+
+    public function testAMissingSodiumExtensionRefusesToRun(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $id = $this->connection($organizationId, self::OLD_KEY);
+        $stored = $this->storedPassword($id);
+        $containerBuilt = false;
+        $command = new ReencryptSmtpPasswordsCommand(
+            static function () use (&$containerBuilt): Container {
+                $containerBuilt = true;
+
+                return new Container();
+            },
+            $this->stdout,
+            $this->stderr,
+            static fn (): array => (new ConfigValidator(false))->validateSmtpEncryption(),
+        );
+
+        $this->assertSame(1, $command->run([]));
+
+        $this->assertSame("PHP extension: sodium missing\n", $this->read($this->stderr));
+        $this->assertSame('', $this->read($this->stdout));
+        $this->assertFalse($containerBuilt);
+        $this->assertSame($stored, $this->storedPassword($id));
+    }
+
+    public function testTheEntryPointRefusesTheDevelopmentKeyInProduction(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $id = $this->connection($organizationId, self::OLD_KEY);
+        $stored = $this->storedPassword($id);
+        $environment = getenv();
+        $environment['PHP_ENV'] = 'production';
+        $environment['SMTP_ENCRYPTION_KEY'] = ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY;
+
+        [$exitCode, $stdout, $stderr] = $this->runEntryPoint([], $environment);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertSame('', $stdout);
+        $this->assertSame("SMTP_ENCRYPTION_KEY: development key\n", $stderr);
+        $this->assertSame($stored, $this->storedPassword($id));
+        $this->assertSame(self::UPDATED_AT, $this->updatedAt($id));
     }
 
     public function testTheEntryPointRunsTheCommand(): void
@@ -239,12 +358,29 @@ final class ReencryptSmtpPasswordsCommandTest extends IntegrationTestCase
         $organizationId = $this->fixtures->organization();
         $id = $this->connection($organizationId, self::OLD_KEY);
 
+        [$exitCode, $stdout, $stderr] = $this->runEntryPoint(['--check'], getenv());
+
+        $this->assertSame(0, $exitCode, $stderr);
+        $this->assertSame("due: 1\nalready current: 0\nunreadable: 0\n", $stdout);
+        $this->assertNoSecretIn($stdout . $stderr, $this->storedPassword($id));
+    }
+
+    /**
+     * Runs `bin/reencrypt-smtp-passwords` in a child process.
+     *
+     * @param string[]              $arguments
+     * @param array<string, string> $environment
+     *
+     * @return array{int, string, string} Exit code, stdout and stderr.
+     */
+    private function runEntryPoint(array $arguments, array $environment): array
+    {
         $process = proc_open(
-            [PHP_BINARY, self::SOURCE_ROOT . '/bin/reencrypt-smtp-passwords', '--check'],
+            [PHP_BINARY, self::SOURCE_ROOT . '/bin/reencrypt-smtp-passwords', ...$arguments],
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
             self::SOURCE_ROOT,
-            getenv(),
+            $environment,
         );
         $this->assertIsResource($process);
         $stdout = (string) stream_get_contents($pipes[1]);
@@ -252,9 +388,7 @@ final class ReencryptSmtpPasswordsCommandTest extends IntegrationTestCase
         fclose($pipes[1]);
         fclose($pipes[2]);
 
-        $this->assertSame(0, proc_close($process), $stderr);
-        $this->assertSame("due: 1\nalready current: 0\nunreadable: 0\n", $stdout);
-        $this->assertNoSecretIn($stdout . $stderr, $this->storedPassword($id));
+        return [proc_close($process), $stdout, $stderr];
     }
 
     private function command(): ReencryptSmtpPasswordsCommand
