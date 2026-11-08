@@ -1,6 +1,6 @@
 version: 2.1
 
-ci_base_image: &ci_base_image darthjee/circleci_pidgey-base:0.0.3
+ci_base_image: &ci_base_image darthjee/circleci_pidgey-base:0.0.4
 
 executors:
   pidgey-base:
@@ -105,19 +105,68 @@ jobs:
           DB_NAME: pidgey_test
           DB_USER: root
           DB_PASSWORD: root
-          SMTP_HOST: mailpit
-          SMTP_PORT: 1025
           SECRET_KEY: pidgey-development-only-insecure-secret-key-0000
           SMTP_ENCRYPTION_KEY: pidgey-development-only-insecure-smtp-key-0000000
+          TEST_MAILPIT_PLAIN: localhost:2025:9025
+          TEST_MAILPIT_STARTTLS: localhost:2587:9587
+          TEST_MAILPIT_SSL: localhost:2465:9465
+          SMTP_ALLOW_PRIVATE_HOSTS: "true"
+          SMTP_CA_FILE: tests/fixtures/tls/ca.pem
       - image: mysql:9
         name: mysql
         environment:
           MYSQL_ROOT_PASSWORD: root
-      - image: axllent/mailpit
-        name: mailpit
     steps:
       - prepare_source
       - composer_setup
+      # Test Mailpit instances run on localhost from the image's mailpit binary:
+      # CI cannot mount the TLS fixtures into service containers.
+      - run:
+          name: Mailpit plain
+          background: true
+          command: mailpit
+          environment:
+            MP_SMTP_BIND_ADDR: 0.0.0.0:2025
+            MP_UI_BIND_ADDR: 0.0.0.0:9025
+      - run:
+          name: Mailpit STARTTLS
+          background: true
+          command: mailpit
+          environment:
+            MP_SMTP_BIND_ADDR: 0.0.0.0:2587
+            MP_UI_BIND_ADDR: 0.0.0.0:9587
+            MP_SMTP_REQUIRE_STARTTLS: "true"
+            MP_SMTP_TLS_CERT: tests/fixtures/tls/server.pem
+            MP_SMTP_TLS_KEY: tests/fixtures/tls/server-key.pem
+            MP_SMTP_AUTH: pidgey-test:pidgey-test-password
+      - run:
+          name: Mailpit SSL
+          background: true
+          command: mailpit
+          environment:
+            MP_SMTP_BIND_ADDR: 0.0.0.0:2465
+            MP_UI_BIND_ADDR: 0.0.0.0:9465
+            MP_SMTP_REQUIRE_TLS: "true"
+            MP_SMTP_TLS_CERT: tests/fixtures/tls/server.pem
+            MP_SMTP_TLS_KEY: tests/fixtures/tls/server-key.pem
+            MP_SMTP_AUTH: pidgey-test:pidgey-test-password
+      - run:
+          name: Wait for Mailpit
+          command: |
+            for instance in plain:9025 starttls:9587 ssl:9465; do
+              name=${instance%%:*}
+              port=${instance##*:}
+              attempt=0
+              until curl -fsS -o /dev/null "http://localhost:${port}/api/v1/info"; do
+                attempt=$((attempt + 1))
+                if [ "${attempt}" -ge 30 ]; then
+                  echo "Mailpit ${name} (API port ${port}) did not answer within 30 seconds" >&2
+                  exit 1
+                fi
+                sleep 1
+              done
+              echo "Mailpit ${name} is up"
+            done
       - run:
           name: Prepare database
           command: composer db:prepare
