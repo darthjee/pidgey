@@ -18,9 +18,9 @@ Index: [implement-email.md](../implement-email.md).
   for the auth paths.
 - [ ] **Pending decision:** TLS paths (`tls` and `ssl`) in integration tests: a test CA and a
   certificate for the Mailpit hostname kept in `source/tests/fixtures/`, Mailpit configured
-  with them, and the test CA injected through configuration (see the CA key in
-  [transport.md](transport.md#new-configuration-keys)). Certificate verification is **never
-  disabled** in tests. Whether expired / wrong-name certificates are also tested.
+  with them, and the test CA injected through `SMTP_CA_FILE` (decided by #152, see
+  [architecture/configuration.md](../architecture/configuration.md#smtp-transport)).
+  Certificate verification is **never disabled** in tests. Whether expired / wrong-name certificates are also tested.
 - [ ] **Pending decision:** fake SMTP server. *Working assumption, to be confirmed in #154:* an
   in-memory stream (plugged into the stream abstraction of
   [transport.md](transport.md#stream)) scripted with server replies for unit tests, and a
@@ -41,7 +41,18 @@ Index: [implement-email.md](../implement-email.md).
     associated-data mismatch (bytes moved to another row), previous-key decryption if
     adopted ([encryption.md](encryption.md));
   - log capture: no password, `AUTH` payload or key in any captured log line or exception
-    message, on success and failure paths;
+    message, on success and failure paths. Required by #152: every failure path and the
+    success path run with a **canary password**; neither the password nor its base64 forms
+    (alone or inside the `AUTH` payload) may appear in the response body, any log record
+    (message, context, exception trace) or any exception message
+    ([email/send-flow.md](../email/send-flow.md#secret-hygiene));
+  - reply-by-reply transport unit tests against the fake stream (required by #152): every
+    step's success and failure mapping of
+    [email/send-flow.md](../email/send-flow.md#smtp-session) — greeting codes, `EHLO`
+    without `HELO` fallback, `STARTTLS` missing / refused / injected bytes, `AUTH` `PLAIN` /
+    `LOGIN` / no supported mechanism / `530`, envelope and `DATA` rejections, dot-stuffing,
+    multi-line and malformed replies (`SMTP_PROTOCOL_ERROR`), timeouts and the session
+    deadline with a frozen clock, best-effort `QUIT`;
   - concurrent `activate` (two connections, two processes) proving exactly one ends active;
   - the `SMTP_*` mapping table of [transport.md](transport.md#failure) end to end.
 

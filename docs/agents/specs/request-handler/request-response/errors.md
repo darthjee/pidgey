@@ -35,7 +35,7 @@ All in `Pidgey\Http\`.
 
 - **`ValidationFailedException(list<string> $details)`**: `400`, `VALIDATION_FAILED`, with the message being `details` joined by `"; "` ([api/conventions/errors.md](../../api/conventions/errors.md#validation-errors)).
 - A specific code (e.g. `USERNAME_TAKEN`, `USER_DENIED`) is passed to the constructor.
-- The SMTP failures (`502`, `503`, `504`, see [email/failures.md](../../email/failures.md)) use `HttpException` directly with their codes. Sanitizing `error.smtp` stays with the email layer.
+- The SMTP failures (`409`, `502`, `503`, `504`, see [email/failures.md](../../email/failures.md)) use `HttpException` directly with their codes. Sanitizing `error.smtp` stays with the email layer.
 
 ## `ErrorFormatter`
 

@@ -93,6 +93,17 @@ Keys it must hold:
 | `TRUSTED_PROXY_HOPS` | `0`: no reverse proxy sits in front of Apache on this host (see [known-gaps.md](known-gaps.md#trusted_proxy_hops-not-verified)). |
 | `ALLOWED_ORIGINS` or `FRONTEND_BASE_URL` | `https://<domain>`. |
 
+Optional SMTP transport keys (rules and validation in
+[architecture/configuration.md](../specs/architecture/configuration.md#smtp-transport)):
+
+| Key | Default | Value |
+| --- | --- | --- |
+| `SMTP_CONNECT_TIMEOUT` | `10` | Seconds for the TCP connect, the `ssl` handshake and the greeting. Must be `<= SMTP_TOTAL_TIMEOUT`. |
+| `SMTP_COMMAND_TIMEOUT` | `10` | Seconds for each SMTP command's reply. Must be `<= SMTP_TOTAL_TIMEOUT`. |
+| `SMTP_TOTAL_TIMEOUT` | `25` | Seconds for the whole SMTP session. Must stay **below the Apache / proxy request timeout**, so a slow SMTP server ends in an `SMTP_TIMEOUT` error instead of a killed request (see [known-gaps.md](known-gaps.md#smtp-total-timeout-vs-the-proxy-timeout)). |
+| `SMTP_CA_FILE` | empty | Path to a PEM CA bundle. When set it **replaces** the system CA store for SMTP TLS verification; to trust both, concatenate the bundles into one file. Must be readable by `$SSH_USER`, or boot is refused. |
+| `SMTP_EHLO_NAME` | empty | The `EHLO` client name. Should be the host's public FQDN, ideally matching its reverse DNS. Empty: the socket's local address literal is sent instead. |
+
 Every other setting may be left out to take its default.
 
 Why: the `.env` holds the only real secrets of the deployment (`SECRET_KEY`,

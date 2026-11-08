@@ -37,6 +37,10 @@ throwaway, so root carries no risk.
   repository-relative (`source/…`, `frontend/…`), because each job flattens its folder to the
   working directory's root.
 - `coverage_final` sends the Codacy `final` call once both partial reports are in.
+- Both the partial uploads and the `final` call go through the `codacy_reporter` command, which
+  downloads the reporter script with `curl --fail --retry` and retries the whole download and
+  upload up to 3 times with a short backoff, so a transient network error (e.g. an HTTP/2
+  framing error) does not fail the job; a persistent failure still fails it.
 - Frontend coverage is therefore in Codacy, next to backend coverage (#75). This settles the
   open question of whether `frontend_checks` should upload it.
 - The uploads use `CODACY_PROJECT_TOKEN`, a CircleCI **project** variable (see

@@ -26,6 +26,30 @@ commands:
           name: composer install
           command: composer install --no-interaction --no-progress
 
+  codacy_reporter:
+    description: Run the Codacy coverage reporter, retrying transient network failures
+    parameters:
+      step_name:
+        type: string
+        description: Name of the run step
+      args:
+        type: string
+        description: Arguments passed to the Codacy reporter (e.g. "report --partial -r file" or "final")
+    steps:
+      - run:
+          name: << parameters.step_name >>
+          command: |
+            for attempt in 1 2 3; do
+              if curl -fsSL --retry 3 --retry-delay 5 -o /tmp/codacy-get.sh https://coverage.codacy.com/get.sh \
+                && bash /tmp/codacy-get.sh << parameters.args >>; then
+                exit 0
+              fi
+              echo "Codacy reporter attempt ${attempt} failed" >&2
+              if [ "${attempt}" -lt 3 ]; then sleep $((attempt * 10)); fi
+            done
+            echo "Codacy reporter failed after 3 attempts" >&2
+            exit 1
+
   upload_codacy_coverage:
     description: Rewrite coverage paths to be repo-relative and upload a partial report to Codacy
     parameters:
@@ -47,9 +71,9 @@ commands:
               -e '/^SF:(\/|<< parameters.prefix >>\/)/!s|^SF:|SF:<< parameters.prefix >>/|' \
               << parameters.report >>
             grep -m3 -E 'SF:|file name=' << parameters.report >> || echo "No path lines found in << parameters.report >>"
-      - run:
-          name: Upload partial coverage to Codacy
-          command: bash <(curl -Ls https://coverage.codacy.com/get.sh) report --partial -r << parameters.report >>
+      - codacy_reporter:
+          step_name: Upload partial coverage to Codacy
+          args: report --partial -r << parameters.report >>
 
   deploy_setup:
     description: Fail early without SSH_KNOWN_HOSTS, then write the SSH key files
@@ -128,9 +152,9 @@ jobs:
     docker:
       - image: darthjee/circleci_node:0.2.1
     steps:
-      - run:
-          name: Finalize Codacy coverage
-          command: bash <(curl -Ls https://coverage.codacy.com/get.sh) final
+      - codacy_reporter:
+          step_name: Finalize Codacy coverage
+          args: final
 
   build_backend:
     executor: pidgey-base

@@ -66,6 +66,38 @@ Used by [email/password-encryption.md](../email/password-encryption.md).
 | `SMTP_ENCRYPTION_KEY` | required | Encrypts and decrypts the stored SMTP connection passwords. A dedicated key, not derived from `SECRET_KEY`. See [SMTP encryption keys](#smtp-encryption-keys). |
 | `PREVIOUS_SMTP_ENCRYPTION_KEYS` | empty | Comma-separated previous keys, used **only to decrypt** passwords during a key rotation (see [password-encryption.md](../email/password-encryption.md#rotation) and [SMTP encryption keys](#smtp-encryption-keys)). |
 
+### SMTP transport
+
+Used by the SMTP session of [email/send-flow.md](../email/send-flow.md) (test email and
+`POST /v1/messages`).
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `SMTP_CONNECT_TIMEOUT` | `10` | Seconds for the TCP connect, the `ssl` handshake and the `220` greeting (see [send-flow.md](../email/send-flow.md#timeouts)). |
+| `SMTP_COMMAND_TIMEOUT` | `10` | Seconds for each command's reply, including the `STARTTLS` handshake and the reply to the final `.` of `DATA`. |
+| `SMTP_TOTAL_TIMEOUT` | `25` | Seconds for the whole SMTP session: a deadline fixed at connect time; every operation waits `min(its own timeout, time remaining)`. Must stay below the web server / proxy request timeout (see the deployment docs). |
+| `SMTP_CA_FILE` | empty | Path to a PEM CA bundle that **replaces** the system CA store for SMTP TLS verification (to trust both, concatenate them). Empty: the system store (`openssl.cafile` / `openssl.capath` / the OpenSSL default). Test and CI set it to the test CA (see [email/smtp-connections.md](../email/smtp-connections.md#tls-policy)). |
+| `SMTP_EHLO_NAME` | empty | The client name sent as the `EHLO` argument; recommended: the host's public FQDN, ideally matching its reverse DNS. Empty: the address literal of the socket's local address (e.g. `[203.0.113.7]`, see [send-flow.md](../email/send-flow.md#ehlo)). |
+
+- The three timeouts are durations (positive integers, see [Rules](#rules)).
+  `SMTP_CONNECT_TIMEOUT` and `SMTP_COMMAND_TIMEOUT` must each be `<= SMTP_TOTAL_TIMEOUT`;
+  otherwise boot is refused.
+- `SMTP_CA_FILE`, when set, must name an existing, readable file; otherwise boot is
+  refused. Its contents are not parsed at boot.
+- `SMTP_EHLO_NAME`, when set, must be an ASCII LDH hostname (letters, digits, hyphen; labels
+  of 1–63 characters with no leading or trailing hyphen, at most 253 characters in total);
+  otherwise boot is refused.
+- **Failure names** (each reported at most once, never with a value):
+  `SMTP_CONNECT_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT`,
+  `SMTP_COMMAND_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT`, `SMTP_CA_FILE: not readable`,
+  `SMTP_EHLO_NAME: invalid hostname`.
+- **Stack-trace arguments:** outside `development` / `test` (same `PHP_ENV` rule as the
+  [development key](#development-key)), the web and CLI boot set
+  `ini_set('zend.exception_ignore_args', '1')` (the setting is `INI_ALL`), so no stack trace
+  carries arguments (and no secret, see
+  [send-flow.md](../email/send-flow.md#secret-hygiene)) regardless of the host's `php.ini`.
+  This is not a setting and `bin/check-config` does not check it.
+
 ### Authentication
 
 Used by [api/authentication.md](../api/authentication.md) and, for the `AUTHORIZATION_REQUEST_*`
@@ -234,8 +266,8 @@ the staging folder before migrating and swapping (see
   boot: every rule on this page that refuses boot, including the `SECRET_KEY` and
   `PREVIOUS_SECRET_KEYS` rules, the [SMTP encryption key](#smtp-encryption-keys) rules, the
   `sodium` extension check (below), the required `DB_*` settings, the `DB_MIGRATE_*` pairing
-  rule (see [Runtime and database](#runtime-and-database)) and the `ALLOWED_ORIGINS` rules
-  (see [Origins](#origins)).
+  rule (see [Runtime and database](#runtime-and-database)), the `ALLOWED_ORIGINS` rules
+  (see [Origins](#origins)) and the [SMTP transport](#smtp-transport) rules.
 - Also checks that the running PHP is **8.4.x**, since production is pinned to PHP 8.4 (see
   [deployment/server.md](../../deployment/server.md#host-requirements)). This catches a wrong
   `PHP_BIN` or a host change.
@@ -253,6 +285,7 @@ the staging folder before migrating and swapping (see
   `ALLOWED_ORIGINS: not https`.
   The [SMTP encryption key rules](#smtp-encryption-keys) report the failure names listed
   there, and a missing `sodium` extension reports `PHP extension: sodium missing`.
+  The [SMTP transport rules](#smtp-transport) report the failure names listed there.
   The `DB_MIGRATE_*` pairing rule reports:
   - `DB_MIGRATE_PASSWORD: missing` when `DB_MIGRATE_USER` is set and `DB_MIGRATE_PASSWORD` is
     not;

@@ -35,6 +35,23 @@ on this host (see [server.md](server.md#shared-env)). That cannot be checked fro
 an endpoint shows the client IP the app resolved. If a proxy turns out to be there, the value
 is wrong and clients behind it all share the proxy's IP.
 
+## SMTP total timeout vs. the proxy timeout
+
+`SMTP_TOTAL_TIMEOUT` (default `25` seconds) must stay below the request timeout of Apache and
+of any reverse proxy in front of it (see [server.md](server.md#shared-env)). Apache's timeout
+on this shared host, and whether a proxy with its own shorter timeout exists (see
+[`TRUSTED_PROXY_HOPS` not verified](#trusted_proxy_hops-not-verified)), are not verified. If
+either is shorter, a slow SMTP server makes the request die with a gateway error instead of a
+`504 SMTP_TIMEOUT` envelope, and no attempt is logged. Lower `SMTP_TOTAL_TIMEOUT` if that is
+seen.
+
+## DNS resolution is not bounded by the SMTP timeouts
+
+`SMTP_CONNECT_TIMEOUT` and `SMTP_TOTAL_TIMEOUT` bound the TCP connect and the SMTP session,
+but not the DNS lookup of the SMTP `host`: PHP's resolver uses the system resolver timeout,
+which the app cannot set. A slow or unreachable DNS server can therefore delay a test email
+beyond `SMTP_TOTAL_TIMEOUT`. Not tracked yet; the host's resolver is assumed to answer quickly.
+
 ## No automated image builds
 
 The images CI and development use (`dev_pidgey-base`, `circleci_pidgey-base`,
