@@ -32,10 +32,17 @@ services:
     environment:
       PHP_ENV: test
       DB_NAME: pidgey_test
+      TEST_MAILPIT_PLAIN: mailpit-plain:2025:9025
+      TEST_MAILPIT_STARTTLS: mailpit-starttls:2587:9587
+      TEST_MAILPIT_SSL: mailpit-ssl:2465:9465
+      SMTP_ALLOW_PRIVATE_HOSTS: "true"
+      SMTP_CA_FILE: tests/fixtures/tls/ca.pem
     depends_on:
       - base_build
       - mysql
-      - mailpit
+      - mailpit-plain
+      - mailpit-starttls
+      - mailpit-ssl
 
   mysql:
     image: mysql:9
@@ -47,10 +54,42 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
 
   mailpit:
-    image: axllent/mailpit
+    image: axllent/mailpit:v1.32.0
     ports:
       - "${MAILPIT_UI_PORT:-8025}:8025"
       - "${MAILPIT_SMTP_PORT:-1025}:1025"
+
+  # Test-only Mailpit instances (see docs/agents/specs/email/testing.md).
+  # They publish no host ports; the tests service reaches them by name.
+  mailpit-plain:
+    image: axllent/mailpit:v1.32.0
+    environment:
+      MP_SMTP_BIND_ADDR: 0.0.0.0:2025
+      MP_UI_BIND_ADDR: 0.0.0.0:9025
+
+  mailpit-starttls:
+    image: axllent/mailpit:v1.32.0
+    volumes:
+      - ./source/tests/fixtures/tls:/fixtures/tls:ro
+    environment:
+      MP_SMTP_BIND_ADDR: 0.0.0.0:2587
+      MP_UI_BIND_ADDR: 0.0.0.0:9587
+      MP_SMTP_REQUIRE_STARTTLS: "true"
+      MP_SMTP_TLS_CERT: /fixtures/tls/server.pem
+      MP_SMTP_TLS_KEY: /fixtures/tls/server-key.pem
+      MP_SMTP_AUTH: pidgey-test:pidgey-test-password
+
+  mailpit-ssl:
+    image: axllent/mailpit:v1.32.0
+    volumes:
+      - ./source/tests/fixtures/tls:/fixtures/tls:ro
+    environment:
+      MP_SMTP_BIND_ADDR: 0.0.0.0:2465
+      MP_UI_BIND_ADDR: 0.0.0.0:9465
+      MP_SMTP_REQUIRE_TLS: "true"
+      MP_SMTP_TLS_CERT: /fixtures/tls/server.pem
+      MP_SMTP_TLS_KEY: /fixtures/tls/server-key.pem
+      MP_SMTP_AUTH: pidgey-test:pidgey-test-password
 
   phpmyadmin:
     image: phpmyadmin
