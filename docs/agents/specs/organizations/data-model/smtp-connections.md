@@ -20,10 +20,24 @@ Field meanings and security rules are defined in
 | `password` | VARBINARY(2048) | yes | null | Encrypted at rest, see [email/password-encryption.md](../../email/password-encryption.md); never returned by the API |
 | `from_address` | VARCHAR(255) | no | | Envelope sender and `From:` header |
 | `active` | BOOLEAN | no | `false` | At most one active connection per organization |
+| `active_organization_id` | BIGINT | yes | generated | Generated **stored** column `IF(active, organization_id, NULL)`; never written by the application, never exposed by the API |
 | `created_at` | DATETIME | no | now | |
 | `updated_at` | DATETIME | no | now, on update | |
 
-Indexes: `organization_id`.
+Indexes: `organization_id`; unique `active_organization_id`
+(`uq_smtp_connections_active_organization_id`).
+
+## At most one active connection
+
+The unique index on `active_organization_id` enforces **at most one active connection per
+organization** in the database: an active row carries its `organization_id` there, an
+inactive row `NULL`, and a unique index allows any number of `NULL`s.
+
+- The index is **defense in depth**. The [activate endpoint](../../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson)
+  keeps its locked transaction and still deactivates every other connection of the
+  organization **before** activating the target, so the index is never hit in normal
+  operation; a violation is a bug and answers `500 INTERNAL_ERROR`.
+- Deactivate, create (always inactive) and update (never writes `active`) cannot violate it.
 
 ## Migrations
 
@@ -35,6 +49,10 @@ Indexes: `organization_id`.
   margin for future format changes. Merged migrations are never edited (see
   [persistence/schema-migrations.md](../../persistence/schema-migrations.md)). No SMTP rows
   exist in production yet, so the `ALTER` is immediate.
+- `0010_add_smtp_connections_active_unique.sql` adds the generated stored column
+  `active_organization_id BIGINT GENERATED ALWAYS AS (IF(active, organization_id, NULL)) STORED`
+  and the unique index `uq_smtp_connections_active_organization_id` on it. No SMTP rows exist
+  in production, so there is no backfill or duplicate-active concern.
 
 ## Pending decisions
 

@@ -70,6 +70,8 @@ CREATE TABLE users (
 
 ## Pending decisions
 
-None. The database-level "at most one active SMTP connection" constraint stays a pending
-decision of [email/smtp-connections.md](../email/smtp-connections.md); if adopted, it is a
-later migration, not a change to `0008`.
+None. The database-level "at most one active SMTP connection" constraint is a later
+migration (`0010`, see
+[organizations/data-model/smtp-connections.md](../organizations/data-model/smtp-connections.md#migrations)),
+not a change to `0008`; `smtp_test_limits` is created by `0011` (see
+[organizations/data-model/smtp-test-limits.md](../organizations/data-model/smtp-test-limits.md)).

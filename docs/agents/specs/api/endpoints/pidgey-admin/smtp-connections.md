@@ -225,6 +225,10 @@ operator log line (`smtp-connection-activate`, the id).
 - Activating the already active connection answers `200` again (idempotent).
 - The organization lock serializes concurrent activations: after two concurrent calls on
   different connections, exactly one connection is active.
+- The database also enforces at most one active connection per organization (a unique index,
+  defense in depth, see
+  [organizations/data-model/smtp-connections.md](../../../organizations/data-model/smtp-connections.md#at-most-one-active-connection));
+  since step 3 runs before step 4, the index is never hit in normal operation.
 - The organization can have no active connection again through
   [deactivate](#post-smtp-connectionsiddeactivatejson) or by deleting the active connection.
 
@@ -532,8 +536,6 @@ The implementation must cover at least:
 
 ## Pending decisions
 
-- **Pending decision:** a database-level constraint guaranteeing at most one active
-  connection per organization (v1 relies on the locked transaction of activate).
 - **Pending decision:** adopting the messages above for numeric ranges, hostnames and control
   characters as shared templates in
   [conventions/validation.md](../../conventions/validation.md#message-templates).

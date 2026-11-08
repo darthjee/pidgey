@@ -22,6 +22,9 @@ Connections are organization-scoped and managed in the admin UI, through the end
 - A new connection always starts **inactive**; it becomes active only through the activate
   endpoint, which deactivates every other connection of the organization in the same locked
   transaction.
+- The database enforces **at most one active connection per organization** as well, with
+  a unique index on a generated column (defense in depth, see
+  [organizations/data-model/smtp-connections.md](../organizations/data-model/smtp-connections.md#at-most-one-active-connection)).
 - The deactivate endpoint sets `active = false` on one connection (idempotent), under the
   same organization lock; the organization then has no active connection.
 - Deleting the active connection is allowed as well; the organization then has no active
@@ -112,5 +115,3 @@ internal addresses (server-side request forgery). The policy, defined in
 
 - Whether `POST /v1/messages` requests may select a non-active connection explicitly (the
   test email already does, see the endpoints above).
-- A database-level "at most one active" constraint (see
-  [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#pending-decisions)).
