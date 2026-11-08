@@ -30,10 +30,13 @@ development mailbox.
   STARTTLS and implicit TLS at once; once auth is configured it applies to every send; and
   credentials require `tls` or `ssl` ([smtp-connections.md](smtp-connections.md)), so the
   authenticated paths must run over TLS.
-- The auth user and password come from a **test-only fixture**, passed inline through
-  `MP_SMTP_AUTH`, so CI needs no file.
-- Every Mailpit image (dev and tests, compose and CI) is **pinned to one exact tag**, chosen
-  by the infra issue.
+- The auth user and password are the constants `Mailpit::AUTH_USER` (`pidgey-test`) and
+  `Mailpit::AUTH_PASSWORD` (`pidgey-test-password`) of `Pidgey\Tests\Support\Mailpit`. They
+  are repeated literally, inline, in `MP_SMTP_AUTH` (`pidgey-test:pidgey-test-password`) in
+  compose and CI, so no auth file is needed.
+- Every Mailpit (dev and tests, compose and CI) is **pinned to one exact tag**:
+  `axllent/mailpit:v1.32.0`. In CI the Mailpit binary of that image is copied into the CI
+  base image (see [Reaching the instances](#reaching-the-instances)).
 - Each instance has **distinct ports** everywhere: required in CI, where service containers
   share one network namespace, and kept identical in compose. The ports are part of the
   contract; changing one means updating compose, CI and the specs together.
@@ -52,6 +55,11 @@ Tests reach each test instance through a **test-only key** of the form
 | `TEST_MAILPIT_STARTTLS` | `mailpit-starttls:2587:9587` |
 | `TEST_MAILPIT_SSL` | `mailpit-ssl:2465:9465` |
 
+- The table shows the compose values. CI uses **`localhost`** with the same ports
+  (`localhost:2025:9025`, `localhost:2587:9587`, `localhost:2465:9465`): CircleCI cannot
+  mount files into service containers and Mailpit reads TLS files only by path, so
+  `backend_tests` starts the three instances in the primary container, from the Mailpit
+  binary of the CI base image, with the fixtures of the checkout.
 - They are read only by `Pidgey\Tests\Support\Mailpit`, never by the application or
   `ConfigValidator`.
 - When a key is missing, the integration test **fails**; it is never skipped.
@@ -67,16 +75,21 @@ Tests reach each test instance through a **test-only key** of the form
 
 Committed, test-only material in `source/tests/fixtures/tls/`:
 
-- `ca.pem`: the test CA;
-- a leaf certificate and key whose SAN covers `mailpit-starttls`, `mailpit-ssl` and
-  `localhost`, signed by the test CA;
-- a wrong-name leaf, signed by the test CA, with SAN `wrong-name.invalid`;
-- an untrusted self-signed leaf for `localhost`;
-- a regeneration script.
+| File | Content |
+| --- | --- |
+| `ca.pem` | The test CA certificate |
+| `server.pem` / `server-key.pem` | Leaf signed by the test CA; SAN `mailpit-starttls`, `mailpit-ssl`, `localhost` |
+| `wrong-name.pem` / `wrong-name-key.pem` | Leaf signed by the test CA; SAN `wrong-name.invalid` |
+| `untrusted.pem` / `untrusted-key.pem` | Self-signed leaf; SAN `localhost` |
+| `generate.sh` | Regenerates all of the above with `openssl` |
+
+- The CA private key is **not committed**: `generate.sh` creates a new CA on each run and
+  re-signs every leaf with it, so all files are regenerated together.
+- The two Mailpit TLS instances use `server.pem` / `server-key.pem`.
 
 Rules:
 
-- The certificates have a long validity.
+- The certificates have a long validity (100 years).
 - The private keys are test-only and never used outside tests.
 - The test environment sets `SMTP_CA_FILE=tests/fixtures/tls/ca.pem`. Certificate
   verification is **never disabled**.

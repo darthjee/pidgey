@@ -26,6 +26,12 @@ final class PasswordCipherTest extends TestCase
     private const CONNECTION = 345;
 
     /**
+     * Shortest plaintext checked for leaking verbatim into the stored bytes: shorter ones
+     * can appear in the random ciphertext by chance (a 1-byte one in ~15% of runs).
+     */
+    private const MIN_LEAK_CHECK_LENGTH = 8;
+
+    /**
      * @return array<string, array{string}>
      */
     public static function passwords(): array
@@ -48,7 +54,10 @@ final class PasswordCipherTest extends TestCase
 
         $this->assertSame($password, $cipher->decrypt($stored, self::ORGANIZATION, self::CONNECTION));
         $this->assertSame(strlen($password) + 49, strlen($stored));
-        $this->assertStringNotContainsString($password, $stored);
+
+        if (strlen($password) >= self::MIN_LEAK_CHECK_LENGTH) {
+            $this->assertStringNotContainsString($password, $stored);
+        }
     }
 
     public function testTheLargestPasswordFitsTheColumn(): void

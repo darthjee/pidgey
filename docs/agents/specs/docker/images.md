@@ -43,9 +43,13 @@ The context jobs `upload_backend`, `upload_frontend` and `release` (see
 Images:
 
 - **`circleci_pidgey-base`** carries `deploy_frontend.sh`, `openssh-client` and `rsync`
-  (added in version `0.0.2`; the current tag, `0.0.3`, ships `darthjee/scripts:0.12.0`). It runs
+  (added in version `0.0.2`; `0.0.3` moved to `darthjee/scripts:0.12.0`). It runs
   `build_backend` (PHP 8.4, Composer) and all three context jobs: `upload_backend`,
-  `upload_frontend` and `release`.
+  `upload_frontend` and `release`. The current tag, `0.0.4`, also ships the Mailpit `v1.32.0`
+  binary at `/usr/local/bin/mailpit` (`COPY --from=axllent/mailpit:v1.32.0 /mailpit`, version
+  set by `ARG MAILPIT_VERSION`, bumped together with the compose tag), which `backend_tests`
+  uses to start the test Mailpit instances on `localhost` (see
+  [deployment/pipeline.md](../../deployment/pipeline.md#email-test-instances)).
 - **No frontend deploy image:** `build_frontend` runs in `darthjee/circleci_node:0.2.1` (like
   `frontend_checks`) and needs no deploy tooling; `upload_frontend` only uploads the built
   `dist/` from the workspace, so it needs no node or yarn.

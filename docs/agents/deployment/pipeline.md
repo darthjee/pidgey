@@ -13,7 +13,7 @@ These run on **every branch and every tag** (`tags: only: /.*/`).
 | Job | Image | What it does |
 | --- | --- | --- |
 | `backend_checks` | `darthjee/circleci_pidgey-base` | `composer lint`. |
-| `backend_tests` | `darthjee/circleci_pidgey-base`, plus `mysql:9` and `axllent/mailpit` service containers | `composer db:prepare`, `composer coverage`, then a partial Codacy coverage upload. |
+| `backend_tests` | `darthjee/circleci_pidgey-base` (which ships the Mailpit binary), plus a `mysql:9` service container | Starts the three test Mailpit instances on `localhost` and waits for them, then `composer db:prepare`, `composer coverage`, then a partial Codacy coverage upload. |
 | `frontend_checks` | `darthjee/circleci_node` | `yarn install --frozen-lockfile`, `npm run lint`, `npm run coverage`, then a partial Codacy coverage upload. |
 | `coverage_final` | `darthjee/circleci_node` | Requires `backend_tests` and `frontend_checks`; sends the Codacy `final` call. |
 
@@ -21,45 +21,52 @@ These run on **every branch and every tag** (`tags: only: /.*/`).
 
 `backend_tests` connects to MySQL as **root**: the `mysql` service sets
 `MYSQL_ROOT_PASSWORD=root`, and the primary container sets `DB_HOST=mysql`, `DB_PORT=3306`,
-`DB_NAME=pidgey_test`, `DB_USER=root`, `DB_PASSWORD=root`, `SMTP_HOST=mailpit`,
-`SMTP_PORT=1025` and `PHP_ENV=test`.
+`DB_NAME=pidgey_test`, `DB_USER=root`, `DB_PASSWORD=root` and `PHP_ENV=test`.
 
-### Target state for the email tests (#154)
+Why: CircleCI service containers cannot run the `initdb.d` grant script used locally (see
+[docker/compose.md](../specs/docker/compose.md)), and the tests create both `pidgey_test` and
+`pidgey_runner_*_test` databases, which a restricted user could not do. The CI database is
+throwaway, so root carries no risk.
 
-Decided in #154; the infra issue of #149 implements it, so `.circleci/config.yml` does not
-match it yet. Rules: [implement-email/testing.md](../specs/implement-email/testing.md).
+### Email test instances
 
-`backend_tests` service containers become `mysql:9` plus three test Mailpit instances, each
-on one pinned image tag (the infra issue picks it):
+Rules: [implement-email/testing.md](../specs/implement-email/testing.md).
 
-| Service | Mode | Auth | SMTP port | API port |
+`backend_tests` runs the three test Mailpit instances as **background run steps** on
+`localhost`, not as service containers. The `mailpit` binary (`v1.32.0`, the same tag as
+compose) is baked into `darthjee/circleci_pidgey-base` from `0.0.4` on. Each step runs
+`mailpit` with:
+
+| Instance | Mode | Auth | SMTP bind | API bind |
 | --- | --- | --- | --- | --- |
-| `mailpit-plain` | plain | none | 2025 | 9025 |
-| `mailpit-starttls` | `MP_SMTP_REQUIRE_STARTTLS=true` | required | 2587 | 9587 |
-| `mailpit-ssl` | `MP_SMTP_REQUIRE_TLS=true` (implicit TLS) | required | 2465 | 9465 |
+| plain | plain | none | `0.0.0.0:2025` | `0.0.0.0:9025` |
+| STARTTLS | `MP_SMTP_REQUIRE_STARTTLS=true` | `MP_SMTP_AUTH=pidgey-test:pidgey-test-password` | `0.0.0.0:2587` | `0.0.0.0:9587` |
+| SSL | `MP_SMTP_REQUIRE_TLS=true` (implicit TLS) | `MP_SMTP_AUTH=pidgey-test:pidgey-test-password` | `0.0.0.0:2465` | `0.0.0.0:9465` |
 
-The auth user comes from a test-only fixture, passed inline through `MP_SMTP_AUTH`. The TLS
-certificate and key are passed inline as PEM, or through a small test image if the pinned
-version cannot take inline PEM; the infra issue decides.
+The two TLS instances set `MP_SMTP_TLS_CERT=tests/fixtures/tls/server.pem` and
+`MP_SMTP_TLS_KEY=tests/fixtures/tls/server-key.pem`, relative to the flattened checkout
+(the leaf's SAN includes `localhost`).
 
-The primary container's env drops `SMTP_HOST` / `SMTP_PORT` and adds:
+A `Wait for Mailpit` step then polls `http://localhost:<apiPort>/api/v1/info` for each
+instance with `curl -fsS`, up to 30 seconds, and fails the job naming the instance that
+never answered, before `composer db:prepare` runs.
+
+Why not service containers: Mailpit reads the TLS certificate and key only from file paths,
+and CircleCI service containers cannot mount files from the checkout.
+
+The primary container's env sets:
 
 | Key | Value |
 | --- | --- |
-| `TEST_MAILPIT_PLAIN` | `mailpit-plain:2025:9025` |
-| `TEST_MAILPIT_STARTTLS` | `mailpit-starttls:2587:9587` |
-| `TEST_MAILPIT_SSL` | `mailpit-ssl:2465:9465` |
+| `TEST_MAILPIT_PLAIN` | `localhost:2025:9025` |
+| `TEST_MAILPIT_STARTTLS` | `localhost:2587:9587` |
+| `TEST_MAILPIT_SSL` | `localhost:2465:9465` |
 | `SMTP_ALLOW_PRIVATE_HOSTS` | `true` |
 | `SMTP_CA_FILE` | `tests/fixtures/tls/ca.pem` |
 | `SMTP_ENCRYPTION_KEY` | a test-only key |
 
 The `TEST_MAILPIT_*` keys (form `host:smtpPort:apiPort`) are read only by
 `Pidgey\Tests\Support\Mailpit`; they are test-only, not deployment variables.
-
-Why: CircleCI service containers cannot run the `initdb.d` grant script used locally (see
-[docker/compose.md](../specs/docker/compose.md)), and the tests create both `pidgey_test` and
-`pidgey_runner_*_test` databases, which a restricted user could not do. The CI database is
-throwaway, so root carries no risk.
 
 ## Codacy
 

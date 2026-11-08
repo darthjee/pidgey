@@ -41,8 +41,10 @@ All settled by #154.
   `backend_tests`) sets the three keys, `SMTP_ALLOW_PRIVATE_HOSTS=true`,
   `SMTP_CA_FILE=tests/fixtures/tls/ca.pem` and `SMTP_ENCRYPTION_KEY`; the development `.env`
   sets `SMTP_ALLOW_PRIVATE_HOSTS=true`; `tests` depends on the three test instances;
-  CircleCI runs them as service containers with the certificate inline as PEM, or a small
-  test image if the pinned version cannot take it; `make dev-up` is unchanged —
+  in CircleCI the Mailpit binary (`v1.32.0`) is copied into the CI base image and
+  `backend_tests` starts the three instances on `localhost` with the same ports, because
+  CircleCI cannot mount files into service containers and Mailpit reads TLS files only by
+  path; `make dev-up` is unchanged —
   [docker/compose.md](../docker/compose.md#environment),
   [docker/makefile.md](../docker/makefile.md),
   [deployment/pipeline.md](../../deployment/pipeline.md).
@@ -85,19 +87,22 @@ All settled by #154.
 
 Names are **proposals** (see the lifecycle rules in [implement-email.md](../implement-email.md)).
 
-1. **TLS fixtures** — `source/tests/fixtures/tls/`: the test CA, the three leaves and the
+1. [x] **TLS fixtures** — `source/tests/fixtures/tls/`: the test CA, the three leaves and the
    regeneration script ([TLS fixtures](../email/testing.md#tls-fixtures)).
-2. **Compose** — the pinned tag on `mailpit`; the services `mailpit-plain`,
+2. [x] **Compose** — the pinned tag on `mailpit`; the services `mailpit-plain`,
    `mailpit-starttls` and `mailpit-ssl` (ports, `MP_SMTP_AUTH`, the read-only TLS mount);
    `tests` depends on them and gets the test environment
    ([docker/compose.md](../docker/compose.md#test-mailpit-instances)).
-3. **CircleCI** — the three service containers with the pinned tag and their env, and the
-   `backend_tests` env keys ([deployment/pipeline.md](../../deployment/pipeline.md)).
-4. **Development `.env`** — sets `SMTP_ALLOW_PRIVATE_HOSTS=true`; drops `SMTP_HOST` /
+3. [x] **CircleCI** — the Mailpit binary in the CI base image, the three instances started
+   on `localhost` by `backend_tests` with their env, and the `backend_tests` env keys ([deployment/pipeline.md](../../deployment/pipeline.md)).
+4. [x] **Development `.env`** — sets `SMTP_ALLOW_PRIVATE_HOSTS=true`; drops `SMTP_HOST` /
    `SMTP_PORT` ([docker/compose.md](../docker/compose.md#environment)).
-5. **Support classes** — `Mailpit`, `FakeSmtpStream`, `FakeSmtpServer` and its server
-   script, `CapturedLog`, the lock-holder script
-   ([testing/backend.md](../testing/backend.md#email-test-support)).
+5. **Support classes** ([testing/backend.md](../testing/backend.md#email-test-support)):
+   - [x] `Mailpit` (with the smoke test reaching each instance);
+   - [ ] `FakeSmtpStream`;
+   - [ ] `FakeSmtpServer` and its server script;
+   - [ ] `CapturedLog`;
+   - [ ] the lock-holder script.
 6. **Coverage** — the tests of the [required coverage](../email/testing.md#required-coverage)
    list, delivered by the backend issues that implement each part (encryption, transport,
    endpoints, test email).

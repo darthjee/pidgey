@@ -1,7 +1,14 @@
 # Deploy tooling (deploy_frontend.sh) comes from darthjee/scripts; bump
 # SCRIPTS_VERSION to pick up a new release.
 ARG SCRIPTS_VERSION=0.12.0
+# Mailpit binary for the backend_tests email test instances (CI cannot mount
+# the TLS fixtures into service containers). Bump MAILPIT_VERSION together with
+# the axllent/mailpit tag in docker-compose.yml.
+ARG MAILPIT_VERSION=v1.32.0
+
 FROM darthjee/scripts:${SCRIPTS_VERSION} AS scripts
+
+FROM axllent/mailpit:${MAILPIT_VERSION} AS mailpit
 
 FROM cimg/php:8.4
 
@@ -32,6 +39,10 @@ RUN apt-get update \
 # Frontend deploy script (rsync over SSH), used by the deploy jobs.
 COPY --from=scripts /home/scripts/sbin/deploy_frontend.sh /usr/local/sbin/deploy_frontend.sh
 RUN chmod 0755 /usr/local/sbin/deploy_frontend.sh
+
+# Mailpit, started on localhost by backend_tests.
+COPY --from=mailpit /mailpit /usr/local/bin/mailpit
+RUN chmod 0755 /usr/local/bin/mailpit
 
 RUN mkdir -p /home/circleci/project /home/circleci/vendor-build \
   && chown -R circleci:circleci /home/circleci

@@ -12,10 +12,10 @@ volumes, env files and `depends_on` between services, following the tent reposit
 | `frontend_dev` | `vite_pidgey` | `${FRONTEND_PORT:-8030}` → 8080 | Vite dev server (`yarn server`) with hot reload; proxies `/v1` and `*.json` to `app:80`; depends on `app`. See [frontend/development.md](../frontend/development.md). |
 | `mysql` | `mysql:9` | 3306 | Database (development and test databases). Mounts `./dockerfiles/mysql/initdb.d` read-only at `/docker-entrypoint-initdb.d`. |
 | `phpmyadmin` | `phpmyadmin` | 8040 | DB inspection during development. |
-| `mailpit` | `axllent/mailpit:<pinned tag>` | 8025 (UI), 1025 (SMTP) | Development SMTP server: plain, no auth, no TLS. Used by `app` and the manual checks only; tests never send to it or clear it. |
-| `mailpit-plain` | `axllent/mailpit:<pinned tag>` | — (container 2025 SMTP, 9025 API) | Test-only SMTP server: plain, no auth. |
-| `mailpit-starttls` | `axllent/mailpit:<pinned tag>` | — (container 2587 SMTP, 9587 API) | Test-only SMTP server: `MP_SMTP_REQUIRE_STARTTLS=true`, auth required. |
-| `mailpit-ssl` | `axllent/mailpit:<pinned tag>` | — (container 2465 SMTP, 9465 API) | Test-only SMTP server: `MP_SMTP_REQUIRE_TLS=true` (implicit TLS), auth required. |
+| `mailpit` | `axllent/mailpit:v1.32.0` | 8025 (UI), 1025 (SMTP) | Development SMTP server: plain, no auth, no TLS. Used by `app` and the manual checks only; tests never send to it or clear it. |
+| `mailpit-plain` | `axllent/mailpit:v1.32.0` | — (container 2025 SMTP, 9025 API) | Test-only SMTP server: plain, no auth. |
+| `mailpit-starttls` | `axllent/mailpit:v1.32.0` | — (container 2587 SMTP, 9587 API) | Test-only SMTP server: `MP_SMTP_REQUIRE_STARTTLS=true`, auth required. |
+| `mailpit-ssl` | `axllent/mailpit:v1.32.0` | — (container 2465 SMTP, 9465 API) | Test-only SMTP server: `MP_SMTP_REQUIRE_TLS=true` (implicit TLS), auth required. |
 | `tests` | `dev_pidgey` | — | Runs `composer tests`; depends on `mysql`, `mailpit-plain`, `mailpit-starttls` and `mailpit-ssl`. Runs with `PHP_ENV=test` and `DB_NAME=pidgey_test` (overriding `.env`'s `pidgey_development`). |
 
 Notes:
@@ -45,16 +45,19 @@ The behavior and the paths each instance covers are in
 [email/testing.md](../email/testing.md#mailpit-instances).
 
 - **Pinned tag:** every Mailpit image (`mailpit` and the three test instances) uses the same
-  exact tag, chosen by the infra issue; never an untagged or `latest` image.
+  exact tag, `v1.32.0`; never an untagged or `latest` image. The CI base image copies the
+  binary from the same tag (see [images.md](images.md)); bump both together.
 - **Ports:** each test instance listens on its own SMTP and API ports inside its container
-  (`MP_SMTP_BIND_ADDR` / `MP_UI_BIND_ADDR`), identical to the CI service containers, where
-  all services share one network namespace. The test instances' ports are **not published**
+  (`MP_SMTP_BIND_ADDR` / `MP_UI_BIND_ADDR`), identical to the CI instances, which all run
+  on `localhost`. The test instances' ports are **not published**
   to the host: only `tests` reaches them.
 - **Auth:** `mailpit-starttls` and `mailpit-ssl` take the test-only auth user and password
   inline through `MP_SMTP_AUTH`.
-- **TLS:** `source/tests/fixtures/tls/` is mounted **read-only** into `mailpit-starttls` and
-  `mailpit-ssl`, which use the leaf certificate and key whose SAN covers their service names
-  (`MP_SMTP_TLS_CERT` / `MP_SMTP_TLS_KEY`).
+- **TLS:** `source/tests/fixtures/tls/` is mounted **read-only** at `/fixtures/tls` into
+  `mailpit-starttls` and `mailpit-ssl`, which use the leaf certificate and key whose SAN
+  covers their service names: `MP_SMTP_TLS_CERT=/fixtures/tls/server.pem` and
+  `MP_SMTP_TLS_KEY=/fixtures/tls/server-key.pem`. The fixtures are regenerated with
+  `source/tests/fixtures/tls/generate.sh`.
 - `make dev-up` does not start the test instances; they start as dependencies of `tests`.
 
 ## Environment
