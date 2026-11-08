@@ -9,6 +9,7 @@ use PDO;
 use PDOException;
 use Pidgey\Model\SmtpConnection;
 use Pidgey\Model\SmtpEncryption;
+use SensitiveParameter;
 
 /**
  * Reads and writes the `smtp_connections` table.
@@ -126,6 +127,116 @@ final class SmtpConnectionRepository
             static fn (array $row): SmtpConnection => SmtpConnection::fromRow($row),
             $statement->fetchAll(PDO::FETCH_ASSOC),
         );
+    }
+
+    /**
+     * Lists every connection that stores a password, across all organizations, in ascending id
+     * order; used only by the key rotation command (`bin/reencrypt-smtp-passwords`).
+     *
+     * @return list<array{id: integer, organizationId: integer}> Ids only, never the stored bytes.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function listIdsWithPassword(): array
+    {
+        $statement = $this->pdo->query(
+            'SELECT id, organization_id FROM smtp_connections WHERE password IS NOT NULL ORDER BY id',
+        );
+
+        return array_map(
+            static fn (array $row): array => [
+                'id' => (int) $row['id'],
+                'organizationId' => (int) $row['organization_id'],
+            ],
+            $statement->fetchAll(PDO::FETCH_ASSOC),
+        );
+    }
+
+    /**
+     * Reads the stored password bytes of one connection, without locking.
+     *
+     * @param integer $organizationId Organization the connection must belong to.
+     * @param integer $id             Primary key.
+     *
+     * @return string|null The stored bytes; null when the row is gone or stores no password.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function findEncryptedPassword(int $organizationId, int $id): ?string
+    {
+        return $this->fetchPassword(
+            'SELECT password FROM smtp_connections WHERE organization_id = :organization_id AND id = :id',
+            $organizationId,
+            $id,
+        );
+    }
+
+    /**
+     * Locks one connection (`SELECT … FOR UPDATE`) and reads its stored password bytes; must run
+     * inside a transaction, which holds the lock until it ends.
+     *
+     * @param integer $organizationId Organization the connection must belong to.
+     * @param integer $id             Primary key.
+     *
+     * @return string|null The stored bytes; null when the row is gone or stores no password.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function lockEncryptedPassword(int $organizationId, int $id): ?string
+    {
+        return $this->fetchPassword(
+            'SELECT password FROM smtp_connections '
+            . 'WHERE organization_id = :organization_id AND id = :id FOR UPDATE',
+            $organizationId,
+            $id,
+        );
+    }
+
+    /**
+     * Replaces the stored password bytes of one connection, keeping `updated_at` unchanged (a
+     * re-encryption is not an edit).
+     *
+     * @param integer $organizationId    Organization the connection must belong to.
+     * @param integer $id                Primary key.
+     * @param string  $encryptedPassword Ciphertext bytes of the SMTP auth password.
+     *
+     * @return void
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function replaceEncryptedPassword(
+        int $organizationId,
+        int $id,
+        #[SensitiveParameter] string $encryptedPassword,
+    ): void {
+        $statement = $this->pdo->prepare(
+            'UPDATE smtp_connections SET password = :password, updated_at = updated_at '
+            . 'WHERE organization_id = :organization_id AND id = :id',
+        );
+        $statement->bindValue('password', $encryptedPassword, PDO::PARAM_LOB);
+        $statement->bindValue('organization_id', $organizationId, PDO::PARAM_INT);
+        $statement->bindValue('id', $id, PDO::PARAM_INT);
+        $statement->execute();
+    }
+
+    /**
+     * Runs a single-row `password` query.
+     *
+     * @param string  $sql            Statement with `:organization_id` and `:id` placeholders.
+     * @param integer $organizationId Organization the connection must belong to.
+     * @param integer $id             Primary key.
+     *
+     * @return string|null
+     *
+     * @throws PDOException When the statement fails.
+     */
+    private function fetchPassword(string $sql, int $organizationId, int $id): ?string
+    {
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute(['organization_id' => $organizationId, 'id' => $id]);
+        $password = $statement->fetchColumn();
+
+        return is_string($password) ? $password : null;
     }
 
     /**

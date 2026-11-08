@@ -8,21 +8,28 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\Env;
 use Pidgey\Infra\OriginParser;
 
 #[CoversClass(ConfigValidator::class)]
+#[UsesClass(EncryptionKeys::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(OriginParser::class)]
 final class ConfigValidatorTest extends TestCase
 {
     private const VALID_KEY = 'test-secret-value-not-a-real-secret-valid';
     private const OTHER_KEY = 'test-secret-value-not-a-real-secret-other';
+    private const SMTP_KEY = 'test-smtp-encryption-value-not-a-real-key-current';
+    private const PREVIOUS_SMTP_KEY = 'test-smtp-encryption-value-not-a-real-key-previous';
+    private const OLDER_SMTP_KEY = 'test-smtp-encryption-value-not-a-real-key-older';
 
     private const VARIABLES = [
         'SECRET_KEY',
         'PREVIOUS_SECRET_KEYS',
+        'SMTP_ENCRYPTION_KEY',
+        'PREVIOUS_SMTP_ENCRYPTION_KEYS',
         'DB_HOST',
         'DB_PORT',
         'DB_NAME',
@@ -60,6 +67,7 @@ final class ConfigValidatorTest extends TestCase
         }
 
         putenv('SECRET_KEY=' . self::VALID_KEY);
+        putenv('SMTP_ENCRYPTION_KEY=' . self::SMTP_KEY);
         putenv('DB_HOST=db.example');
         putenv('DB_NAME=pidgey');
         putenv('DB_USER=pidgey');
@@ -80,6 +88,7 @@ final class ConfigValidatorTest extends TestCase
     public function testFullyConfiguredEnvironmentPasses(): void
     {
         putenv('PREVIOUS_SECRET_KEYS= ' . self::OTHER_KEY . ' , ' . self::VALID_KEY);
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS= ' . self::PREVIOUS_SMTP_KEY . ' , ' . self::OLDER_SMTP_KEY);
         putenv('DB_PORT=3306');
         putenv('ACCESS_TOKEN_TTL=60');
         putenv('REFRESH_TOKEN_TTL=61');
@@ -92,6 +101,7 @@ final class ConfigValidatorTest extends TestCase
     public function testEmptyOptionalSettingsUseDefaults(): void
     {
         putenv('PREVIOUS_SECRET_KEYS=');
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS=');
         putenv('ACCESS_TOKEN_TTL=');
         putenv('TRUSTED_PROXY_HOPS=');
 
@@ -121,6 +131,44 @@ final class ConfigValidatorTest extends TestCase
                 'PREVIOUS_SECRET_KEYS',
                 self::OTHER_KEY . ',short-previous-key',
                 'PREVIOUS_SECRET_KEYS: entry too short',
+            ],
+            'smtp key unset' => ['SMTP_ENCRYPTION_KEY', null, 'SMTP_ENCRYPTION_KEY: missing'],
+            'smtp key empty' => ['SMTP_ENCRYPTION_KEY', '', 'SMTP_ENCRYPTION_KEY: missing'],
+            'smtp key 31 bytes' => ['SMTP_ENCRYPTION_KEY', str_repeat('s', 31), 'SMTP_ENCRYPTION_KEY: too short'],
+            'smtp key same as secret key' => [
+                'SMTP_ENCRYPTION_KEY',
+                self::VALID_KEY,
+                'SMTP_ENCRYPTION_KEY: same as SECRET_KEY',
+            ],
+            'previous smtp key trailing comma' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS',
+                self::PREVIOUS_SMTP_KEY . ',',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: empty entry',
+            ],
+            'previous smtp key blank entry' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS',
+                self::PREVIOUS_SMTP_KEY . ',  ,' . self::OLDER_SMTP_KEY,
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: empty entry',
+            ],
+            'previous smtp key short entry' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS',
+                self::PREVIOUS_SMTP_KEY . ',short-previous-smtp-key',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: too short',
+            ],
+            'previous smtp key same as secret key' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS',
+                self::PREVIOUS_SMTP_KEY . ', ' . self::VALID_KEY,
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: same as SECRET_KEY',
+            ],
+            'previous smtp key is the current key' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS',
+                ' ' . self::SMTP_KEY . ' ',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: duplicate key',
+            ],
+            'previous smtp key listed twice' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS',
+                self::PREVIOUS_SMTP_KEY . ',' . self::OLDER_SMTP_KEY . ', ' . self::PREVIOUS_SMTP_KEY,
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: duplicate key',
             ],
             'db host unset' => ['DB_HOST', null, 'DB_HOST: missing'],
             'db name empty' => ['DB_NAME', '', 'DB_NAME: missing'],
@@ -184,6 +232,10 @@ final class ConfigValidatorTest extends TestCase
 
         $this->assertSame([$expected], $failures);
         $this->assertNoValueLeaks($failures, $value);
+
+        foreach (explode(',', (string) $value) as $entry) {
+            $this->assertNoValueLeaks($failures, $entry);
+        }
     }
 
     /**
@@ -425,6 +477,174 @@ final class ConfigValidatorTest extends TestCase
         putenv('PHP_ENV=production');
 
         $this->assertSame([], (new ConfigValidator())->validate());
+    }
+
+    public function testPreviousSmtpKeyFailuresAreReportedOnceEach(): void
+    {
+        $development = ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY;
+        $entries = [
+            'short-one',
+            '',
+            'short-two',
+            $development,
+            self::VALID_KEY,
+            self::SMTP_KEY,
+            self::PREVIOUS_SMTP_KEY,
+            self::PREVIOUS_SMTP_KEY,
+            $development,
+            self::VALID_KEY,
+            '',
+        ];
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS=' . implode(',', $entries));
+        putenv('PHP_ENV=production');
+
+        $failures = (new ConfigValidator())->validate();
+
+        $this->assertSame(
+            [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: empty entry',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: too short',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: development key',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: same as SECRET_KEY',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: duplicate key',
+            ],
+            $failures,
+        );
+
+        foreach ($entries as $entry) {
+            $this->assertNoValueLeaks($failures, $entry);
+        }
+    }
+
+    public function testSmtpKeyCheckedAgainstAMissingSecretKeyOnlyReportsTheSecretKey(): void
+    {
+        putenv('SECRET_KEY');
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::PREVIOUS_SMTP_KEY);
+
+        $this->assertSame(['SECRET_KEY: missing'], (new ConfigValidator())->validate());
+    }
+
+    public function testPreviousSmtpKeysWithoutACurrentKeyOnlyReportTheMissingKey(): void
+    {
+        putenv('SMTP_ENCRYPTION_KEY');
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::PREVIOUS_SMTP_KEY . ',' . self::OLDER_SMTP_KEY);
+
+        $this->assertSame(['SMTP_ENCRYPTION_KEY: missing'], (new ConfigValidator())->validate());
+    }
+
+    #[DataProvider('productionEnvironments')]
+    public function testDevelopmentSmtpKeyIsRefusedInProduction(?string $environment): void
+    {
+        putenv('SMTP_ENCRYPTION_KEY=' . ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY);
+        putenv($environment === null ? 'PHP_ENV' : "PHP_ENV={$environment}");
+
+        $failures = (new ConfigValidator())->validate();
+
+        $this->assertSame(['SMTP_ENCRYPTION_KEY: development key'], $failures);
+        $this->assertNoValueLeaks($failures, ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY);
+    }
+
+    #[DataProvider('productionEnvironments')]
+    public function testDevelopmentSmtpKeyAsPreviousKeyIsRefusedOnceInProduction(?string $environment): void
+    {
+        $development = ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY;
+        putenv("PREVIOUS_SMTP_ENCRYPTION_KEYS=  {$development} ," . self::PREVIOUS_SMTP_KEY);
+        putenv($environment === null ? 'PHP_ENV' : "PHP_ENV={$environment}");
+
+        $failures = (new ConfigValidator())->validate();
+
+        $this->assertSame(['PREVIOUS_SMTP_ENCRYPTION_KEYS: development key'], $failures);
+        $this->assertNoValueLeaks($failures, $development);
+    }
+
+    #[DataProvider('developmentEnvironments')]
+    public function testDevelopmentSmtpKeyIsAllowedInDevelopmentAndTest(string $environment): void
+    {
+        putenv('SMTP_ENCRYPTION_KEY=' . ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY);
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::PREVIOUS_SMTP_KEY);
+        putenv("PHP_ENV={$environment}");
+
+        $this->assertSame([], (new ConfigValidator())->validate());
+    }
+
+    public function testDevelopmentSmtpKeyIsTheSharedValue(): void
+    {
+        $this->assertSame(
+            'pidgey-development-only-insecure-smtp-key-0000000',
+            ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY,
+        );
+        $this->assertSame(49, strlen(ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY));
+    }
+
+    public function testDevelopmentSmtpKeyIsMatchedExactly(): void
+    {
+        $sameLength = 'pidgey-development-only-insecure-smtp-key-0000001';
+        $this->assertSame(strlen(ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY), strlen($sameLength));
+        putenv('SMTP_ENCRYPTION_KEY=' . $sameLength);
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::PREVIOUS_SMTP_KEY);
+        putenv('PHP_ENV=production');
+
+        $this->assertSame([], (new ConfigValidator())->validate());
+    }
+
+    public function testMissingSodiumExtensionFails(): void
+    {
+        $this->assertSame(['PHP extension: sodium missing'], (new ConfigValidator(false))->validate());
+    }
+
+    public function testLoadedSodiumExtensionPasses(): void
+    {
+        $this->assertSame([], (new ConfigValidator(true))->validate());
+    }
+
+    public function testDefaultsToTheRunningSodiumExtension(): void
+    {
+        $expected = extension_loaded('sodium') ? [] : ['PHP extension: sodium missing'];
+
+        $this->assertSame($expected, (new ConfigValidator())->validate());
+    }
+
+    public function testSmtpEncryptionValidationPassesWithoutTheOtherSettings(): void
+    {
+        foreach (['SECRET_KEY', 'DB_HOST', 'DB_NAME', 'DB_USER'] as $name) {
+            putenv($name);
+        }
+
+        putenv('ACCESS_TOKEN_TTL=not-a-number');
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::PREVIOUS_SMTP_KEY);
+
+        $this->assertSame([], (new ConfigValidator(true))->validateSmtpEncryption());
+    }
+
+    public function testSmtpEncryptionValidationRunsTheSmtpKeyAndSodiumRules(): void
+    {
+        $development = ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY;
+        putenv('PHP_ENV=production');
+        putenv('SMTP_ENCRYPTION_KEY=' . $development);
+        putenv("PREVIOUS_SMTP_ENCRYPTION_KEYS={$development},short," . self::VALID_KEY);
+        putenv('SECRET_KEY=' . self::VALID_KEY);
+
+        $failures = (new ConfigValidator(false))->validateSmtpEncryption();
+
+        $this->assertSame(
+            [
+                'SMTP_ENCRYPTION_KEY: development key',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: too short',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: development key',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: same as SECRET_KEY',
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: duplicate key',
+                'PHP extension: sodium missing',
+            ],
+            $failures,
+        );
+        $this->assertNoValueLeaks($failures, $development);
+    }
+
+    public function testSmtpEncryptionValidationReportsAMissingKey(): void
+    {
+        putenv('SMTP_ENCRYPTION_KEY');
+
+        $this->assertSame(['SMTP_ENCRYPTION_KEY: missing'], (new ConfigValidator(true))->validateSmtpEncryption());
     }
 
     public function testDbPortIsNotChecked(): void

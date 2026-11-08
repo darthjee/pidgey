@@ -108,6 +108,7 @@ jobs:
           SMTP_HOST: mailpit
           SMTP_PORT: 1025
           SECRET_KEY: pidgey-development-only-insecure-secret-key-0000
+          SMTP_ENCRYPTION_KEY: pidgey-development-only-insecure-smtp-key-0000000
       - image: mysql:9
         name: mysql
         environment:

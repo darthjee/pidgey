@@ -18,6 +18,7 @@ use Pidgey\Infra\ConfigValidator;
 final class FrontControllerRunTest extends TestCase
 {
     private const SECRET_KEY = 'test-secret-value-not-a-real-secret-front-controller';
+    private const SMTP_KEY = 'test-smtp-encryption-value-not-a-real-key-front-controller';
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
@@ -85,10 +86,30 @@ final class FrontControllerRunTest extends TestCase
         $this->assertStringNotContainsString(ConfigValidator::DEVELOPMENT_SECRET_KEY, $output);
     }
 
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testRefusesAMissingSmtpEncryptionKey(): void
+    {
+        $this->setValidEnvironment();
+        putenv('SMTP_ENCRYPTION_KEY');
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI'] = '/health.json';
+        ini_set('error_log', '/dev/null');
+
+        ob_start();
+        FrontController::run();
+        $output = (string) ob_get_clean();
+
+        $this->assertMatchesRegularExpression('/^\{"error":\{"code":"INTERNAL_ERROR",/', $output);
+        $this->assertStringNotContainsString('SMTP_ENCRYPTION_KEY', $output);
+    }
+
     private function setValidEnvironment(): void
     {
         putenv('SECRET_KEY=' . self::SECRET_KEY);
         putenv('PREVIOUS_SECRET_KEYS');
+        putenv('SMTP_ENCRYPTION_KEY=' . self::SMTP_KEY);
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS');
         putenv('DB_HOST=db.example');
         putenv('DB_NAME=pidgey');
         putenv('DB_USER=pidgey');
