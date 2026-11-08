@@ -1,7 +1,7 @@
 # Email Testing
 
 Purpose: define how email sending is tested: the SMTP servers used by the tests, how tests
-reach them, the TLS fixtures and the failure paths.
+reach them, the TLS fixtures, the fake SMTP server and the required coverage.
 
 - Unit tests cover MIME building and the SMTP reply → error code mapping with a fake
   transport.
@@ -84,12 +84,81 @@ Rules:
   not Mailpit.
 - Expired certificates are **not** tested: date checks are OpenSSL's behavior.
 
+## Fake SMTP server
+
+Two fakes cover what Mailpit cannot produce. Both are test-only support classes (see
+[testing/backend.md](../testing/backend.md#email-test-support)).
+
+### `Pidgey\Tests\Support\FakeSmtpStream`
+
+- In memory; implements the transport's stream abstraction (open, local address, write a
+  line, read a line, upgrade to TLS, close).
+- Scripted as an ordered list of expected client lines and server replies. A client line
+  that does not match the script fails the test.
+- Can inject the stream-level failures: timeout, connection closed by the peer, TLS
+  failure, and bytes pending after `STARTTLS`.
+- Used by the transport unit tests for the reply-by-reply mapping, with a **frozen clock**
+  for the timeouts and the session deadline.
+
+### `Pidgey\Tests\Support\FakeSmtpServer`
+
+- A PHP `stream_socket_server` script started as a **child process** (`proc_open`). It
+  listens on `127.0.0.1` with an ephemeral port, which it prints on stdout.
+- Reads a JSON scenario and serves **one session**: plain, STARTTLS or implicit TLS, with the
+  [TLS fixtures](#tls-fixtures).
+- Covers, in integration tests:
+  - a server that accepts and never answers (timeouts);
+  - `tls` without `STARTTLS` advertised;
+  - no supported `AUTH` mechanism;
+  - multi-line, malformed and `4xx` replies;
+  - wrong-name and untrusted certificates (`SMTP_TLS_FAILED`).
+- The test process kills it in teardown.
+- Timeout tests set short SMTP timeouts **per test**, never globally.
+
 ## Failure paths
 
+- Unreachable hosts and ports: `SMTP_CONNECTION_FAILED`.
 - Authentication failures (wrong credentials, `530` without credentials) run against
   `mailpit-starttls` and `mailpit-ssl`.
-- What Mailpit cannot produce (timeouts, missing `STARTTLS`, unsupported `AUTH`, multi-line,
-  malformed and `4xx` replies, wrong-name or untrusted certificates) runs against the fake
-  SMTP server.
+- What Mailpit cannot produce runs against the fake SMTP server (above).
+
+## Required coverage
+
+The acceptance list for the backend issues of the email integration. Each item must be
+covered by automated tests.
+
+- **Encryption:** the [Testable rules](password-encryption.md#testable-rules) of the password
+  encryption (round-trip, a fresh nonce, tampering, the wrong key, an associated-data
+  mismatch, previous-key decryption).
+- **Canary password:** every success and failure path runs with a canary password. The
+  password and its base64 forms (alone and inside the `AUTH` payload) never appear:
+  - in the response body;
+  - in any log record (message, context, exception trace), captured through
+    `Pidgey\Tests\Support\CapturedLog`;
+  - in any exception message.
+
+  See [send-flow.md](send-flow.md#secret-hygiene).
+- **Transport:**
+  - reply-by-reply unit tests, against `FakeSmtpStream`, for the success and failure mapping
+    of every step of the [SMTP session](send-flow.md#smtp-session): greeting codes, `EHLO`
+    without `HELO` fallback, `STARTTLS` missing / refused / with injected bytes, `AUTH`
+    `PLAIN` / `LOGIN` / no supported mechanism / `530`, envelope and `DATA` rejections,
+    dot-stuffing, multi-line and malformed replies, timeouts and the session deadline with
+    a frozen clock, best-effort `QUIT`;
+  - every `SMTP_*` code of [failures.md](failures.md#codes), with its HTTP status, message
+    and `error.smtp`, end to end through Mailpit or `FakeSmtpServer`.
+- **Concurrency:**
+  - concurrent `activate`: a child process holds the organization lock; the test proves the
+    second request waits and exactly one connection ends active;
+  - the unique index rejects a second active row inserted directly;
+  - a `PATCH` racing an `activate` never changes `active`.
+- **Limits and host check:**
+  - the test-email limit (window, lease, `Retry-After`) runs with a frozen clock;
+  - the [host check](send-flow.md#host-check) is unit-tested through an injectable resolver;
+    one integration test runs with `SMTP_ALLOW_PRIVATE_HOSTS=false` against `127.0.0.1` and
+    expects `409 SMTP_HOST_NOT_ALLOWED`.
+- **Endpoints:** the
+  [Testable rules](../api/endpoints/pidgey-admin/smtp-connections.md#testable-rules) of the
+  SMTP connection endpoints.
 
 See [testing](../testing.md).
