@@ -33,8 +33,8 @@ Purpose: track API concerns that are explicitly not decided yet.
   configurable deny-list / allow-list is pending.
 - **Pending decision — SMTP credential redirection:** a `PATCH` on an SMTP connection may
   change `host`, `port` or `encryption` while keeping the stored password, so a hijacked
-  session can make the server send the stored password to another server (or in cleartext
-  with `encryption: none`) through the test email (known limitation in
+  session can make the server send the stored password to another server through the test
+  email (never in cleartext: credentials require `tls` or `ssl`) (known limitation in
   [endpoints/pidgey-admin/smtp-connections.md](endpoints/pidgey-admin/smtp-connections.md#known-limitations)).
   Accepted in v1 (equal access; the password belongs to the organization). Pending: require
   `password` to be re-sent (or cleared) when `host`, `port` or `encryption` changes on a

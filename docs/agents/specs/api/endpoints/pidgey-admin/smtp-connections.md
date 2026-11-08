@@ -66,21 +66,30 @@ Used by create and update. Strings are trimmed before validation, except `passwo
 | Field | Rules |
 | --- | --- |
 | `name` | **required**; string, not empty, max 255 characters |
-| `host` | **required**; string, not empty, max 255 characters; a hostname or an IP literal (IPv4, or IPv6 in brackets or bare); no whitespace or control characters. A bare IPv6 literal is stored as given and bracketed when the connect target is built |
+| `host` | **required**; string, not empty, max 255 characters; an ASCII hostname or an IP literal (IPv4, or IPv6 in brackets or bare); no whitespace or control characters. A hostname is LDH labels (letters, digits, hyphen; 1–63 characters each, no leading or trailing hyphen) separated by dots, at most 253 characters in total; an IDN must be entered in punycode (`smtp.xn--exmple-cua.de`), a Unicode host is rejected (no conversion). A bare IPv6 literal is stored as given and bracketed when the connect target is built. `host` is the connect target and the TLS peer name, never the `EHLO` argument |
 | `port` | **required**; integer (JSON number, no fraction, not a string), 1–65535 |
 | `encryption` | **required**; one of `none`, `tls`, `ssl` |
 | `username` | optional; string, max 255 characters, no control characters |
 | `password` | optional; string, max 255 characters, no CR, LF or NUL |
 | `fromAddress` | **required**; valid email address, max 255 characters, no CR or LF |
 
-- **Header injection:** `host` and `fromAddress` end up in SMTP commands and headers
-  (`EHLO`/connect target, `MAIL FROM`, `From:`), and `username` / `password` in the `AUTH`
-  exchange; the character rules above exist so no value can inject an extra command or
-  header line.
+- **Header injection:** `host` is the connect target and TLS peer name, `fromAddress` ends
+  up in SMTP commands and headers (`MAIL FROM`, `From:`, the `Message-ID` domain), and
+  `username` / `password` in the `AUTH` exchange; the character rules above (and the LDH
+  rule of `host`) exist so no value can inject an extra command or header line. The `EHLO`
+  argument is the client's name, never `host` (see
+  [email/send-flow.md](../../../email/send-flow.md#ehlo)).
 - **Credential pairing:** `username` and `password` are **both set or both empty**. The rule
   is checked on the **resulting state** (on update, after the request is merged with the
   stored row); otherwise `400 VALIDATION_FAILED` —
   `username and password must be both set or both empty`.
+- **Credentials require encryption:** credentials are only allowed with `encryption` `tls`
+  or `ssl`, checked on the **resulting state** as well; otherwise `400 VALIDATION_FAILED` —
+  `username and password require encryption tls or ssl` (a password is never sent in clear
+  text, see [email/smtp-connections.md](../../../email/smtp-connections.md#authentication)).
+- **Port / encryption pairs** are not validated: an unusual pair (e.g. `ssl` on 587) is
+  accepted and fails at send time with a hint (see
+  [email/failures.md](../../../email/failures.md#port--encryption-hints)).
 - An empty string (`""`) for `username` or `password` means "no value" (stored as `NULL`).
 - Messages follow [conventions/validation.md](../../conventions/validation.md#message-templates).
   For the rules without a template there, the messages are: `port must be an integer`,
@@ -230,6 +239,11 @@ Behavior:
 - It uses the **given** connection, **active or not**, so a connection can be tested before
   it is activated. It never changes `active` or any other data.
 - The send-flow log line identifies the acting user instead of a token.
+- When credentials are stored with `encryption: none` (a row stored before the
+  credentials-require-encryption rule), the answer is `409 SMTP_INSECURE_CREDENTIALS` —
+  `The SMTP connection has credentials but no encryption; set encryption to tls or ssl`,
+  before the password is decrypted; the SMTP server is **never contacted** (see
+  [email/send-flow.md](../../../email/send-flow.md#send-time-checks)).
 - When credentials are stored, the password is decrypted before connecting. If it cannot be
   decrypted (wrong or removed key, corrupt bytes, associated-data mismatch, malformed bytes,
   unknown key id), the answer is `409 SMTP_PASSWORD_UNREADABLE` —
@@ -258,8 +272,9 @@ address beyond what the send flow already logs.
 | --- | --- |
 | Invalid `to` | `400 VALIDATION_FAILED` |
 | Unknown or foreign connection | `404 NOT_FOUND` — `SMTP connection not found` |
+| Stored credentials with `encryption: none` | `409 SMTP_INSECURE_CREDENTIALS` — `The SMTP connection has credentials but no encryption; set encryption to tls or ssl` |
 | Stored password cannot be decrypted | `409 SMTP_PASSWORD_UNREADABLE` — `The stored SMTP password could not be decrypted; set it again` |
-| Connect, TLS, auth, rejection, temporary failure, timeout | `502` / `503` / `504` with the `SMTP_*` code and, when available, `error.smtp` |
+| Connect, TLS, auth, rejection, temporary failure, invalid reply (`SMTP_PROTOCOL_ERROR`), timeout | `502` / `503` / `504` with the `SMTP_*` code, its fixed message and, when available, `error.smtp` |
 | Sent | `201 { "status": "sent", "smtp": … }` |
 
 ## Errors summary
@@ -271,6 +286,7 @@ address beyond what the send flow already logs.
 | Malformed `:id` | `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` |
 | Validation failure | `400 VALIDATION_FAILED` |
 | Unknown, out of range or foreign `:id` | `404 NOT_FOUND` — `SMTP connection not found` |
+| Stored credentials with `encryption: none` (test email only) | `409 SMTP_INSECURE_CREDENTIALS`, see [email/failures.md](../../../email/failures.md) |
 | Stored password cannot be decrypted (test email only) | `409 SMTP_PASSWORD_UNREADABLE`, see [email/failures.md](../../../email/failures.md) |
 | SMTP failure (test email only) | `502` / `503` / `504`, see [email/failures.md](../../../email/failures.md) |
 
@@ -284,12 +300,19 @@ address beyond what the send flow already logs.
   pending in [api/pending.md](../../pending.md).
 - **Credential redirection:** a `PATCH` may change `host`, `port` or `encryption` while
   keeping the stored password, so a hijacked session can make the server send the stored
-  password to another server (or in cleartext with `encryption: none`) by then calling the
-  test email. Accepted in v1: every user of the organization has equal access, and the
+  password to another server by then calling the test email. Sending it in cleartext is no
+  longer possible: credentials with `encryption: none` are refused on update and at send
+  time. Accepted in v1: every user of the organization has equal access, and the
   password belongs to the organization. Requiring the password to be re-sent is pending (see
   [Pending decisions](#pending-decisions) and [api/pending.md](../../pending.md)).
 - **Slow servers:** the test email is synchronous; a slow SMTP server holds the request up to
-  the configured send-flow timeouts.
+  the send-flow timeouts, at most `SMTP_TOTAL_TIMEOUT` (see
+  [email/send-flow.md](../../../email/send-flow.md#timeouts)).
+- **Rows stored before the current rules** are not migrated. A row with credentials and
+  `encryption: none` answers `409 SMTP_INSECURE_CREDENTIALS` on the test email; a row with
+  a non-LDH `host` fails naturally at connect time (`SMTP_CONNECTION_FAILED`). Validation
+  runs on the merged state, so any `PATCH` of such a row fails with `400` until
+  `encryption` / `host` is fixed; list, show, activate and delete keep working.
 - **No rate limit** on the test email endpoint (tracked in [api/pending.md](../../pending.md)).
 - Lists are not paginated.
 
@@ -304,6 +327,14 @@ address beyond what the send flow already logs.
 - `port` as a string (`"587"`), `0`, `65536` or `587.5` → `400`.
 - `host` with a space, a CR/LF or another control character → `400`; `fromAddress` with
   CR/LF → `400`.
+- Unicode `host` (`smtp.exämple.de`), a label over 63 characters, a label with a leading or
+  trailing hyphen, or a hostname over 253 characters → `400` —
+  `host must be a hostname or an IP address`; the punycode form is accepted.
+- `POST` with credentials and `encryption: none` → `400` —
+  `username and password require encryption tls or ssl`; `PATCH` setting
+  `encryption: none` on a connection with credentials, or adding credentials to a `none`
+  connection → the same `400`.
+- `ssl` on port 587, or `tls` on 465 → accepted (no pair validation).
 - Two concurrent `activate` calls on different connections → serialized by the organization
   lock; exactly one ends active.
 - Deleting the active connection → no active connection; `POST /v1/messages` answers `409`.
@@ -319,8 +350,8 @@ The implementation must cover at least:
   `hasPassword` reflecting the stored state;
 - the gate's `401` for anonymous calls, before `:id` parsing and validation; no admin check;
 - organization isolation: `404` on every `:id` route for another organization's connection;
-- the field rules, including the credential pairing on the merged state and the
-  header-injection character rules;
+- the field rules, including the credential pairing and the credentials-require-encryption
+  rule on the merged state, the `host` LDH rule and the header-injection character rules;
 - a created connection is always inactive; `active` in a body is ignored;
 - activate atomicity: at most one active connection after concurrent activations; activate
   is idempotent;
@@ -331,6 +362,8 @@ The implementation must cover at least:
 - create ordering: the stored password decrypts with the new row's associated data, and a
   failure during encryption leaves no row;
 - update without `password` keeps the stored bytes; with one, they change;
+- test email on a stored row with credentials and `encryption: none` →
+  `409 SMTP_INSECURE_CREDENTIALS`, the SMTP server never contacted;
 - test email with an undecryptable stored password → `409 SMTP_PASSWORD_UNREADABLE`, the SMTP
   server never contacted, `hasPassword` still `true`;
 - operator log lines for every state change and test, with field names only and no secrets.
