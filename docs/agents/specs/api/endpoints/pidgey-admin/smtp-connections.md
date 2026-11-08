@@ -99,10 +99,13 @@ Used by create and update. Strings are trimmed before validation, except `passwo
   accepted and fails at send time with a hint (see
   [email/failures.md](../../../email/failures.md#port--encryption-hints)).
 - An empty string (`""`) for `username` or `password` means "no value" (stored as `NULL`).
-- Messages follow [conventions/validation.md](../../conventions/validation.md#message-templates).
-  For the rules without a template there, the messages are: `port must be an integer`,
-  `port must be between 1 and 65535`, `host must be a hostname or an IP address`,
-  `<field> must not contain control characters`, `<field> must not contain line breaks`.
+- Messages follow the shared templates of
+  [conventions/validation.md](../../conventions/validation.md#message-templates), e.g.
+  `port must be an integer`, `port must be between 1 and 65535`,
+  `host must be a hostname or an IP address`, `username must not contain control characters`,
+  `fromAddress must not contain line breaks`. The cross-field rules above (credential
+  pairing, credentials require encryption, credential redirection) and the test-email `to`
+  rule have their own fixed messages.
 
 ## `GET /smtp-connections.json`
 
@@ -536,6 +539,5 @@ The implementation must cover at least:
 
 ## Pending decisions
 
-- **Pending decision:** adopting the messages above for numeric ranges, hostnames and control
-  characters as shared templates in
-  [conventions/validation.md](../../conventions/validation.md#message-templates).
+None. The general API rate limits and pagination stay in
+[api/pending.md](../../pending.md).

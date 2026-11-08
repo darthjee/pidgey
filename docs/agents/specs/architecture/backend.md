@@ -51,6 +51,18 @@ message ([email/failures.md](../email/failures.md#fixed-messages)).
 Wiring is done manually (a small container/factory class: `Pidgey\Container` and `Pidgey\Http\HandlerFactory`, see
 [request-handler/handlers.md](../request-handler/handlers.md#factory-and-container)), no DI framework.
 
+## Logging
+
+- `Pidgey\Infra\LoggerFactory` builds the application's **Monolog** logger, with an
+  `ErrorLogHandler`: lines go to the same destination as PHP's `error_log()`.
+- The minimum level is `LOG_LEVEL` (default `info`, see
+  [configuration.md](configuration.md#logging)).
+- Operator log lines (see
+  [api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#operator-log)) are `info`
+  lines whose message is the action name and whose context is JSON (`userId`,
+  `organizationId`, `connectionId`, `fields` as names only); no value, password or token is
+  ever logged.
+
 ## Configuration
 
 Configuration is read from environment variables. Every variable, its default and its effect

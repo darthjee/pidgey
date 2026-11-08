@@ -122,6 +122,23 @@ Each line holds:
 - for updates, the **names** of the changed fields (e.g. `host`, `password`), never their
   values.
 
+**Format and destination:** the line is written through the Monolog logger built by
+`Pidgey\Infra\LoggerFactory` (see
+[architecture/backend.md](../../architecture/backend.md#logging)), at level **`info`**, to the
+same destination as `error_log()` (an `ErrorLogHandler`). The log message is the **action
+name**; the data is a JSON context:
+
+| Context key | Content |
+| --- | --- |
+| `userId` | The acting user's id. |
+| `organizationId` | The organization's id. |
+| `connectionId` | The SMTP connection id (SMTP connection actions; the organization and API-token actions carry their own resource id). |
+| `fields` | For updates, the array of changed field **names**; absent otherwise. |
+
+The test email adds its outcome (`sent` or the `SMTP_*` code) to the context. Lines below
+`LOG_LEVEL` (see
+[architecture/configuration.md](../../architecture/configuration.md#logging)) are dropped.
+
 It **never** includes SMTP passwords, the plain API token or its hash. The test email logs its
 outcome (sent, or the `SMTP_*` code), not the recipient's address beyond what the
 [send flow](../../email/send-flow.md) already logs. Reads (`GET`) write **no** operator log
