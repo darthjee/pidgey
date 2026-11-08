@@ -9,9 +9,10 @@ Purpose: track API concerns that are explicitly not decided yet.
   application-level throttle in v1: the recover cooldown (`PASSWORD_RESET_COOLDOWN`) is the
   only v1 protection. Leaning towards a **per-IP throttle** (failures per window →
   `429 TOO_MANY_REQUESTS`, client IP resolved as in
-  [conventions/client-ip.md](conventions/client-ip.md)). It also includes the SMTP
-  connection **test email** ([endpoints/pidgey-admin/smtp-connections.md](endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson)),
-  which has no rate limit in v1 and opens an outbound SMTP connection per call. A per-username
+  [conventions/client-ip.md](conventions/client-ip.md)). The SMTP connection **test email** is
+  **decided** and out of this item: it has its own per-organization window and lease,
+  answering `429 TOO_MANY_REQUESTS` with `Retry-After` (see
+  [endpoints/pidgey-admin/smtp-connections.md](endpoints/pidgey-admin/smtp-connections.md#test-email-limit)). A per-username
   login lockout is rejected (it lets anyone lock a victim out and reveals that the username
   exists). Until then, proxy-level rate limiting is recommended; the current production host cannot apply it, a known gap recorded in
   [deployment/known-gaps.md](../../deployment/known-gaps.md#no-proxy-rate-limiting), so production keeps

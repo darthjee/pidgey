@@ -262,7 +262,10 @@ Request:
 
 | Field | Rules |
 | --- | --- |
-| `to` | optional; valid email address (after trimming), at most 255 characters, no CR or LF. Absent, `null` → the caller's own `users.email` |
+| `to` | optional; valid email address (after trimming), at most 255 characters, no CR or LF; must be the `users.email` of a user of the caller's organization, otherwise `400 VALIDATION_FAILED` — `to must be the email of a user of the organization`. Absent, `null` → the caller's own `users.email` |
+
+The recipient restriction keeps the test email from being used to send mail to arbitrary
+addresses.
 
 Content (fixed, no caller-supplied content):
 
@@ -270,6 +273,46 @@ Content (fixed, no caller-supplied content):
 - text body: `This is a test email sent by Pidgey to check an SMTP connection.`;
 - no HTML part; the `From:` header and envelope sender are the connection's `fromAddress`,
   as for any send ([email/message-scope.md](../../../email/message-scope.md)).
+
+Order of checks (after the [guards](../pidgey-admin.md#guards)):
+
+1. validate `to` (format, then the organization-user rule) → `400 VALIDATION_FAILED`;
+2. look up the connection in the organization → `404 NOT_FOUND`;
+3. the [test-email limit](#test-email-limit) → `429 TOO_MANY_REQUESTS`;
+4. the send-time checks and the send of the
+   [send flow](../../../email/send-flow.md#send-time-checks).
+
+### Test-email limit
+
+The production host has no proxy-level rate limiting, so the test email limits itself,
+**per organization**, with one row per organization in
+[`smtp_test_limits`](../../../organizations/data-model/smtp-test-limits.md):
+
+- **Fixed window:** at most `SMTP_TEST_MAX_ATTEMPTS` attempts (default `10`) per window of
+  `SMTP_TEST_WINDOW` seconds (default `3600`), see
+  [architecture/configuration.md](../../../architecture/configuration.md#smtp-transport).
+  The window starts with the first attempt after the previous window ended. Every attempt
+  that passed validation and the lookup and was not refused by the limit **counts, whatever
+  its outcome** (sent, `409`, or any `SMTP_*` failure). When the count is reached, the
+  answer is `429 TOO_MANY_REQUESTS` — `Too many test emails; try again later`, with
+  `Retry-After` set to the seconds until the window ends.
+- **Lease (one test in flight):** at most one test email runs at a time per organization,
+  so slow servers cannot hold every worker. While a lease is held (`busy_until > now`), the
+  answer is `429 TOO_MANY_REQUESTS` — `A test email is already in progress`, with
+  `Retry-After` set to the seconds until `busy_until`.
+- **Steps:**
+  1. in a **short transaction**, upsert and lock the organization's `smtp_test_limits` row
+     (`SELECT … FOR UPDATE`);
+  2. lease held → `429` (lease); window ended → start a new window (`window_start = now`,
+     count `0`); count reached → `429` (window);
+  3. otherwise increment the count and take the lease,
+     `busy_until = now + SMTP_TOTAL_TIMEOUT + 5` seconds; commit;
+  4. run the send-time checks and the send, with **no database lock held**;
+  5. clear the lease (`busy_until = NULL`) after the send, whatever its outcome.
+- A worker that dies during the send leaves the lease in place; it expires on its own at
+  `busy_until`.
+- A refused attempt (`429`) does not count and does not change the row.
+- `Retry-After` is a whole number of seconds, rounded up, at least `1`.
 
 Behavior:
 
@@ -325,7 +368,10 @@ address beyond what the send flow already logs.
 | Case | Answer |
 | --- | --- |
 | Invalid `to` | `400 VALIDATION_FAILED` |
+| `to` is not the email of a user of the organization | `400 VALIDATION_FAILED` — `to must be the email of a user of the organization` |
 | Unknown or foreign connection | `404 NOT_FOUND` — `SMTP connection not found` |
+| Window limit reached | `429 TOO_MANY_REQUESTS` — `Too many test emails; try again later`, `Retry-After` |
+| Another test email of the organization in progress | `429 TOO_MANY_REQUESTS` — `A test email is already in progress`, `Retry-After` |
 | Stored credentials with `encryption: none` | `409 SMTP_INSECURE_CREDENTIALS` — `The SMTP connection has credentials but no encryption; set encryption to tls or ssl` |
 | Host resolves to a denied address (`SMTP_ALLOW_PRIVATE_HOSTS=false`) | `409 SMTP_HOST_NOT_ALLOWED` — `The SMTP host resolves to an address that is not allowed` |
 | Stored password cannot be decrypted | `409 SMTP_PASSWORD_UNREADABLE` — `The stored SMTP password could not be decrypted; set it again` |
@@ -341,6 +387,7 @@ address beyond what the send flow already logs.
 | Malformed `:id` | `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` |
 | Validation failure | `400 VALIDATION_FAILED` |
 | Unknown, out of range or foreign `:id` | `404 NOT_FOUND` — `SMTP connection not found` |
+| Test-email limit (window or lease, test email only) | `429 TOO_MANY_REQUESTS`, with `Retry-After`, see [Test-email limit](#test-email-limit) |
 | Stored credentials with `encryption: none` (test email only) | `409 SMTP_INSECURE_CREDENTIALS`, see [email/failures.md](../../../email/failures.md) |
 | Host resolves to a denied address (test email only) | `409 SMTP_HOST_NOT_ALLOWED`, see [email/failures.md](../../../email/failures.md) |
 | Stored password cannot be decrypted (test email only) | `409 SMTP_PASSWORD_UNREADABLE`, see [email/failures.md](../../../email/failures.md) |
@@ -371,7 +418,12 @@ address beyond what the send flow already logs.
   a non-LDH `host` fails naturally at connect time (`SMTP_CONNECTION_FAILED`). Validation
   runs on the merged state, so any `PATCH` of such a row fails with `400` until
   `encryption` / `host` is fixed; list, show, activate and delete keep working.
-- **No rate limit** on the test email endpoint (tracked in [api/pending.md](../../pending.md)).
+- **Test-email limit is per organization:** one organization's users share its window and
+  its lease, so one user can use up the organization's attempts for the window. There is no
+  per-user or per-IP limit, and the other endpoints have no rate limit (tracked in
+  [api/pending.md](../../pending.md)).
+- The window is **fixed**, so up to twice `SMTP_TEST_MAX_ATTEMPTS` attempts can happen
+  around a window boundary.
 - Lists are not paginated.
 
 ## Edge cases
@@ -415,6 +467,19 @@ address beyond what the send flow already logs.
 - Test email on an inactive connection → allowed; on another organization's → `404`.
 - Test email with no body → sent to the caller's own email.
 - Test email with `to` containing CR/LF → `400 VALIDATION_FAILED`.
+- Test email with `to` set to an address that is not a user of the organization (including
+  a user of another organization) → `400` —
+  `to must be the email of a user of the organization`; to another user of the
+  organization → allowed.
+- The `SMTP_TEST_MAX_ATTEMPTS + 1`-th test email within one window → `429` —
+  `Too many test emails; try again later`, `Retry-After` until the window ends; after the
+  window ends → allowed again.
+- Failed attempts (`409`, `502`…) count towards the window; `400`, `404` and `429` answers
+  do not.
+- Two concurrent test emails of the same organization (on the same or different
+  connections) → one is sent, the other answers `429` —
+  `A test email is already in progress`.
+- A lease left by a crashed worker → `429` until `busy_until`, then allowed.
 - Test email on a connection whose `host` is `127.0.0.1`, `169.254.169.254`, `::1`,
   `::ffff:10.0.0.1`, or a hostname with one public and one private address, with
   `SMTP_ALLOW_PRIVATE_HOSTS=false` → `409 SMTP_HOST_NOT_ALLOWED`, server never contacted;
@@ -458,14 +523,17 @@ The implementation must cover at least:
   the connection made to the checked IP;
 - test email with an undecryptable stored password → `409 SMTP_PASSWORD_UNREADABLE`, the SMTP
   server never contacted, `hasPassword` still `true`;
+- the test-email recipient restriction, with the exact message;
+- the test-email window (count, reset, `Retry-After`) and lease (one in flight per
+  organization, cleared after the send, expiring on its own), both `429 TOO_MANY_REQUESTS`
+  with the exact messages; no database lock held during the send (driven with
+  `Pidgey\Infra\Clock`);
 - operator log lines for every state change and test, with field names only and no secrets.
 
 ## Pending decisions
 
 - **Pending decision:** a database-level constraint guaranteeing at most one active
   connection per organization (v1 relies on the locked transaction of activate).
-- **Pending decision:** a rate limit on the test email endpoint
-  ([api/pending.md](../../pending.md)).
 - **Pending decision:** adopting the messages above for numeric ranges, hostnames and control
   characters as shared templates in
   [conventions/validation.md](../../conventions/validation.md#message-templates).
