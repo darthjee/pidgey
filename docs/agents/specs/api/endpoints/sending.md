@@ -83,6 +83,9 @@ Then a valid token lacking scope `send` answers `403 FORBIDDEN`.
 | Token without scope `send` | `403 FORBIDDEN` |
 | Invalid payload | `400 VALIDATION_FAILED` |
 | No active SMTP connection | `409 NO_SMTP_CONNECTION` |
+| Active connection with credentials and `encryption: none` | `409 SMTP_INSECURE_CREDENTIALS` |
+| Active connection's `host` resolves to a denied address (`SMTP_ALLOW_PRIVATE_HOSTS=false`) | `409 SMTP_HOST_NOT_ALLOWED` — `The SMTP host resolves to an address that is not allowed` ([email/send-flow.md](../../email/send-flow.md#host-check)) |
+| Stored password cannot be decrypted | `409 SMTP_PASSWORD_UNREADABLE` |
 | SMTP failure | `502` / `503` / `504` with the `SMTP_*` code and, when available, `error.smtp` ([email/failures.md](../../email/failures.md)) |
 | Unexpected error | `500 INTERNAL_ERROR` |
 

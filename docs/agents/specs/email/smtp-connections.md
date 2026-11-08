@@ -72,6 +72,30 @@ Applies to `ssl` and to `tls` after `STARTTLS`.
 - Future, not v1: a per-connection custom CA (covered globally by `SMTP_CA_FILE`) and a
   per-connection "legacy TLS" opt-in.
 
+## Host policy
+
+Users choose the SMTP `host` and `port`, so the server could be made to open connections to
+internal addresses (server-side request forgery). The policy, defined in
+[send-flow.md](send-flow.md#host-check):
+
+- **Checked at send time only** (test email and `POST /v1/messages`), never on create or
+  update: the `host` is resolved once and, when `SMTP_ALLOW_PRIVATE_HOSTS` is `false` (the
+  default, see
+  [architecture/configuration.md](../architecture/configuration.md#smtp-transport)), any
+  resolved address in a denied range (loopback, private, link-local including the metadata
+  address, shared address space, unspecified, multicast, reserved; IPv4 and IPv6) refuses
+  the send with `409 SMTP_HOST_NOT_ALLOWED`, without contacting the server. An IP literal is
+  checked as is.
+- **DNS rebinding:** the transport connects to the checked IP (IPv4 preferred, no fallback
+  to other addresses in v1); the TLS peer name and SNI stay `host`.
+- The development and test env files set `SMTP_ALLOW_PRIVATE_HOSTS=true`, so Mailpit and
+  internal relays stay usable; a self-hosted setup that needs an internal relay sets it as
+  well.
+- Ports are not restricted. The test email's error categories remain a reachability oracle
+  for public hosts and ports (and for every host when the setting is `true`), a known
+  limitation (see
+  [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#known-limitations)).
+
 ## Security
 - The SMTP password must be recoverable to authenticate, so it is **encrypted at rest**
   with an application secret key (from configuration), not hashed.
@@ -87,5 +111,3 @@ Applies to `ssl` and to `tls` after `STARTTLS`.
   test email already does, see the endpoints above).
 - A `deactivate` endpoint and a database-level "at most one active" constraint (see
   [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#pending-decisions)).
-- A host deny-list / allow-list against server-side request forgery (see
-  [api/pending.md](../api/pending.md)).

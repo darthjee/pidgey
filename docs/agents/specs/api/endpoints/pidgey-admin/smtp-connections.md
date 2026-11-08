@@ -244,6 +244,14 @@ Behavior:
   `The SMTP connection has credentials but no encryption; set encryption to tls or ssl`,
   before the password is decrypted; the SMTP server is **never contacted** (see
   [email/send-flow.md](../../../email/send-flow.md#send-time-checks)).
+- The `host` is resolved once and checked against the
+  [host policy](../../../email/smtp-connections.md#host-policy): when
+  `SMTP_ALLOW_PRIVATE_HOSTS` is `false` and any resolved address (or the IP literal) is in a
+  denied range, the answer is `409 SMTP_HOST_NOT_ALLOWED` —
+  `The SMTP host resolves to an address that is not allowed`, before the password is
+  decrypted; the SMTP server is **never contacted** (see
+  [email/send-flow.md](../../../email/send-flow.md#host-check)). Otherwise the transport
+  connects to the checked IP.
 - When credentials are stored, the password is decrypted before connecting. If it cannot be
   decrypted (wrong or removed key, corrupt bytes, associated-data mismatch, malformed bytes,
   unknown key id), the answer is `409 SMTP_PASSWORD_UNREADABLE` —
@@ -273,6 +281,7 @@ address beyond what the send flow already logs.
 | Invalid `to` | `400 VALIDATION_FAILED` |
 | Unknown or foreign connection | `404 NOT_FOUND` — `SMTP connection not found` |
 | Stored credentials with `encryption: none` | `409 SMTP_INSECURE_CREDENTIALS` — `The SMTP connection has credentials but no encryption; set encryption to tls or ssl` |
+| Host resolves to a denied address (`SMTP_ALLOW_PRIVATE_HOSTS=false`) | `409 SMTP_HOST_NOT_ALLOWED` — `The SMTP host resolves to an address that is not allowed` |
 | Stored password cannot be decrypted | `409 SMTP_PASSWORD_UNREADABLE` — `The stored SMTP password could not be decrypted; set it again` |
 | Connect, TLS, auth, rejection, temporary failure, invalid reply (`SMTP_PROTOCOL_ERROR`), timeout | `502` / `503` / `504` with the `SMTP_*` code, its fixed message and, when available, `error.smtp` |
 | Sent | `201 { "status": "sent", "smtp": … }` |
@@ -287,17 +296,22 @@ address beyond what the send flow already logs.
 | Validation failure | `400 VALIDATION_FAILED` |
 | Unknown, out of range or foreign `:id` | `404 NOT_FOUND` — `SMTP connection not found` |
 | Stored credentials with `encryption: none` (test email only) | `409 SMTP_INSECURE_CREDENTIALS`, see [email/failures.md](../../../email/failures.md) |
+| Host resolves to a denied address (test email only) | `409 SMTP_HOST_NOT_ALLOWED`, see [email/failures.md](../../../email/failures.md) |
 | Stored password cannot be decrypted (test email only) | `409 SMTP_PASSWORD_UNREADABLE`, see [email/failures.md](../../../email/failures.md) |
 | SMTP failure (test email only) | `502` / `503` / `504`, see [email/failures.md](../../../email/failures.md) |
 
 ## Known limitations
 
-- **Server-side request forgery:** a user chooses the SMTP `host` and `port`, so the server
-  can be made to open TCP connections to internal addresses, and the test email's error
-  categories (`SMTP_CONNECTION_FAILED`, `SMTP_TIMEOUT`, `SMTP_TLS_FAILED`…) act as a
-  reachability oracle for internal hosts and ports. Any host stays allowed in v1, since
-  self-hosted setups need internal relays and Mailpit. A host deny-list / allow-list is
-  pending in [api/pending.md](../../pending.md).
+- **Server-side request forgery:** a user chooses the SMTP `host` and `port`. Internal
+  addresses (loopback, private, link-local including the metadata address, shared address
+  space, unspecified, multicast, reserved) are refused at send time by default with
+  `409 SMTP_HOST_NOT_ALLOWED`, and the transport connects to the checked IP, so DNS
+  rebinding cannot bypass the check (see
+  [email/smtp-connections.md](../../../email/smtp-connections.md#host-policy)). Ports are not
+  restricted, so the test email's error categories (`SMTP_CONNECTION_FAILED`,
+  `SMTP_TIMEOUT`, `SMTP_TLS_FAILED`…) remain a reachability oracle for **public** hosts and
+  ports — and for every host when `SMTP_ALLOW_PRIVATE_HOSTS` is `true` (development, test,
+  or a self-hosted setup with an internal relay). Accepted in v1.
 - **Credential redirection:** a `PATCH` may change `host`, `port` or `encryption` while
   keeping the stored password, so a hijacked session can make the server send the stored
   password to another server by then calling the test email. Sending it in cleartext is no
@@ -341,6 +355,11 @@ address beyond what the send flow already logs.
 - Test email on an inactive connection → allowed; on another organization's → `404`.
 - Test email with no body → sent to the caller's own email.
 - Test email with `to` containing CR/LF → `400 VALIDATION_FAILED`.
+- Test email on a connection whose `host` is `127.0.0.1`, `169.254.169.254`, `::1`,
+  `::ffff:10.0.0.1`, or a hostname with one public and one private address, with
+  `SMTP_ALLOW_PRIVATE_HOSTS=false` → `409 SMTP_HOST_NOT_ALLOWED`, server never contacted;
+  the same with the setting `true` → the send is attempted.
+- Test email on a host that cannot be resolved → `SMTP_CONNECTION_FAILED`.
 
 ## Testable rules
 
@@ -364,6 +383,9 @@ The implementation must cover at least:
 - update without `password` keeps the stored bytes; with one, they change;
 - test email on a stored row with credentials and `encryption: none` →
   `409 SMTP_INSECURE_CREDENTIALS`, the SMTP server never contacted;
+- test email on a host resolving to a denied address with `SMTP_ALLOW_PRIVATE_HOSTS=false` →
+  `409 SMTP_HOST_NOT_ALLOWED`, the SMTP server never contacted; the host resolved once and
+  the connection made to the checked IP;
 - test email with an undecryptable stored password → `409 SMTP_PASSWORD_UNREADABLE`, the SMTP
   server never contacted, `hasPassword` still `true`;
 - operator log lines for every state change and test, with field names only and no secrets.
@@ -373,8 +395,6 @@ The implementation must cover at least:
 - **Pending decision:** a `deactivate` endpoint (`POST /smtp-connections/:id/deactivate.json`).
 - **Pending decision:** a database-level constraint guaranteeing at most one active
   connection per organization (v1 relies on the locked transaction of activate).
-- **Pending decision:** a configurable SMTP host deny-list / allow-list against server-side
-  request forgery ([api/pending.md](../../pending.md)).
 - **Pending decision:** require `password` to be re-sent (or cleared) in the same `PATCH`
   when `host`, `port` or `encryption` changes on a connection that has credentials, against
   credential redirection (see [Known limitations](#known-limitations) and

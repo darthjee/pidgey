@@ -25,12 +25,6 @@ Purpose: track API concerns that are explicitly not decided yet.
   connections, API tokens, see [endpoints/pidgey-admin.md](endpoints/pidgey-admin.md#shared-rules))
   are **unpaginated**, ordered by `id` ascending; admin user search returns every match. This
   item stays open for future growth.
-- **Pending decision — SMTP host deny-list / allow-list (SSRF):** users choose the SMTP
-  `host` and `port`, so the server can be made to open TCP connections to internal addresses,
-  and the test email's error categories act as a reachability oracle (known limitation in
-  [endpoints/pidgey-admin/smtp-connections.md](endpoints/pidgey-admin/smtp-connections.md#known-limitations)).
-  Any host is allowed in v1, since self-hosted setups need internal relays and Mailpit. A
-  configurable deny-list / allow-list is pending.
 - **Pending decision — SMTP credential redirection:** a `PATCH` on an SMTP connection may
   change `host`, `port` or `encryption` while keeping the stored password, so a hijacked
   session can make the server send the stored password to another server through the test

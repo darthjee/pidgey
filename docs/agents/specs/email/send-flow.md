@@ -32,8 +32,45 @@ contacted and no `error.smtp` is returned:
 1. Credentials (`username` and `password` set) with `encryption: none` →
    `409 SMTP_INSECURE_CREDENTIALS`. A password is never sent in clear text. This check
    runs before the password is decrypted.
-2. Decrypt the stored password → any failure is `409 SMTP_PASSWORD_UNREADABLE` (see
+2. [Host check](#host-check) → a denied address is `409 SMTP_HOST_NOT_ALLOWED`. This check
+   also runs before the password is decrypted.
+3. Decrypt the stored password → any failure is `409 SMTP_PASSWORD_UNREADABLE` (see
    [password-encryption.md](password-encryption.md#read-path)).
+
+### Host check
+
+Protects against server-side request forgery and DNS rebinding (see
+[smtp-connections.md](smtp-connections.md#host-policy)):
+
+- The `host` is **resolved once** (A and AAAA records). An IP literal is used as is, without
+  resolution.
+- A resolution failure (no address, DNS error) keeps today's outcome:
+  `SMTP_CONNECTION_FAILED`.
+- When `SMTP_ALLOW_PRIVATE_HOSTS` is `false` (the default, see
+  [architecture/configuration.md](../architecture/configuration.md#smtp-transport)), every
+  resolved address is checked; if **any** of them is in a denied range, the send is refused
+  with `409 SMTP_HOST_NOT_ALLOWED` —
+  `The SMTP host resolves to an address that is not allowed`, no `error.smtp`, and the server
+  is never contacted.
+- Denied ranges (IPv4 and IPv6):
+  - loopback (`127.0.0.0/8`, `::1`);
+  - private networks: RFC 1918 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) and unique
+    local `fc00::/7`;
+  - link-local: `169.254.0.0/16` (including the cloud metadata address `169.254.169.254`)
+    and `fe80::/10`;
+  - shared address space `100.64.0.0/10`;
+  - unspecified (`0.0.0.0/8`, `::`);
+  - multicast (`224.0.0.0/4`, `ff00::/8`);
+  - reserved ranges (e.g. `240.0.0.0/4`, `255.255.255.255`);
+  - an IPv4-mapped IPv6 address (`::ffff:a.b.c.d`) is checked as its IPv4 address.
+- When `SMTP_ALLOW_PRIVATE_HOSTS` is `true` (the development and test env files), no
+  address is denied.
+- The transport then connects to the **checked IP**, never re-resolving `host` (so a DNS
+  answer cannot change between the check and the connect): an IPv4 address is preferred;
+  with several addresses one is picked, with **no fallback** to the other addresses in v1.
+- The TLS peer name and SNI stay the connection's `host` (the
+  [TLS policy](smtp-connections.md#tls-policy) and its IP-literal rules are unchanged).
+- Ports are not restricted.
 
 ## SMTP session
 
@@ -43,8 +80,9 @@ and classified per [Replies](#replies); the failure codes and fixed messages are
 
 ### Connect and greeting
 
-- `none` and `tls`: open a plain TCP connection to `host:port`. `ssl`: open it and run the
-  TLS handshake immediately (implicit TLS, [TLS policy](smtp-connections.md#tls-policy)).
+- `none` and `tls`: open a plain TCP connection to the checked IP and `port` (see
+  [Host check](#host-check)). `ssl`: open it and run the TLS handshake immediately
+  (implicit TLS, [TLS policy](smtp-connections.md#tls-policy)); the peer name is `host`.
 - TCP connect failure (DNS, refused, unreachable, timeout before TCP is established) →
   `SMTP_CONNECTION_FAILED`.
 - `ssl` handshake or certificate failure → `SMTP_TLS_FAILED`, connection closed without

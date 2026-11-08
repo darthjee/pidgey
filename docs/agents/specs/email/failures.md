@@ -13,6 +13,7 @@ API uses the same envelope as every other endpoint.
 | `VALIDATION_FAILED` | Payload invalid (missing fields, bad address). | 400 |
 | `NO_SMTP_CONNECTION` | Organization has no active SMTP connection. | 409 |
 | `SMTP_INSECURE_CREDENTIALS` | The connection has credentials but `encryption: none`; checked before the password is decrypted, the server is never contacted. | 409 |
+| `SMTP_HOST_NOT_ALLOWED` | The connection's `host` resolves to (or is) an address in a denied range while `SMTP_ALLOW_PRIVATE_HOSTS` is `false` (see [send-flow.md](send-flow.md#host-check)); the server is never contacted. | 409 |
 | `SMTP_PASSWORD_UNREADABLE` | The stored SMTP password could not be decrypted (wrong or removed key, corrupt bytes, associated-data mismatch); the server is never contacted. | 409 |
 | `SMTP_CONNECTION_FAILED` | DNS / TCP connect failure, or a timeout before TCP is established. | 502 |
 | `SMTP_TLS_FAILED` | `tls` without `STARTTLS` in the `EHLO` reply, `STARTTLS` not answered `220`, bytes received between `220` and the handshake, or any handshake, certificate verification or protocol-version failure (`ssl` and `tls`). | 502 |
@@ -37,6 +38,7 @@ asserted exactly by tests.
 | Code | HTTP | `error.message` | `error.smtp` |
 | --- | --- | --- | --- |
 | `SMTP_INSECURE_CREDENTIALS` | 409 | `The SMTP connection has credentials but no encryption; set encryption to tls or ssl` | never |
+| `SMTP_HOST_NOT_ALLOWED` | 409 | `The SMTP host resolves to an address that is not allowed` | never |
 | `SMTP_PASSWORD_UNREADABLE` | 409 | `The stored SMTP password could not be decrypted; set it again` | never |
 | `SMTP_CONNECTION_FAILED` | 502 | `Could not connect to the SMTP server` | never |
 | `SMTP_TLS_FAILED` | 502 | `TLS negotiation with the SMTP server failed` (+ [hint](#port--encryption-hints)) | the `STARTTLS` reply, if any |
@@ -125,11 +127,13 @@ Applied to the joined reply text:
 
 ## Scope
 
-- `SMTP_INSECURE_CREDENTIALS` and `SMTP_PASSWORD_UNREADABLE` apply to the test email and
-  `POST /v1/messages`, before any connection is opened. The credentials check runs first,
-  before the password is decrypted; every decrypt failure (see
+- `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED` and `SMTP_PASSWORD_UNREADABLE` apply
+  to the test email and `POST /v1/messages`, before any connection is opened, in that order
+  (see [send-flow.md](send-flow.md#send-time-checks)). The credentials check and the host
+  check run before the password is decrypted; every decrypt failure (see
   [password-encryption.md](password-encryption.md#read-path)) gets
-  `SMTP_PASSWORD_UNREADABLE`.
+  `SMTP_PASSWORD_UNREADABLE`. A host that cannot be resolved stays
+  `SMTP_CONNECTION_FAILED`.
 - Endpoints reachable without login that send email (password recovery, registration)
   never surface these codes or `error.smtp`: they answer their normal, enumeration-safe
   response and log the failure.
