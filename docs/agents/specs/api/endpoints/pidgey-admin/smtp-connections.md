@@ -1,7 +1,7 @@
 # SMTP Connection Endpoints
 
 Purpose: define the `/smtp-connections*.json` endpoints: list, create, read, update, delete,
-activate and send a test email through an organization's SMTP connections.
+activate, deactivate and send a test email through an organization's SMTP connections.
 
 Shared rules (access, guards, `:id` handling, field rules, operator log) are in
 [pidgey-admin.md](../pidgey-admin.md). The meaning of each setting is in
@@ -18,6 +18,7 @@ Errors use [conventions/errors.md](../../conventions/errors.md).
 | `PATCH /smtp-connections/:id.json` | `200` |
 | `DELETE /smtp-connections/:id.json` | `204` |
 | `POST /smtp-connections/:id/activate.json` | `200` |
+| `POST /smtp-connections/:id/deactivate.json` | `200` |
 | `POST /smtp-connections/:id/test.json` | `201` |
 
 An unknown id, an id out of range, or another organization's connection answers
@@ -87,6 +88,13 @@ Used by create and update. Strings are trimmed before validation, except `passwo
   or `ssl`, checked on the **resulting state** as well; otherwise `400 VALIDATION_FAILED` —
   `username and password require encryption tls or ssl` (a password is never sent in clear
   text, see [email/smtp-connections.md](../../../email/smtp-connections.md#authentication)).
+- **Credential redirection (update only):** when the **merged state** has credentials and
+  the request changes `host`, `port` or `encryption`, the same request must carry a
+  non-empty `password` or clear both credentials; otherwise `400 VALIDATION_FAILED` —
+  `password must be sent again when host, port or encryption changes`. This keeps a stored
+  password from being sent to a server it was not entered for. Changing `name`,
+  `fromAddress` or `username` alone does not require it. Create always receives the
+  password with the settings, so the rule does not apply there.
 - **Port / encryption pairs** are not validated: an unusual pair (e.g. `ssl` on 587) is
   accepted and fails at send time with a hint (see
   [email/failures.md](../../../email/failures.md#port--encryption-hints)).
@@ -163,6 +171,17 @@ Request (any subset of the fields):
   [activate](#post-smtp-connectionsidactivatejson).
 - The credential pairing rule is checked on the merged state, so sending only `password` on a
   connection that has a `username` is allowed (it rotates the password).
+- The [credential redirection](#field-rules) rule: changing `host`, `port` or `encryption`
+  on a connection that keeps credentials requires a non-empty `password` in the same request
+  (or clearing both credentials); otherwise `400 VALIDATION_FAILED` —
+  `password must be sent again when host, port or encryption changes`. A value identical to
+  the stored one is not a change, so re-sending the same `host` does not trigger it.
+- **Concurrency:** the update runs in one transaction that locks the connection row
+  (`SELECT … FROM smtp_connections WHERE id = ? AND organization_id = ? FOR UPDATE`), then
+  reads, merges, validates and writes it. It does **not** take the organization lock and
+  **never writes `active`**, so it cannot overwrite a concurrent activation or deactivation.
+  Two concurrent updates of the same connection are serialized; each validates the state
+  left by the previous one.
 - Changes apply to the next send; changing the active connection keeps it active.
 - A new `password` is encrypted with a fresh nonce and the current key; without one, the
   stored bytes are kept as is (no re-encryption), even when `username`, `host` or `port`
@@ -206,8 +225,30 @@ operator log line (`smtp-connection-activate`, the id).
 - Activating the already active connection answers `200` again (idempotent).
 - The organization lock serializes concurrent activations: after two concurrent calls on
   different connections, exactly one connection is active.
-- There is no deactivate endpoint in v1 (see [Pending decisions](#pending-decisions)); deleting
-  the active connection is the only way to have none again.
+- The organization can have no active connection again through
+  [deactivate](#post-smtp-connectionsiddeactivatejson) or by deleting the active connection.
+
+## `POST /smtp-connections/:id/deactivate.json`
+
+Makes the connection inactive. No body (any body is ignored).
+
+Steps, in **one transaction**:
+
+1. lock the organization row (`SELECT … FROM organizations WHERE id = ? FOR UPDATE`);
+2. load the target connection of the organization; unknown → `404`;
+3. set `active = false` on the target;
+4. commit.
+
+Success: **`200`**, `{ "smtpConnection": <SMTP connection item> }` (with `active: false`). One
+operator log line (`smtp-connection-deactivate`, the id).
+
+- **Idempotent:** deactivating an inactive connection answers `200` again.
+- Deactivating the active connection leaves the organization with **no active
+  connection**: `POST /v1/messages` answers `409 NO_SMTP_CONNECTION`
+  ([sending.md](../sending.md)) until another one is activated.
+- The organization lock serializes it with activate: after a concurrent activate and
+  deactivate, at most one connection is active.
+- Other connections are never changed.
 
 ## `POST /smtp-connections/:id/test.json`
 
@@ -238,6 +279,11 @@ Behavior:
   timeouts and TLS rules.
 - It uses the **given** connection, **active or not**, so a connection can be tested before
   it is activated. It never changes `active` or any other data.
+- **Snapshot:** the connection row is read once, at the start of the request, and the whole
+  send uses that snapshot. An update, deactivation or deletion of the row during the send
+  does not affect it: the send goes on with the settings read, the outcome is still
+  answered, and the operator log line carries the connection id without re-checking the
+  row.
 - The send-flow log line identifies the acting user instead of a token.
 - When credentials are stored with `encryption: none` (a row stored before the
   credentials-require-encryption rule), the answer is `409 SMTP_INSECURE_CREDENTIALS` —
@@ -312,13 +358,11 @@ address beyond what the send flow already logs.
   `SMTP_TIMEOUT`, `SMTP_TLS_FAILED`…) remain a reachability oracle for **public** hosts and
   ports — and for every host when `SMTP_ALLOW_PRIVATE_HOSTS` is `true` (development, test,
   or a self-hosted setup with an internal relay). Accepted in v1.
-- **Credential redirection:** a `PATCH` may change `host`, `port` or `encryption` while
-  keeping the stored password, so a hijacked session can make the server send the stored
-  password to another server by then calling the test email. Sending it in cleartext is no
-  longer possible: credentials with `encryption: none` are refused on update and at send
-  time. Accepted in v1: every user of the organization has equal access, and the
-  password belongs to the organization. Requiring the password to be re-sent is pending (see
-  [Pending decisions](#pending-decisions) and [api/pending.md](../../pending.md)).
+- **Credential redirection** is closed by the [field rule](#field-rules): a `PATCH` changing
+  `host`, `port` or `encryption` on a connection that keeps credentials must re-send the
+  password, so a hijacked session cannot point the stored password at another server. A
+  caller who knows the password (or sets a new one) can still choose any server for it;
+  every user of the organization has equal access.
 - **Slow servers:** the test email is synchronous; a slow SMTP server holds the request up to
   the send-flow timeouts, at most `SMTP_TOTAL_TIMEOUT` (see
   [email/send-flow.md](../../../email/send-flow.md#timeouts)).
@@ -352,6 +396,22 @@ address beyond what the send flow already logs.
 - Two concurrent `activate` calls on different connections → serialized by the organization
   lock; exactly one ends active.
 - Deleting the active connection → no active connection; `POST /v1/messages` answers `409`.
+- `PATCH` changing `host` (or `port`, or `encryption`) on a connection with credentials,
+  without `password` → `400` —
+  `password must be sent again when host, port or encryption changes`; the same `PATCH`
+  with a new `password`, or clearing both `username` and `password` → allowed.
+- `PATCH` changing only `name`, `fromAddress` or `username` (with the password kept) on a
+  connection with credentials → allowed, no `password` needed.
+- `PATCH` changing `host` on a connection without credentials → allowed.
+- `PATCH` sending the stored `host` value unchanged → not a change; no `password` needed.
+- Deactivating the active connection → `200` with `active: false`; the organization has no
+  active connection; deactivating it again → `200` (idempotent).
+- Concurrent `activate` and `deactivate` → serialized by the organization lock.
+- `PATCH` during a concurrent `activate` → the `PATCH` never writes `active`, so the
+  activation stands.
+- Two concurrent `PATCH` calls on the same connection → serialized by the row lock.
+- Test email while the connection is updated or deleted → the send uses the snapshot read at
+  its start; the outcome is answered and logged with the connection id.
 - Test email on an inactive connection → allowed; on another organization's → `404`.
 - Test email with no body → sent to the caller's own email.
 - Test email with `to` containing CR/LF → `400 VALIDATION_FAILED`.
@@ -374,6 +434,16 @@ The implementation must cover at least:
 - a created connection is always inactive; `active` in a body is ignored;
 - activate atomicity: at most one active connection after concurrent activations; activate
   is idempotent;
+- deactivate sets `active = false` on the target only, answers `200` with the item, is
+  idempotent, `404` on another organization's connection, and logs
+  `smtp-connection-deactivate`;
+- credential redirection: a `PATCH` changing `host`, `port` or `encryption` on a connection
+  with credentials is `400` without a non-empty `password` (or clearing both), with the exact
+  message; changing `name`, `fromAddress` or `username` alone is not;
+- `PATCH` locks the connection row and never writes `active`: a concurrent activation is not
+  overwritten;
+- test email uses the snapshot read at its start: a concurrent update or delete does not
+  change the send, and the answer and log line are still produced;
 - delete of the active connection leaves none, and sending then answers
   `409 NO_SMTP_CONNECTION`;
 - test email through Mailpit (success, `201`) and failure codes (unreachable host, wrong
@@ -392,13 +462,8 @@ The implementation must cover at least:
 
 ## Pending decisions
 
-- **Pending decision:** a `deactivate` endpoint (`POST /smtp-connections/:id/deactivate.json`).
 - **Pending decision:** a database-level constraint guaranteeing at most one active
   connection per organization (v1 relies on the locked transaction of activate).
-- **Pending decision:** require `password` to be re-sent (or cleared) in the same `PATCH`
-  when `host`, `port` or `encryption` changes on a connection that has credentials, against
-  credential redirection (see [Known limitations](#known-limitations) and
-  [api/pending.md](../../pending.md)).
 - **Pending decision:** a rate limit on the test email endpoint
   ([api/pending.md](../../pending.md)).
 - **Pending decision:** adopting the messages above for numeric ranges, hostnames and control

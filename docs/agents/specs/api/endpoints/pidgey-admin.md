@@ -12,7 +12,7 @@ defined in [organizations/scope.md](../../organizations/scope.md). Errors use
 | File | Content |
 | --- | --- |
 | [organization.md](pidgey-admin/organization.md) | `GET /organization.json`, `PATCH /organization.json`. |
-| [smtp-connections.md](pidgey-admin/smtp-connections.md) | `/smtp-connections*.json`: list, create, read, update, delete, activate, test email. |
+| [smtp-connections.md](pidgey-admin/smtp-connections.md) | `/smtp-connections*.json`: list, create, read, update, delete, activate, deactivate, test email. |
 | [api-tokens.md](pidgey-admin/api-tokens.md) | `/api-tokens*.json`: list, create (plain token returned once), revoke. |
 
 ## Endpoints
@@ -27,6 +27,7 @@ defined in [organizations/scope.md](../../organizations/scope.md). Errors use
 | `PATCH /smtp-connections/:id.json` | Update one | `200` |
 | `DELETE /smtp-connections/:id.json` | Delete one | `204` |
 | `POST /smtp-connections/:id/activate.json` | Make it the active connection | `200` |
+| `POST /smtp-connections/:id/deactivate.json` | Make it inactive | `200` |
 | `POST /smtp-connections/:id/test.json` | Send a test email through it | `201` |
 | `GET /api-tokens.json` | List tokens | `200` |
 | `POST /api-tokens.json` | Create a token (plain token returned once) | `201` |
@@ -107,6 +108,7 @@ Every **successful** state change writes **one line** to the application (operat
 | `smtp-connection-update` | `PATCH /smtp-connections/:id.json` |
 | `smtp-connection-delete` | `DELETE /smtp-connections/:id.json` |
 | `smtp-connection-activate` | `POST /smtp-connections/:id/activate.json` |
+| `smtp-connection-deactivate` | `POST /smtp-connections/:id/deactivate.json` |
 | `smtp-connection-test` | `POST /smtp-connections/:id/test.json` |
 | `api-token-create` | `POST /api-tokens.json` |
 | `api-token-revoke` | `DELETE /api-tokens/:id.json` |

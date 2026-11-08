@@ -5,7 +5,7 @@ Purpose: define the generic SMTP connection settings an organization configures.
 Pidgey speaks **generic SMTP** only; there are no provider-specific integrations.
 Connections are organization-scoped and managed in the admin UI, through the endpoints of
 [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md)
-(list, create, read, update, delete, activate, test email); the API field is `fromAddress`.
+(list, create, read, update, delete, activate, deactivate, test email); the API field is `fromAddress`.
 
 | Field | Description |
 | --- | --- |
@@ -22,8 +22,11 @@ Connections are organization-scoped and managed in the admin UI, through the end
 - A new connection always starts **inactive**; it becomes active only through the activate
   endpoint, which deactivates every other connection of the organization in the same locked
   transaction.
-- Deleting the active connection is allowed; the organization then has no active
-  connection and `POST /v1/messages` answers `409 NO_SMTP_CONNECTION`.
+- The deactivate endpoint sets `active = false` on one connection (idempotent), under the
+  same organization lock; the organization then has no active connection.
+- Deleting the active connection is allowed as well; the organization then has no active
+  connection.
+- With no active connection, `POST /v1/messages` answers `409 NO_SMTP_CONNECTION`.
 - The test email can use any connection of the organization, active or not.
 
 ## Authentication
@@ -109,5 +112,5 @@ internal addresses (server-side request forgery). The policy, defined in
 
 - Whether `POST /v1/messages` requests may select a non-active connection explicitly (the
   test email already does, see the endpoints above).
-- A `deactivate` endpoint and a database-level "at most one active" constraint (see
+- A database-level "at most one active" constraint (see
   [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#pending-decisions)).
