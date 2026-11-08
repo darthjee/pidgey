@@ -78,8 +78,12 @@ item 7 stays open for the endpoint and send-flow issues (#164–#166).
    `Pidgey\Crypto\DecryptionFailed` with a fixed message
    ([Security rules](../email/password-encryption.md#security-rules)).
    - Delivered: `encrypt` / `decrypt` as contracted, plus `isCurrent(stored)` (whether the
-     stored bytes use the current key, used by the CLI) and a `VERSION` constant; encrypting an
+     stored bytes carry the current `VERSION` byte and the current key id, used by the CLI;
+     bytes with another version byte are not current) and a `VERSION` constant; encrypting an
      empty password is refused as a programming error.
+   - Neither `PasswordCipher` nor `EncryptionKeys` can be serialized: `__serialize()` and
+     `__unserialize()` throw `LogicException`, so the keys never leave the process through
+     serialization.
    - `DecryptionFailed` message: "The stored SMTP password could not be decrypted"; it exposes
      only the tried key id (hex), or none when the stored bytes are malformed.
 2. [x] **Key set** — `Pidgey\Crypto\EncryptionKeys`, following the `Pidgey\Auth\SecretKeys`
@@ -104,8 +108,14 @@ item 7 stays open for the endpoint and send-flow issues (#164–#166).
    ([Rotation](../email/password-encryption.md#rotation)).
    - Delivered as `Pidgey\Infra\Cli\ReencryptSmtpPasswordsCommand` (proposed area
      `Pidgey\Crypto` changed to `Pidgey\Infra\Cli`), entry point
-     `source/bin/reencrypt-smtp-passwords`; it loads the configuration but does not run the
-     full `ConfigValidator`.
+     `source/bin/reencrypt-smtp-passwords`.
+   - Key validation: before touching any row, in both normal and `--check` modes, it runs
+     `ConfigValidator::validateSmtpEncryption()` — the
+     [SMTP encryption key rules](../architecture/configuration.md#smtp-encryption-keys)
+     (`SMTP_ENCRYPTION_KEY` and `PREVIOUS_SMTP_ENCRYPTION_KEYS`) plus the `sodium` check, the
+     same checks the full validation uses; it does not demand the `DB_*`, TTL or origin
+     settings. On failure it prints only the failure names on stderr, nothing on stdout,
+     writes nothing and exits `1`.
    - Output lines: `re-encrypted: N` (`due: N` with `--check`), `already current: N`,
      `unreadable: N`, `unreadable ids: …`.
    - Exit codes: `0` nothing unreadable; `1` an unreadable row or an unexpected error (message
