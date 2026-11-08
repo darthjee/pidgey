@@ -35,8 +35,8 @@ cookie-session gate, origin check and body validation (#120); the frontend SMTP 
 | [encryption.md](implement-email/encryption.md) | Password encryption at rest: service contract, key handling, rotation, failure on decrypt. | #151 (settled) |
 | [transport.md](implement-email/transport.md) | SMTP transport and send flow: transport and stream contracts, result / failure values, `SMTP_*` mapping, timeouts, TLS, `AUTH`, new configuration keys. | #152 (settled) |
 | [endpoints.md](implement-email/endpoints.md) | Connection endpoints (CRUD), activate, deactivate, test email handler (host policy, rate limit), operator log: hardening and lifecycle. | #153 (settled) |
-| [testing.md](implement-email/testing.md) | Test infrastructure: fake SMTP server, Mailpit integration, fixtures. | #154 |
-| [frontend.md](implement-email/frontend.md) | Frontend alignment of the SMTP screens with the real API. | #154 |
+| [testing.md](implement-email/testing.md) | Test infrastructure: fake SMTP server, Mailpit integration, fixtures. | #154 (settled) |
+| [frontend.md](implement-email/frontend.md) | Frontend alignment of the SMTP screens with the real API. | #154 (settled) |
 
 Each detail file starts with its **Open items** (every one marked **Pending decision**), then
 describes its building blocks. Each open item appears in exactly one detail file.

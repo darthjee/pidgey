@@ -60,7 +60,7 @@ The behavior and the paths each instance covers are in
 ## Environment
 
 - **Development `.env`:** sets `SMTP_ALLOW_PRIVATE_HOSTS=true`, so `app` (and `make dev`)
-  can reach the dev `mailpit`. It sets no `SMTP_HOST` / `SMTP_PORT`.
+  can reach the dev `mailpit`.
 - **`tests` service:** in addition to `.env`, sets:
   - `TEST_MAILPIT_PLAIN=mailpit-plain:2025:9025`;
   - `TEST_MAILPIT_STARTTLS=mailpit-starttls:2587:9587`;
