@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pidgey\Tests\Unit\Crypto;
 
+use LogicException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -121,5 +122,22 @@ final class EncryptionKeysTest extends TestCase
         }
 
         $this->assertStringContainsString('[redacted]', $dump);
+    }
+
+    public function testSerializationIsRefused(): void
+    {
+        $this->expectException(LogicException::class);
+
+        serialize(new EncryptionKeys(self::CURRENT, [self::PREVIOUS]));
+    }
+
+    public function testUnserializationIsRefused(): void
+    {
+        $class = EncryptionKeys::class;
+        $payload = 'O:' . strlen($class) . ':"' . $class . '":0:{}';
+
+        $this->expectException(LogicException::class);
+
+        unserialize($payload);
     }
 }

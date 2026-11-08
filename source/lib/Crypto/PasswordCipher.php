@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pidgey\Crypto;
 
 use InvalidArgumentException;
+use LogicException;
 use SensitiveParameter;
 
 /**
@@ -115,6 +116,34 @@ final readonly class PasswordCipher
     {
         return str_starts_with($stored, self::VERSION)
             && substr($stored, 1, EncryptionKeys::KEY_ID_BYTES) === $this->keys->currentKeyId();
+    }
+
+    /**
+     * Refuses to serialize, so that the derived keys never leave the process.
+     *
+     * @return never
+     *
+     * @throws LogicException Always.
+     */
+    public function __serialize(): array
+    {
+        throw new LogicException('SMTP encryption cipher cannot be serialized');
+    }
+
+    /**
+     * Refuses to unserialize, so that keys are only ever built from the environment.
+     *
+     * @param array<string, mixed> $data Ignored.
+     *
+     * @return void
+     *
+     * @throws LogicException Always.
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+     */
+    public function __unserialize(array $data): void
+    {
+        throw new LogicException('SMTP encryption cipher cannot be unserialized');
     }
 
     /**

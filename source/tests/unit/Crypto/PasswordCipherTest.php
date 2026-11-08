@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pidgey\Tests\Unit\Crypto;
 
 use InvalidArgumentException;
+use LogicException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -265,6 +266,23 @@ final class PasswordCipherTest extends TestCase
     private function cipher(): PasswordCipher
     {
         return new PasswordCipher(new EncryptionKeys(self::CURRENT));
+    }
+
+    public function testSerializationIsRefused(): void
+    {
+        $this->expectException(LogicException::class);
+
+        serialize(new PasswordCipher(new EncryptionKeys(self::CURRENT, [self::PREVIOUS])));
+    }
+
+    public function testUnserializationIsRefused(): void
+    {
+        $class = PasswordCipher::class;
+        $payload = 'O:' . strlen($class) . ':"' . $class . '":0:{}';
+
+        $this->expectException(LogicException::class);
+
+        unserialize($payload);
     }
 
     private function decryptionFailure(
