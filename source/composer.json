@@ -5,6 +5,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.4",
+        "ext-sodium": "*",
         "monolog/monolog": "^3.9"
     },
     "require-dev": {

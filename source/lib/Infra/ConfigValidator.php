@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pidgey\Infra;
 
+use SensitiveParameter;
+
 /**
  * Checks every configuration rule that refuses boot (see `architecture/configuration.md`).
  *
@@ -17,6 +19,9 @@ final class ConfigValidator
     /** The shipped development key, refused outside development and test. */
     public const DEVELOPMENT_SECRET_KEY = 'pidgey-development-only-insecure-secret-key-0000';
 
+    /** The shipped development SMTP encryption key, refused outside development and test. */
+    public const DEVELOPMENT_SMTP_ENCRYPTION_KEY = 'pidgey-development-only-insecure-smtp-key-0000000';
+
     /** Default `ACCESS_TOKEN_TTL`, in seconds. */
     public const DEFAULT_ACCESS_TOKEN_TTL = 900;
 
@@ -28,6 +33,12 @@ final class ConfigValidator
 
     /** Default `ACCOUNT_EDIT_LOCK_TTL`, in seconds. */
     public const DEFAULT_ACCOUNT_EDIT_LOCK_TTL = 300;
+
+    /** HKDF `info` of the SMTP key id (see `email/password-encryption.md#keys`). */
+    private const SMTP_KEY_ID_INFO = 'pidgey:smtp-key-id:v1';
+
+    /** Length of the SMTP key id, in bytes. */
+    private const SMTP_KEY_ID_BYTES = 8;
 
     /** Settings that must be set and non-empty. */
     private const REQUIRED = ['DB_HOST', 'DB_NAME', 'DB_USER'];
@@ -59,6 +70,28 @@ final class ConfigValidator
     private const POSITIVE_INTEGER_PATTERN = '/^[1-9][0-9]*$/';
     private const NON_NEGATIVE_INTEGER_PATTERN = '/^[0-9]+$/';
 
+    /** `PREVIOUS_SMTP_ENCRYPTION_KEYS` failure reasons, in reporting order. */
+    private const PREVIOUS_SMTP_KEY_REASONS = [
+        'empty entry',
+        'too short',
+        'development key',
+        'same as SECRET_KEY',
+        'duplicate key',
+    ];
+
+    private readonly bool $sodiumLoaded;
+
+    /**
+     * Builds the validator.
+     *
+     * @param boolean|null $sodiumLoaded Whether the `sodium` extension is loaded; defaults to
+     *                                   `extension_loaded('sodium')`.
+     */
+    public function __construct(?bool $sodiumLoaded = null)
+    {
+        $this->sodiumLoaded = $sodiumLoaded ?? extension_loaded('sodium');
+    }
+
     /**
      * Runs every check against the current environment.
      *
@@ -69,12 +102,15 @@ final class ConfigValidator
         return [
             ...$this->checkSecretKey(),
             ...$this->checkPreviousSecretKeys(),
+            ...$this->checkSmtpEncryptionKey(),
+            ...$this->checkPreviousSmtpEncryptionKeys(),
             ...$this->checkRequired(),
             ...$this->checkMigrationUser(),
             ...$this->checkIntegers(),
             ...$this->checkTokenTtls(),
             ...$this->checkAllowedOrigins(),
             ...$this->checkDevelopmentKey(),
+            ...$this->checkSodium(),
         ];
     }
 
@@ -126,6 +162,135 @@ final class ConfigValidator
         ksort($failures);
 
         return array_values($failures);
+    }
+
+    /**
+     * Checks that `SMTP_ENCRYPTION_KEY` is set, long enough, not the development key outside
+     * development and test, and not `SECRET_KEY`.
+     *
+     * @return list<string>
+     */
+    private function checkSmtpEncryptionKey(): array
+    {
+        $key = Env::get('SMTP_ENCRYPTION_KEY');
+
+        if ($key === null) {
+            return ['SMTP_ENCRYPTION_KEY: missing'];
+        }
+
+        if (strlen($key) < self::SECRET_KEY_MIN_BYTES) {
+            return ['SMTP_ENCRYPTION_KEY: too short'];
+        }
+
+        $failures = [];
+
+        if ($key === self::DEVELOPMENT_SMTP_ENCRYPTION_KEY && !$this->isDevelopmentOrTest()) {
+            $failures[] = 'SMTP_ENCRYPTION_KEY: development key';
+        }
+
+        if ($key === Env::get('SECRET_KEY')) {
+            $failures[] = 'SMTP_ENCRYPTION_KEY: same as SECRET_KEY';
+        }
+
+        return $failures;
+    }
+
+    /**
+     * Checks every `PREVIOUS_SMTP_ENCRYPTION_KEYS` entry, reporting each kind of failure once.
+     *
+     * Two configured SMTP keys (the current key and the previous keys) sharing a key id are a
+     * `duplicate key`.
+     *
+     * @return list<string>
+     */
+    private function checkPreviousSmtpEncryptionKeys(): array
+    {
+        $keys = Env::get('PREVIOUS_SMTP_ENCRYPTION_KEYS');
+
+        if ($keys === null) {
+            return [];
+        }
+
+        $current = Env::get('SMTP_ENCRYPTION_KEY');
+        $seenIds = $current === null ? [] : [self::smtpKeyId($current) => true];
+        $reasons = [];
+
+        foreach (explode(',', $keys) as $entry) {
+            $entry = trim($entry);
+
+            if ($entry === '') {
+                $reasons['empty entry'] = true;
+
+                continue;
+            }
+
+            $reasons += $this->previousSmtpKeyReasons($entry);
+            $keyId = self::smtpKeyId($entry);
+
+            if (isset($seenIds[$keyId])) {
+                $reasons['duplicate key'] = true;
+            }
+
+            $seenIds[$keyId] = true;
+        }
+
+        $failures = [];
+
+        foreach (self::PREVIOUS_SMTP_KEY_REASONS as $reason) {
+            if (isset($reasons[$reason])) {
+                $failures[] = "PREVIOUS_SMTP_ENCRYPTION_KEYS: {$reason}";
+            }
+        }
+
+        return $failures;
+    }
+
+    /**
+     * Returns the length, development-key and `SECRET_KEY` reasons of one non-empty previous key.
+     *
+     * @param string $entry The trimmed entry.
+     *
+     * @return array<string, true>
+     */
+    private function previousSmtpKeyReasons(#[SensitiveParameter] string $entry): array
+    {
+        $reasons = [];
+
+        if (strlen($entry) < self::SECRET_KEY_MIN_BYTES) {
+            $reasons['too short'] = true;
+        }
+
+        if ($entry === self::DEVELOPMENT_SMTP_ENCRYPTION_KEY && !$this->isDevelopmentOrTest()) {
+            $reasons['development key'] = true;
+        }
+
+        if ($entry === Env::get('SECRET_KEY')) {
+            $reasons['same as SECRET_KEY'] = true;
+        }
+
+        return $reasons;
+    }
+
+    /**
+     * Checks that the `sodium` extension, needed to encrypt the SMTP passwords, is loaded.
+     *
+     * @return list<string>
+     */
+    private function checkSodium(): array
+    {
+        return $this->sodiumLoaded ? [] : ['PHP extension: sodium missing'];
+    }
+
+    /**
+     * Derives the key id of an SMTP encryption key (see `email/password-encryption.md#keys`).
+     *
+     * @param string $raw The raw, non-empty key.
+     *
+     * @return string Binary key id.
+     */
+    private static function smtpKeyId(#[SensitiveParameter] string $raw): string
+    {
+        return hash_hkdf('sha256', $raw, self::SMTP_KEY_ID_BYTES, self::SMTP_KEY_ID_INFO);
     }
 
     /**

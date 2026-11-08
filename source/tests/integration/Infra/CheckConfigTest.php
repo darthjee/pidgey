@@ -18,6 +18,8 @@ final class CheckConfigTest extends TestCase
 
     private const SECRET_KEY = 'test-secret-value-not-a-real-secret-current';
     private const PREVIOUS_KEY = 'test-secret-value-not-a-real-secret-previous';
+    private const SMTP_KEY = 'test-smtp-encryption-value-not-a-real-key-current';
+    private const PREVIOUS_SMTP_KEY = 'test-smtp-encryption-value-not-a-real-key-previous';
     private const DB_HOST = 'distinctive-db-host.example';
     private const DB_NAME = 'distinctive_db_name';
     private const DB_USER = 'distinctive_db_user';
@@ -107,6 +109,36 @@ final class CheckConfigTest extends TestCase
                 'PREVIOUS_SECRET_KEYS=' . self::PREVIOUS_KEY . ",short-previous-value\n",
                 'PREVIOUS_SECRET_KEYS: entry too short',
             ],
+            'missing smtp key' => ["SMTP_ENCRYPTION_KEY=\n", 'SMTP_ENCRYPTION_KEY: missing'],
+            'short smtp key' => ["SMTP_ENCRYPTION_KEY=short-secret-value\n", 'SMTP_ENCRYPTION_KEY: too short'],
+            'development smtp key' => [
+                "SMTP_ENCRYPTION_KEY=pidgey-development-only-insecure-smtp-key-0000000\n",
+                'SMTP_ENCRYPTION_KEY: development key',
+            ],
+            'smtp key same as secret key' => [
+                'SMTP_ENCRYPTION_KEY=' . self::SECRET_KEY . "\n",
+                'SMTP_ENCRYPTION_KEY: same as SECRET_KEY',
+            ],
+            'empty previous smtp key' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::PREVIOUS_SMTP_KEY . ",\n",
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: empty entry',
+            ],
+            'short previous smtp key' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::PREVIOUS_SMTP_KEY . ",short-previous-value\n",
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: too short',
+            ],
+            'development previous smtp key' => [
+                "PREVIOUS_SMTP_ENCRYPTION_KEYS=pidgey-development-only-insecure-smtp-key-0000000\n",
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: development key',
+            ],
+            'previous smtp key same as secret key' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::SECRET_KEY . "\n",
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: same as SECRET_KEY',
+            ],
+            'duplicate previous smtp key' => [
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::PREVIOUS_SMTP_KEY . ',' . self::SMTP_KEY . "\n",
+                'PREVIOUS_SMTP_ENCRYPTION_KEYS: duplicate key',
+            ],
             'missing db host' => ["DB_HOST=\n", 'DB_HOST: missing'],
             'development secret key' => [
                 "SECRET_KEY=pidgey-development-only-insecure-secret-key-0000\n",
@@ -134,6 +166,7 @@ final class CheckConfigTest extends TestCase
         $this->assertNoValueLeaks($result);
         $this->assertStringNotContainsString('short-secret-value', $result['stderr']);
         $this->assertStringNotContainsString('short-previous-value', $result['stderr']);
+        $this->assertStringNotContainsString('pidgey-development-only', $result['stderr']);
     }
 
     /**
@@ -208,6 +241,8 @@ final class CheckConfigTest extends TestCase
         return [
             'SECRET_KEY' => self::SECRET_KEY,
             'PREVIOUS_SECRET_KEYS' => self::PREVIOUS_KEY,
+            'SMTP_ENCRYPTION_KEY' => self::SMTP_KEY,
+            'PREVIOUS_SMTP_ENCRYPTION_KEYS' => self::PREVIOUS_SMTP_KEY,
             'DB_HOST' => self::DB_HOST,
             'DB_NAME' => self::DB_NAME,
             'DB_USER' => self::DB_USER,
