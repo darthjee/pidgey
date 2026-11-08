@@ -5,8 +5,11 @@ Purpose: define backend test suites and quality tooling.
 - **PHPUnit**, two suites:
   - `unit` (`source/tests/unit/`): no database, no network.
   - `integration` (`source/tests/integration/`): run against the dockerized MySQL
-    (dedicated test database `pidgey_test`, migrations applied) and Mailpit (real SMTP sends,
-    asserted through Mailpit's API — see [email/testing.md](../email/testing.md)).
+    (dedicated test database `pidgey_test`, migrations applied) and the three test-only
+    Mailpit instances `mailpit-plain`, `mailpit-starttls` and `mailpit-ssl` (real SMTP
+    sends, asserted through Mailpit's API — see
+    [email/testing.md](../email/testing.md#mailpit-instances)). The integration suite never
+    uses the development `mailpit`.
 - Coverage with pcov. Coverage is **report-only**: `tests` writes an HTML report to
   `source/coverage/`, and `coverage` writes Clover to `source/coverage/clover.xml`. No
   coverage threshold is enforced yet.
@@ -33,6 +36,29 @@ Test folders under `source/tests/`:
 | `integration/` | Integration suite. |
 | `support/` | Shared test helpers. |
 | `fixtures/` | Static test data. |
+
+## Email test support
+
+Test-only helpers for the email integration (behavior in
+[email/testing.md](../email/testing.md)):
+
+| Class / fixture | Location | Role |
+| --- | --- | --- |
+| `Pidgey\Tests\Support\Mailpit` | `support/` | Mailpit HTTP API client: clear (`DELETE /api/v1/messages`), list, read. The only reader of the `TEST_MAILPIT_*` keys. |
+| `Pidgey\Tests\Support\FakeSmtpStream` | `support/` | In-memory, scripted implementation of the transport's stream abstraction, for unit tests. |
+| `Pidgey\Tests\Support\FakeSmtpServer` | `support/` | Starts the fake SMTP server script as a child process, reads its port, kills it in teardown. |
+| `Pidgey\Tests\Support\CapturedLog` | `support/` | A Monolog `TestHandler` injected into the container's logger, for the canary-password assertions. |
+| Fake SMTP server script | `fixtures/` | `stream_socket_server` script, run through `proc_open`: serves one session from a JSON scenario. |
+| Lock holder script | `fixtures/` | Child process that holds an organization lock, for the concurrent `activate` test. |
+| TLS material | `fixtures/tls/` | Test CA, leaf certificates and the regeneration script ([TLS fixtures](../email/testing.md#tls-fixtures)). |
+
+Test-only keys:
+
+- `TEST_MAILPIT_PLAIN`, `TEST_MAILPIT_STARTTLS` and `TEST_MAILPIT_SSL`, each of the form
+  `host:smtpPort:apiPort` (values in
+  [email/testing.md](../email/testing.md#reaching-the-instances)).
+- Read only by `Pidgey\Tests\Support\Mailpit`, never by the application or
+  `ConfigValidator`. A missing key fails the test; it is never skipped.
 
 Composer scripts:
 

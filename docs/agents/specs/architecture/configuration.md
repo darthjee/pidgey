@@ -50,12 +50,16 @@ Purpose: list every environment variable the application reads, with its default
 - `bin/wait-for-db` and the web app always use `DB_USER` / `DB_PASSWORD`, whether or not the
   `DB_MIGRATE_*` keys are set.
 
-### SMTP (development and tests)
+### Test-only keys
 
-| Setting | Default | Effect |
-| --- | --- | --- |
-| `SMTP_HOST` | none | SMTP host used by the development and test setup (Mailpit). Organizations' own SMTP connections are stored in the database, not configured here (see [email/smtp-connections.md](../email/smtp-connections.md)). |
-| `SMTP_PORT` | none | SMTP port of the development and test setup (Mailpit: `1025`). |
+There is no application-level SMTP host or port: organizations' SMTP connections are stored
+in the database (see [email/smtp-connections.md](../email/smtp-connections.md)).
+
+The test environment sets `TEST_MAILPIT_PLAIN`, `TEST_MAILPIT_STARTTLS` and
+`TEST_MAILPIT_SSL` (form `host:smtpPort:apiPort`). They are **not** application settings:
+only the test support `Pidgey\Tests\Support\Mailpit` reads them, never the application or
+`ConfigValidator`, and production never sets them. See
+[email/testing.md](../email/testing.md#reaching-the-instances).
 
 ### SMTP password encryption
 
@@ -76,8 +80,8 @@ Used by the SMTP session of [email/send-flow.md](../email/send-flow.md) (test em
 | `SMTP_CONNECT_TIMEOUT` | `10` | Seconds for the TCP connect, the `ssl` handshake and the `220` greeting (see [send-flow.md](../email/send-flow.md#timeouts)). |
 | `SMTP_COMMAND_TIMEOUT` | `10` | Seconds for each command's reply, including the `STARTTLS` handshake and the reply to the final `.` of `DATA`. |
 | `SMTP_TOTAL_TIMEOUT` | `25` | Seconds for the whole SMTP session: a deadline fixed at connect time; every operation waits `min(its own timeout, time remaining)`. Must stay below the web server / proxy request timeout (see the deployment docs). |
-| `SMTP_CA_FILE` | empty | Path to a PEM CA bundle that **replaces** the system CA store for SMTP TLS verification (to trust both, concatenate them). Empty: the system store (`openssl.cafile` / `openssl.capath` / the OpenSSL default). Test and CI set it to the test CA (see [email/smtp-connections.md](../email/smtp-connections.md#tls-policy)). |
-| `SMTP_ALLOW_PRIVATE_HOSTS` | `false` | When `true`, the send-time [host check](../email/send-flow.md#host-check) denies no address, so internal relays and Mailpit are reachable. When `false` (any value other than exactly `true`, see [Rules](#rules)), a host that resolves to a loopback, private, link-local, shared, unspecified, multicast or reserved address is refused with `409 SMTP_HOST_NOT_ALLOWED`. The development and test env files (docker compose `.env`, CI) set `true`; production keeps the default unless a self-hosted setup needs an internal relay. |
+| `SMTP_CA_FILE` | empty | Path to a PEM CA bundle that **replaces** the system CA store for SMTP TLS verification (to trust both, concatenate them). Empty: the system store (`openssl.cafile` / `openssl.capath` / the OpenSSL default). The test environment (compose `tests` and CI `backend_tests`) sets `SMTP_CA_FILE=tests/fixtures/tls/ca.pem`, the test CA (see [email/smtp-connections.md](../email/smtp-connections.md#tls-policy) and [email/testing.md](../email/testing.md#tls-fixtures)). |
+| `SMTP_ALLOW_PRIVATE_HOSTS` | `false` | When `true`, the send-time [host check](../email/send-flow.md#host-check) denies no address, so internal relays and Mailpit are reachable. When `false` (any value other than exactly `true`, see [Rules](#rules)), a host that resolves to a loopback, private, link-local, shared, unspecified, multicast or reserved address is refused with `409 SMTP_HOST_NOT_ALLOWED`. The development `.env` and the test environment (compose `tests` and CI `backend_tests`) set `true`; production keeps the default unless a self-hosted setup needs an internal relay. |
 | `SMTP_TEST_MAX_ATTEMPTS` | `10` | Test emails allowed per organization within one `SMTP_TEST_WINDOW` (a count, see [Rules](#rules); see [test-email limit](../api/endpoints/pidgey-admin/smtp-connections.md#test-email-limit)). |
 | `SMTP_TEST_WINDOW` | `3600` (1 h) | Length of the fixed test-email window, in seconds (a duration). |
 | `SMTP_EHLO_NAME` | empty | The client name sent as the `EHLO` argument; recommended: the host's public FQDN, ideally matching its reverse DNS. Empty: the address literal of the socket's local address (e.g. `[203.0.113.7]`, see [send-flow.md](../email/send-flow.md#ehlo)). |

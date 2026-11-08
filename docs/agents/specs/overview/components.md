@@ -19,6 +19,6 @@ Purpose: describe the high-level components of Pidgey and how they interact.
 | React frontend | Admin UI built with Vite; its release build lives in `source/static/` and is served at `/` by the PHP static-file handler, with hash routing for deep links. See [frontend](../frontend.md). |
 | MySQL 9 | Persists organizations, users, SMTP connections and API tokens. Accessed with raw PDO. See [architecture/database.md](../architecture/database.md). |
 | External SMTP servers | Configured per organization; Pidgey connects to them synchronously to deliver each message. See [email](../email.md). |
-| Mailpit (dev/test only) | Fake SMTP server used for local development and integration tests. |
+| Mailpit (dev/test only) | Fake SMTP server: one development instance, and three test-only instances (plain, STARTTLS, implicit TLS) for integration tests. |
 
 There is no reverse proxy layer and no message queue.

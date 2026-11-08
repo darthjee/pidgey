@@ -7,11 +7,11 @@ Purpose: define the Makefile targets used for local work and CI.
 | `build-base` | Build the `dev_pidgey-base` image. |
 | `push-base` | Push `dev_pidgey-base` to the registry (manual; there is no automated image build). |
 | `build` | Build the `dev_pidgey` image. |
-| `dev` | Open a shell in the `tests` service (`docker compose run --rm tests bash`), with `mysql` and `mailpit` started. |
-| `dev-up` | `docker compose up` for app, mysql, phpmyadmin, mailpit and `frontend_dev`. |
+| `dev` | Open a shell in the `tests` service (`docker compose run --rm tests bash`), with its dependencies started: `mysql` and the three test Mailpit instances (`mailpit-plain`, `mailpit-starttls`, `mailpit-ssl`). |
+| `dev-up` | `docker compose up` for app, mysql, phpmyadmin, mailpit and `frontend_dev`. Does not start the test Mailpit instances. |
 | `migrate` | Prepare the development database: `docker compose run --rm app composer db:prepare` (wait, create if missing, migrate). Runs on `app` so it targets `pidgey_development` even though `make dev`'s shell points at `pidgey_test`. |
 | `db-reset` | Drop and re-prepare the development database: `docker compose run --rm app sh -c "composer db:drop && composer db:prepare"`. |
-| `tests` | Run tests and linters: backend in the `tests` container (`docker compose run --rm tests sh -c "composer lint && composer tests"`), then frontend in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev sh -c "yarn lint && yarn coverage"`). |
+| `tests` | Run tests and linters: backend in the `tests` container (which starts `mysql` and the three test Mailpit instances as dependencies) (`docker compose run --rm tests sh -c "composer lint && composer tests"`), then frontend in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev sh -c "yarn lint && yarn coverage"`). |
 | `build-ci-base` | Build the `circleci_pidgey-base` CI image (amd64 only) from the `source/` context, tagged `$(CI_BASE_IMAGE):$(CI_BASE_VERSION)`. |
 | `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). The deploy tooling was added in `0.0.2`; `0.0.3` moved it to `darthjee/scripts:0.12.0`; rebuilt and pushed with a bumped `CI_BASE_VERSION` whenever the image changes. |
 | `build-fe-base` | Build the `vite_pidgey-base` image from the repository-root context, tagged `$(FE_BASE_IMAGE):$(FE_BASE_VERSION)$(BASE_SUFFIX)`. |

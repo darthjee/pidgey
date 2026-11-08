@@ -93,7 +93,7 @@ so the web server only needs to serve `index.html`.
 | `#/account/my-account` | My account: edit username, email or password, confirmed with the current password. |
 | `#/account/authorization-requests` | Authorization requests: list the caller's open device-login requests, authorize (with the password) or deny. |
 | `#/organization` | Organization: show and rename the caller's organization (every logged-in, approved user; see [Organization screen](#organization-screen)). |
-| `#/smtp-connections` | SMTP connections: list the organization's connections, activate, send a test email and delete (every logged-in, approved user; see [SMTP connections screens](#smtp-connections-screens)). |
+| `#/smtp-connections` | SMTP connections: list the organization's connections, activate, deactivate, send a test email and delete (every logged-in, approved user; see [SMTP connections screens](#smtp-connections-screens)). |
 | `#/smtp-connections/new` | New SMTP connection: create form (see [SMTP connection form](#smtp-connection-form)). |
 | `#/smtp-connections/:id/edit` | Edit SMTP connection: edit form; the password is write-only (see [SMTP connection form](#smtp-connection-form)). |
 | `#/api-tokens` | API tokens: list the organization's tokens, including revoked ones, and revoke (every logged-in, approved user; see [API tokens screens](#api-tokens-screens)). |
@@ -127,7 +127,8 @@ Uses `OrganizationClient` (`GET` and `PATCH /organization.json`,
 
 ### SMTP connections screens
 
-Use `SmtpConnectionsClient` (the seven `/smtp-connections*.json` endpoints,
+Use `SmtpConnectionsClient` (the eight `/smtp-connections*.json` endpoints: list, create,
+get, update, delete, `activate`, `deactivate` and `test`,
 [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md)).
 Every user of the organization has the same access; there is no admin check. In every load, a
 `401` goes through the usual refresh / login-modal flow (see [On `401` and `403`](#on-401-and-403));
@@ -146,6 +147,11 @@ when the session ended, the screen stays idle.
 - **Row actions:**
   - **Activate** (hidden on the active row): activates the connection; on success the returned
     item becomes the only active row. Errors are shown as a list error.
+  - **Deactivate** (shown on the active row only): asks for confirmation first, warning that
+    sending stops (`POST /v1/messages` answers `409 NO_SMTP_CONNECTION`) until another
+    connection is activated. On confirmation it calls `SmtpConnectionsClient.deactivate(id)`
+    and, on success, refreshes the list (the no-active-connection notice then shows). Errors
+    are shown as a list error.
   - **Delete:** asks for confirmation first. For the active connection, the message warns that
     sending stops (`POST /v1/messages` answers `409 NO_SMTP_CONNECTION`) until another
     connection is activated. On success the row is removed; errors are shown as a list error.
@@ -154,7 +160,8 @@ when the session ended, the screen stays idle.
 #### Test-email modal
 
 - One optional **Recipient** field; when it is left empty, the email goes to the caller's own
-  email. A blank value is not sent (`to` is omitted).
+  email. A blank value is not sent (`to` is omitted). Its help text says the recipient must be
+  the email of a user of the organization.
 - The test is synchronous and can take up to the send-flow timeouts: while it runs, the submit
   button is disabled and a "sending…" state is shown.
 - Results:
@@ -163,7 +170,18 @@ when the session ended, the screen stays idle.
   - an `SMTP_*` failure (`502` / `503` / `504`): the error message, plus the SMTP server reply
     (`error.smtp` code and message) when present;
   - `400 VALIDATION_FAILED`: its details on the recipient field;
+  - `409` send-time failures (`SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED`,
+    `SMTP_PASSWORD_UNREADABLE`): the error message (`error.message`);
+  - `429 TOO_MANY_REQUESTS` (test-email limit): the error message (`error.message`), like the
+    other failures. `Retry-After` is ignored in v1;
   - any other error: a generic error in the modal.
+- **SMTP reply display:** `smtp.message` and `error.smtp.message` are rendered as **text
+  only** (never as HTML) and wrapped (`text-break`), so a long reply never overflows the
+  modal. They are never truncated client-side: the server already caps them at 512
+  characters (see
+  [email/failures.md](../email/failures.md#sanitization-and-length-cap)).
+- **Out of scope (v1):** no link from `SMTP_PASSWORD_UNREADABLE` or
+  `SMTP_INSECURE_CREDENTIALS` to the edit form; the message alone tells the user what to fix.
 - Closing the modal resets its state.
 
 #### SMTP connection form
@@ -189,6 +207,18 @@ and **From address**.
     are filled or both empty; on edit a typed username without a password is accepted only when
     a password is stored, and a typed password without a username only when a username is
     stored. The message is shown on the password field.
+  - **credentials require encryption:** on the merged state, credentials are only allowed
+    with `encryption` `tls` or `ssl`; otherwise the server's message
+    `username and password require encryption tls or ssl` is shown inline;
+  - **credential redirection (edit only):** when credentials are stored and kept, and
+    `host`, `port` or `encryption` differs from the loaded value, a new password must be
+    typed or **Remove credentials** used; otherwise the server's message
+    `password must be sent again when host, port or encryption changes` is shown on the
+    password field.
+
+  These rules mirror the server's
+  [field rules](../api/endpoints/pidgey-admin/smtp-connections.md#field-rules) and reuse
+  their message texts.
 - **Payload:** on create, the trimmed fields and the numeric port, with `username` and
   `password` only when filled. On edit, every non-credential field, `username` when changed and
   `password` only when typed. **Remove credentials** (shown on edit when credentials are
