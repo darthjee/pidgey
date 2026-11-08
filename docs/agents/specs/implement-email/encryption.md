@@ -67,34 +67,63 @@ All settled by #151.
 
 ### Implementation work
 
-Names are **proposals** (see the lifecycle rules in [implement-email.md](../implement-email.md)).
+Names are **proposals** (see the lifecycle rules in [implement-email.md](../implement-email.md));
+the delivered names are recorded on each ticked item. Items 1–6 and 8 were delivered by #160;
+item 7 stays open for the endpoint and send-flow issues (#164–#166).
 
-1. **Cipher** — `Pidgey\Crypto\PasswordCipher`: encrypt / decrypt as defined in
+1. [x] **Cipher** — `Pidgey\Crypto\PasswordCipher`: encrypt / decrypt as defined in
    [Mechanism](../email/password-encryption.md#mechanism),
    [Byte layout](../email/password-encryption.md#byte-layout) and
    [Associated data](../email/password-encryption.md#associated-data); the failure
    `Pidgey\Crypto\DecryptionFailed` with a fixed message
    ([Security rules](../email/password-encryption.md#security-rules)).
-2. **Key set** — `Pidgey\Crypto\EncryptionKeys`, following the `Pidgey\Auth\SecretKeys`
+   - Delivered: `encrypt` / `decrypt` as contracted, plus `isCurrent(stored)` (whether the
+     stored bytes use the current key, used by the CLI) and a `VERSION` constant; encrypting an
+     empty password is refused as a programming error.
+   - `DecryptionFailed` message: "The stored SMTP password could not be decrypted"; it exposes
+     only the tried key id (hex), or none when the stored bytes are malformed.
+2. [x] **Key set** — `Pidgey\Crypto\EncryptionKeys`, following the `Pidgey\Auth\SecretKeys`
    precedent: the current key and the previous keys, their derived cipher keys and key ids,
    built once per process by the container
    ([Keys](../email/password-encryption.md#keys)).
-3. **Configuration** — `ConfigValidator` / `bin/check-config`: the
+   - Delivered: key-id derivation is shared with `ConfigValidator`, which uses it for the
+     duplicate-key check.
+3. [x] **Configuration** — `ConfigValidator` / `bin/check-config`: the
    [SMTP encryption key rules](../architecture/configuration.md#smtp-encryption-keys), the
    constant `ConfigValidator::DEVELOPMENT_SMTP_ENCRYPTION_KEY`, and the `sodium` extension
    check at check-config and web boot
    ([`bin/check-config`](../architecture/configuration.md#bin-check-config)).
-4. **Migration** — `0009_widen_smtp_connections_password.sql`
-   ([data model](../organizations/data-model/smtp-connections.md#migrations)).
-5. **CLI** — `bin/reencrypt-smtp-passwords` with `--check`
+   - Delivered: the keys are required by web boot, `bin/check-config` and
+     `bin/reencrypt-smtp-passwords`; not by `bin/migrate`, `bin/create-db`, `bin/drop-db` or
+     `bin/wait-for-db`.
+4. [x] **Migration** — `0009_widen_smtp_connections_password.sql`
+   ([data model](../organizations/data-model/smtp-connections.md#migrations)): `password`
+   becomes `VARBINARY(2048) NULL`; the repository gained the row-level read, lock
+   (`FOR UPDATE`) and replace operations the CLI needs (replace keeps `updated_at`).
+5. [x] **CLI** — `bin/reencrypt-smtp-passwords` with `--check`
    ([Rotation](../email/password-encryption.md#rotation)).
-6. **Composer and environment** — `"ext-sodium": "*"` in `require` of `source/composer.json`
+   - Delivered as `Pidgey\Infra\Cli\ReencryptSmtpPasswordsCommand` (proposed area
+     `Pidgey\Crypto` changed to `Pidgey\Infra\Cli`), entry point
+     `source/bin/reencrypt-smtp-passwords`; it loads the configuration but does not run the
+     full `ConfigValidator`.
+   - Output lines: `re-encrypted: N` (`due: N` with `--check`), `already current: N`,
+     `unreadable: N`, `unreadable ids: …`.
+   - Exit codes: `0` nothing unreadable; `1` an unreadable row or an unexpected error (message
+     on stderr); `2` invalid usage. The permanent spec only defines `0` / `1`; `2` and the
+     error case are implementation details.
+   - A row whose password is cleared between listing and lock is skipped and counted in none
+     of the totals (the permanent spec is silent; nothing is left to re-encrypt).
+6. [x] **Composer and environment** — `"ext-sodium": "*"` in `require` of `source/composer.json`
    ([dependencies.md](../architecture/dependencies.md#backend-composer)); the development
    `SMTP_ENCRYPTION_KEY` in the root `.env`.
-7. **Endpoint and transport use** — the create ordering and update rules are wired by the
+   - Delivered: also set in the CircleCI `backend_tests` job.
+7. [ ] **Endpoint and transport use** — the create ordering and update rules are wired by the
    connection endpoints, the decrypt and `409 SMTP_PASSWORD_UNREADABLE` by the test email
    ([api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md)).
-8. **Tests** — the [testable rules](../email/password-encryption.md#testable-rules).
+   Open: #164–#166.
+8. [x] **Tests** — the [testable rules](../email/password-encryption.md#testable-rules) for
+   the cipher, key set, configuration, migration and CLI; the endpoint and send-flow rules
+   come with item 7.
 
 ### Shared contract: password encryption
 
