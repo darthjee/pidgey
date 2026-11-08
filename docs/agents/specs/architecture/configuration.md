@@ -58,7 +58,10 @@ in the database (see [email/smtp-connections.md](../email/smtp-connections.md)).
 The test environment sets `TEST_MAILPIT_PLAIN`, `TEST_MAILPIT_STARTTLS` and
 `TEST_MAILPIT_SSL` (form `host:smtpPort:apiPort`). They are **not** application settings:
 only the test support `Pidgey\Tests\Support\Mailpit` reads them, never the application or
-`ConfigValidator`, and production never sets them. See
+`ConfigValidator`, and production never sets them. Compose `tests` sets
+`mailpit-plain:2025:9025`, `mailpit-starttls:2587:9587` and `mailpit-ssl:2465:9465`; CI
+`backend_tests` sets `localhost:2025:9025`, `localhost:2587:9587` and `localhost:2465:9465`.
+See
 [email/testing.md](../email/testing.md#reaching-the-instances).
 
 ### SMTP password encryption
