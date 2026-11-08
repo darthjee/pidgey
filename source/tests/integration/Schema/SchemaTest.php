@@ -455,7 +455,7 @@ final class SchemaTest extends IntegrationTestCase
                     'extra' => '',
                 ],
                 'username' => ['type' => 'varchar(255)', 'nullable' => true, 'default' => null, 'extra' => ''],
-                'password' => ['type' => 'varbinary(1024)', 'nullable' => true, 'default' => null, 'extra' => ''],
+                'password' => ['type' => 'varbinary(2048)', 'nullable' => true, 'default' => null, 'extra' => ''],
                 'from_address' => self::VARCHAR_255,
                 'active' => ['type' => 'tinyint(1)', 'nullable' => false, 'default' => '0', 'extra' => ''],
                 'created_at' => self::CREATED_AT,

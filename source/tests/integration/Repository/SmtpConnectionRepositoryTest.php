@@ -8,6 +8,8 @@ use PDOException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
+use Pidgey\Crypto\EncryptionKeys;
+use Pidgey\Crypto\PasswordCipher;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
 use Pidgey\Infra\PdoFactory;
@@ -20,6 +22,8 @@ use Pidgey\Tests\Support\RepositoryTestCase;
 #[CoversClass(SmtpConnectionRepository::class)]
 #[UsesClass(SmtpConnection::class)]
 #[UsesClass(Row::class)]
+#[UsesClass(EncryptionKeys::class)]
+#[UsesClass(PasswordCipher::class)]
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(PdoFactory::class)]
@@ -92,6 +96,32 @@ final class SmtpConnectionRepositoryTest extends RepositoryTestCase
         $statement = $this->pdo->prepare('SELECT password FROM smtp_connections WHERE id = :id');
         $statement->execute(['id' => $connection->id]);
         $this->assertSame($password, $statement->fetchColumn());
+    }
+
+    public function testTheLargestEncryptedPasswordStoresAndReadsBackUnchanged(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $cipher = new PasswordCipher(new EncryptionKeys('repository-test-smtp-encryption-key-0123456789abcdef'));
+        $password = str_repeat("\u{1F426}", 255);
+        $connection = $this->repository->create(
+            $organizationId,
+            'Largest password',
+            'smtp.example.com',
+            587,
+            SmtpEncryption::Tls,
+            'mailer',
+            null,
+            'noreply@example.com',
+        );
+        $stored = $cipher->encrypt($password, $organizationId, $connection->id);
+        $this->assertSame(1069, strlen($stored));
+
+        $statement = $this->pdo->prepare('UPDATE smtp_connections SET password = :password WHERE id = :id');
+        $statement->execute(['password' => $stored, 'id' => $connection->id]);
+
+        $read = $this->repository->findInOrganization($organizationId, $connection->id)?->encryptedPassword;
+        $this->assertSame($stored, $read);
+        $this->assertSame($password, $cipher->decrypt((string) $read, $organizationId, $connection->id));
     }
 
     public function testCreateStartsInactiveEvenWhenAnotherConnectionIsActive(): void
