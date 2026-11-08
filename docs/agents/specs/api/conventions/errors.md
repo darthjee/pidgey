@@ -53,11 +53,12 @@ reserved for validation messages. Credentials are **never** included.
 
 - `error.smtp` contains **only the server's reply to the failing command**, never
   client-side data (e.g. the `AUTH` payload, the message content or the envelope sent).
-- `error.smtp.message` is sanitized: CR, LF and other control characters are stripped and
-  its length is capped.
-- For `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED` and `SMTP_TIMEOUT`, `error.message` is a
-  fixed string defined in [email/failures.md](../../email/failures.md), never raw exception
-  text.
+- `error.smtp.message` is redacted and sanitized: printable ASCII only (other bytes become
+  `?`), whitespace collapsed, capped at 512 characters (see
+  [email/failures.md](../../email/failures.md#sanitization-and-length-cap)).
+- For every `SMTP_*` code, `error.message` is a fixed string defined in
+  [email/failures.md](../../email/failures.md#fixed-messages), never server text and never
+  raw exception text; server text lives only in `error.smtp.message`.
 - Endpoints reachable without login that send email (password recovery, registration)
   never surface `SMTP_*` codes or `error.smtp`: they answer their normal, enumeration-safe
   response and log the failure (see [Enumeration safety](#enumeration-safety)).
@@ -66,7 +67,7 @@ reserved for validation messages. Credentials are **never** included.
 {
   "error": {
     "code": "SMTP_REJECTED",
-    "message": "Recipient rejected",
+    "message": "The SMTP server rejected the recipient",
     "smtp": { "code": 550, "message": "5.1.1 User unknown" }
   },
   "statusCode": 502,
@@ -105,7 +106,7 @@ here.
 | `USER_DENIED` | 403 | `This account has been denied access` | login |
 | `USER_NOT_PENDING` | 422 | `Only pending users can be approved` | admin approve |
 | `CANNOT_DENY_SELF` | 422 | `You cannot deny your own account` | admin deny |
-| `NO_SMTP_CONNECTION`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED`, `SMTP_TEMPORARY_FAILURE`, `SMTP_TIMEOUT` | 409 / 502 / 503 / 504 | See [email/failures.md](../../email/failures.md). | `POST /v1/messages` and authenticated endpoints that send email (the SMTP connection test email, which never answers `NO_SMTP_CONNECTION`); never endpoints reachable without login (see [SMTP send failures](#smtp-send-failures)) |
+| `NO_SMTP_CONNECTION`, `SMTP_INSECURE_CREDENTIALS`, `SMTP_PASSWORD_UNREADABLE`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED`, `SMTP_TEMPORARY_FAILURE`, `SMTP_PROTOCOL_ERROR`, `SMTP_TIMEOUT` | 409 / 502 / 503 / 504 | Fixed messages in [email/failures.md](../../email/failures.md#fixed-messages). | `POST /v1/messages` and authenticated endpoints that send email (the SMTP connection test email, which never answers `NO_SMTP_CONNECTION`); never endpoints reachable without login (see [SMTP send failures](#smtp-send-failures)) |
 
 ## Generic errors
 
@@ -128,7 +129,7 @@ here.
 | 401 | Missing, invalid, expired or revoked credentials — nothing else. |
 | 403 | Authenticated but not allowed (missing scope, not an admin, denied user), or cross-site request rejected by the [origin check](origin-check.md). |
 | 404 | Not found, including resources of other organizations and unknown routes. |
-| 409 | State conflict (e.g. username/email taken, no active SMTP connection). |
+| 409 | State conflict (e.g. username/email taken, no active SMTP connection, an SMTP connection to fix before sending). |
 | 413 | Body too large. |
 | 415 | Unsupported content type. |
 | 422 | Business rule violated on a valid request (e.g. `USER_NOT_PENDING`); never used for body validation. |
@@ -154,5 +155,3 @@ that a username or email exists (see
 [endpoints/auth/session.md](../endpoints/auth/session.md#known-limitation-enumeration)).
 SMTP failures on endpoints reachable without login are not surfaced either (see
 [SMTP send failures](#smtp-send-failures)).
-
-**Pending decision:** maximum length of `error.smtp.message` after sanitization.
