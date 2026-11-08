@@ -75,5 +75,5 @@ Index: [implement-email.md](../implement-email.md).
   [testing/backend.md](../testing/backend.md);
   [testing/definition-of-done.md](../testing/definition-of-done.md);
   [docker/compose.md](../docker/compose.md);
-  [architecture/configuration.md](../architecture/configuration.md#smtp-development-and-tests).
+  [architecture/configuration.md](../architecture/configuration.md#test-only-keys).
 - **Open items:** every item above.
