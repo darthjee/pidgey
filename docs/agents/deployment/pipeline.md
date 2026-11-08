@@ -24,6 +24,38 @@ These run on **every branch and every tag** (`tags: only: /.*/`).
 `DB_NAME=pidgey_test`, `DB_USER=root`, `DB_PASSWORD=root`, `SMTP_HOST=mailpit`,
 `SMTP_PORT=1025` and `PHP_ENV=test`.
 
+### Target state for the email tests (#154)
+
+Decided in #154; the infra issue of #149 implements it, so `.circleci/config.yml` does not
+match it yet. Rules: [implement-email/testing.md](../specs/implement-email/testing.md).
+
+`backend_tests` service containers become `mysql:9` plus three test Mailpit instances, each
+on one pinned image tag (the infra issue picks it):
+
+| Service | Mode | Auth | SMTP port | API port |
+| --- | --- | --- | --- | --- |
+| `mailpit-plain` | plain | none | 2025 | 9025 |
+| `mailpit-starttls` | `MP_SMTP_REQUIRE_STARTTLS=true` | required | 2587 | 9587 |
+| `mailpit-ssl` | `MP_SMTP_REQUIRE_TLS=true` (implicit TLS) | required | 2465 | 9465 |
+
+The auth user comes from a test-only fixture, passed inline through `MP_SMTP_AUTH`. The TLS
+certificate and key are passed inline as PEM, or through a small test image if the pinned
+version cannot take inline PEM; the infra issue decides.
+
+The primary container's env drops `SMTP_HOST` / `SMTP_PORT` and adds:
+
+| Key | Value |
+| --- | --- |
+| `TEST_MAILPIT_PLAIN` | `mailpit-plain:2025:9025` |
+| `TEST_MAILPIT_STARTTLS` | `mailpit-starttls:2587:9587` |
+| `TEST_MAILPIT_SSL` | `mailpit-ssl:2465:9465` |
+| `SMTP_ALLOW_PRIVATE_HOSTS` | `true` |
+| `SMTP_CA_FILE` | `tests/fixtures/tls/ca.pem` |
+| `SMTP_ENCRYPTION_KEY` | a test-only key |
+
+The `TEST_MAILPIT_*` keys (form `host:smtpPort:apiPort`) are read only by
+`Pidgey\Tests\Support\Mailpit`; they are test-only, not deployment variables.
+
 Why: CircleCI service containers cannot run the `initdb.d` grant script used locally (see
 [docker/compose.md](../specs/docker/compose.md)), and the tests create both `pidgey_test` and
 `pidgey_runner_*_test` databases, which a restricted user could not do. The CI database is
