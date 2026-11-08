@@ -33,7 +33,7 @@ cookie-session gate, origin check and body validation (#120); the frontend SMTP 
 | File | Content | Owner issue |
 | --- | --- | --- |
 | [encryption.md](implement-email/encryption.md) | Password encryption at rest: service contract, key handling, rotation, failure on decrypt. | #151 (settled) |
-| [transport.md](implement-email/transport.md) | SMTP transport and send flow: transport and stream contracts, result / failure values, `SMTP_*` mapping, timeouts, TLS, `AUTH`, new configuration keys. | #152 |
+| [transport.md](implement-email/transport.md) | SMTP transport and send flow: transport and stream contracts, result / failure values, `SMTP_*` mapping, timeouts, TLS, `AUTH`, new configuration keys. | #152 (settled) |
 | [endpoints.md](implement-email/endpoints.md) | Connection endpoints (CRUD), activate, test email handler, operator log: hardening and lifecycle. | #153 |
 | [testing.md](implement-email/testing.md) | Test infrastructure: fake SMTP server, Mailpit integration, fixtures. | #154 |
 | [frontend.md](implement-email/frontend.md) | Frontend alignment of the SMTP screens with the real API. | #154 |
