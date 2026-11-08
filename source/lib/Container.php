@@ -13,6 +13,8 @@ use Pidgey\Auth\Registration;
 use Pidgey\Auth\SecretKeys;
 use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
+use Pidgey\Crypto\EncryptionKeys;
+use Pidgey\Crypto\PasswordCipher;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
@@ -74,6 +76,10 @@ final class Container
 
     private ?AccountEdit $accountEdit = null;
 
+    private ?EncryptionKeys $encryptionKeys = null;
+
+    private ?PasswordCipher $passwordCipher = null;
+
     /**
      * Creates an empty container; nothing is built yet.
      *
@@ -123,6 +129,32 @@ final class Container
             Env::integer('ACCESS_TOKEN_TTL', ConfigValidator::DEFAULT_ACCESS_TOKEN_TTL),
             $this->wallClock(),
         );
+    }
+
+    /**
+     * Returns the SMTP password encryption keys, read from `SMTP_ENCRYPTION_KEY` and
+     * `PREVIOUS_SMTP_ENCRYPTION_KEYS` and derived on the first call.
+     *
+     * @return EncryptionKeys
+     *
+     * @throws RuntimeException When `SMTP_ENCRYPTION_KEY` is missing.
+     */
+    public function encryptionKeys(): EncryptionKeys
+    {
+        return $this->encryptionKeys ??= EncryptionKeys::fromEnv();
+    }
+
+    /**
+     * Returns the SMTP password cipher, built over the encryption keys on the first call; opens
+     * no connection.
+     *
+     * @return PasswordCipher
+     *
+     * @throws RuntimeException When `SMTP_ENCRYPTION_KEY` is missing.
+     */
+    public function passwordCipher(): PasswordCipher
+    {
+        return $this->passwordCipher ??= new PasswordCipher($this->encryptionKeys());
     }
 
     /**

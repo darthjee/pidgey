@@ -20,6 +20,8 @@ use Pidgey\Auth\SecretKeys;
 use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
 use Pidgey\Container;
+use Pidgey\Crypto\EncryptionKeys;
+use Pidgey\Crypto\PasswordCipher;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
@@ -49,6 +51,8 @@ use RuntimeException;
 #[UsesClass(SessionRotation::class)]
 #[UsesClass(Sessions::class)]
 #[UsesClass(SystemWallClock::class)]
+#[UsesClass(EncryptionKeys::class)]
+#[UsesClass(PasswordCipher::class)]
 #[UsesClass(DatabaseConfig::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(Transaction::class)]
@@ -71,6 +75,8 @@ final class ContainerTest extends TestCase
         'DB_PASSWORD',
         'SECRET_KEY',
         'PREVIOUS_SECRET_KEYS',
+        'SMTP_ENCRYPTION_KEY',
+        'PREVIOUS_SMTP_ENCRYPTION_KEYS',
         'ACCESS_TOKEN_TTL',
         'REFRESH_TOKEN_TTL',
         'USER_APPROVAL_REQUIRED',
@@ -79,6 +85,8 @@ final class ContainerTest extends TestCase
     ];
 
     private const SECRET_KEY = 'container-test-secret-key-0123456789abcdef';
+    private const SMTP_KEY = 'container-test-smtp-encryption-key-0123456789abcdef';
+    private const PREVIOUS_SMTP_KEY = 'container-test-previous-smtp-encryption-key-0123456789';
 
     /** @var array<string, string|false> */
     private array $saved = [];
@@ -96,6 +104,8 @@ final class ContainerTest extends TestCase
         putenv('DB_PASSWORD=secret');
         putenv('SECRET_KEY=' . self::SECRET_KEY);
         putenv('PREVIOUS_SECRET_KEYS');
+        putenv('SMTP_ENCRYPTION_KEY=' . self::SMTP_KEY);
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS');
         putenv('ACCESS_TOKEN_TTL');
         putenv('REFRESH_TOKEN_TTL');
         putenv('USER_APPROVAL_REQUIRED');
@@ -339,6 +349,39 @@ final class ContainerTest extends TestCase
         $this->expectExceptionMessage('SECRET_KEY');
 
         (new Container($this->unusedConnections()))->accessToken();
+    }
+
+    public function testPasswordCipherIsMemoizedAndOpensNoConnection(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $cipher = $container->passwordCipher();
+
+        $this->assertInstanceOf(PasswordCipher::class, $cipher);
+        $this->assertSame($cipher, $container->passwordCipher());
+        $this->assertSame($container->encryptionKeys(), $container->encryptionKeys());
+    }
+
+    public function testPasswordCipherUsesTheEnvironmentKeys(): void
+    {
+        putenv('SMTP_ENCRYPTION_KEY=' . self::PREVIOUS_SMTP_KEY);
+        $stored = (new Container($this->unusedConnections()))->passwordCipher()->encrypt('pw', 3, 4);
+        putenv('SMTP_ENCRYPTION_KEY=' . self::SMTP_KEY);
+        putenv('PREVIOUS_SMTP_ENCRYPTION_KEYS=' . self::PREVIOUS_SMTP_KEY);
+        $container = new Container($this->unusedConnections());
+
+        $this->assertSame('pw', $container->passwordCipher()->decrypt($stored, 3, 4));
+        $this->assertSame(EncryptionKeys::keyIdOf(self::SMTP_KEY), $container->encryptionKeys()->currentKeyId());
+    }
+
+    public function testPasswordCipherReportsAMissingSmtpEncryptionKey(): void
+    {
+        putenv('SMTP_ENCRYPTION_KEY');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('SMTP_ENCRYPTION_KEY');
+
+        (new Container($this->unusedConnections()))->passwordCipher();
     }
 
     public function testSessionsIsLazyAndMemoizedOnASinglePdo(): void

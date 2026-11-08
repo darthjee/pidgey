@@ -8,11 +8,13 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\Env;
 use Pidgey\Infra\OriginParser;
 
 #[CoversClass(ConfigValidator::class)]
+#[UsesClass(EncryptionKeys::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(OriginParser::class)]
 final class ConfigValidatorTest extends TestCase

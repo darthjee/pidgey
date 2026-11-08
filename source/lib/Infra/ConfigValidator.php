@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pidgey\Infra;
 
+use Pidgey\Crypto\EncryptionKeys;
 use SensitiveParameter;
 
 /**
@@ -33,12 +34,6 @@ final class ConfigValidator
 
     /** Default `ACCOUNT_EDIT_LOCK_TTL`, in seconds. */
     public const DEFAULT_ACCOUNT_EDIT_LOCK_TTL = 300;
-
-    /** HKDF `info` of the SMTP key id (see `email/password-encryption.md#keys`). */
-    private const SMTP_KEY_ID_INFO = 'pidgey:smtp-key-id:v1';
-
-    /** Length of the SMTP key id, in bytes. */
-    private const SMTP_KEY_ID_BYTES = 8;
 
     /** Settings that must be set and non-empty. */
     private const REQUIRED = ['DB_HOST', 'DB_NAME', 'DB_USER'];
@@ -212,7 +207,7 @@ final class ConfigValidator
         }
 
         $current = Env::get('SMTP_ENCRYPTION_KEY');
-        $seenIds = $current === null ? [] : [self::smtpKeyId($current) => true];
+        $seenIds = $current === null ? [] : [EncryptionKeys::keyIdOf($current) => true];
         $reasons = [];
 
         foreach (explode(',', $keys) as $entry) {
@@ -225,7 +220,7 @@ final class ConfigValidator
             }
 
             $reasons += $this->previousSmtpKeyReasons($entry);
-            $keyId = self::smtpKeyId($entry);
+            $keyId = EncryptionKeys::keyIdOf($entry);
 
             if (isset($seenIds[$keyId])) {
                 $reasons['duplicate key'] = true;
@@ -279,18 +274,6 @@ final class ConfigValidator
     private function checkSodium(): array
     {
         return $this->sodiumLoaded ? [] : ['PHP extension: sodium missing'];
-    }
-
-    /**
-     * Derives the key id of an SMTP encryption key (see `email/password-encryption.md#keys`).
-     *
-     * @param string $raw The raw, non-empty key.
-     *
-     * @return string Binary key id.
-     */
-    private static function smtpKeyId(#[SensitiveParameter] string $raw): string
-    {
-        return hash_hkdf('sha256', $raw, self::SMTP_KEY_ID_BYTES, self::SMTP_KEY_ID_INFO);
     }
 
     /**
