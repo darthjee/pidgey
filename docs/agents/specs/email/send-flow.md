@@ -14,7 +14,7 @@ and the response carries the outcome. There is no queue and no retry in v1.
    `ssl` implicit TLS, or plain then `STARTTLS` for `tls`), greeting, `EHLO`, authenticate
    if credentials exist (see [SMTP session](#smtp-session)).
 6. `MAIL FROM` (connection `from_address`), `RCPT TO`, `DATA` with the built MIME message
-   (see [message-scope.md](message-scope.md#mime-message)), then a best-effort `QUIT`.
+   (see [message-scope.md](message-scope.md#message-format)), then a best-effort `QUIT`.
 7. Return the outcome: success with the SMTP server's reply to the final `.`, or a
    categorized failure (see [failures.md](failures.md)).
 8. Log the attempt (see [Attempt log](#attempt-log)).
@@ -120,7 +120,7 @@ with `encryption: none` the [send-time checks](#send-time-checks) already refuse
 
 - `MAIL FROM:<from_address>` with **no `SIZE`** and no `BODY=8BITMIME` parameter; Pidgey
   never sends `SMTPUTF8` (addresses are ASCII-only, see
-  [message-scope.md](message-scope.md#mime-message)). Rejected → `SMTP_REJECTED` ("rejected
+  [message-scope.md](message-scope.md#addresses)). Rejected → `SMTP_REJECTED` ("rejected
   the sender"), 4xx → `SMTP_TEMPORARY_FAILURE`, `530` → see [`AUTH`](#auth).
 - `RCPT TO:<recipient>`. Rejected → `SMTP_REJECTED` ("rejected the recipient").
 - `DATA`, expecting `354`; then the MIME message with **dot-stuffing** (RFC 5321 §4.5.2: a
