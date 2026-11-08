@@ -17,7 +17,8 @@ whether the call matches the API spec.
   and `204` are interchangeable for it. The `Success` column still records the exact code from
   the spec, so a backend change can be checked against it.
 - Status: ✅ when the call matches the spec; otherwise the mismatch id (M1–M6, as in the issue
-  that introduced this file) and its follow-up issue. When the frontend is wrong, the spec
+  that introduced this file; M7–M9 from #154, see [Pidgey admin](#pidgey-admin)) and its
+  follow-up issue. When the frontend is wrong, the spec
   stays and a frontend follow-up is opened; no API spec was found wrong in this check.
 
 ## Auth and session
@@ -71,17 +72,31 @@ screens (#43), and the API token endpoints by `ApiTokensClient` from the API tok
 (#44, see [screens.md](screens.md#api-tokens-screens)); `GET` requests go through
 `ApiClient.getJson`.
 
+**SMTP connection rows:** they were compared with the spec only, never run against a
+backend. Their target is the state after the frontend issue of the email integration
+(epic #149) lands, whose definition of done includes a manual end-to-end check in `make dev`
+(see [testing.md](testing.md#smtp-connections-definition-of-done)). Open mismatches, all
+fixed by that issue:
+
+- **M7:** no `SmtpConnectionsClient.deactivate` method and no **Deactivate** action.
+- **M8:** the form misses the client-side "credentials require encryption" and credential
+  redirection rules (see [screens.md](screens.md#smtp-connection-form)).
+- **M9:** the test-email modal does not list `429`, does not wrap long SMTP replies, and its
+  help text does not say the recipient must be a user of the organization (see
+  [screens.md](screens.md#test-email-modal)).
+
 | Method & path | Client method | Spec | Success | Status |
 | --- | --- | --- | --- | --- |
 | `GET /organization.json` | `OrganizationClient.get` | [organization.md](../api/endpoints/pidgey-admin/organization.md#get-organizationjson) | `200` | ✅ (`GET` with no body, through `ApiClient.getJson`; `organization.name` read) |
 | `PATCH /organization.json` | `OrganizationClient.update` | [organization.md](../api/endpoints/pidgey-admin/organization.md#patch-organizationjson) | `200` | ✅ (only `name` sent; `VALIDATION_FAILED` details shown on the name field) |
 | `GET /smtp-connections.json` | `SmtpConnectionsClient.list` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsjson) | `200` | ✅ (`GET` with no body; `smtpConnections` read, the active one flagged by `active`) |
-| `POST /smtp-connections.json` | `SmtpConnectionsClient.create` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsjson) | `201` | ✅ (only the accepted fields that are defined; `active` never sent; numeric `port`; `username` / `password` only when filled) |
+| `POST /smtp-connections.json` | `SmtpConnectionsClient.create` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsjson) | `201` | ✅ for the payload (only the accepted fields that are defined; `active` never sent; numeric `port`; `username` / `password` only when filled). **M8**: no client-side "credentials require encryption" rule |
 | `GET /smtp-connections/:id.json` | `SmtpConnectionsClient.get` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#get-smtp-connectionsidjson) | `200` | ✅ (`GET` with no body; `404` shown as "not found"; `hasPassword` read, no password returned) |
-| `PATCH /smtp-connections/:id.json` | `SmtpConnectionsClient.update` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#patch-smtp-connectionsidjson) | `200` | ✅ (only the accepted fields that are defined; `active` never sent; `password` only when typed; `""` for both credentials to remove them; `VALIDATION_FAILED` details mapped to fields) |
+| `PATCH /smtp-connections/:id.json` | `SmtpConnectionsClient.update` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#patch-smtp-connectionsidjson) | `200` | ✅ (only the accepted fields that are defined; `active` never sent; `password` only when typed; `""` for both credentials to remove them; `VALIDATION_FAILED` details mapped to fields). **M8**: no client-side "credentials require encryption" or credential redirection rule |
 | `DELETE /smtp-connections/:id.json` | `SmtpConnectionsClient.remove` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#delete-smtp-connectionsidjson) | `204` | ✅ (empty body parsed as `{}`) |
 | `POST /smtp-connections/:id/activate.json` | `SmtpConnectionsClient.activate` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson) | `200` | ✅ (no request body; the returned item marks the active row) |
-| `POST /smtp-connections/:id/test.json` | `SmtpConnectionsClient.test` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson) | `201` | ✅ (`{ to }` only when a recipient is typed, otherwise `{}`; `smtp.code` / `smtp.message` shown on success; `SMTP_*` failures show `error.smtp` when present) |
+| `POST /smtp-connections/:id/deactivate.json` | `SmtpConnectionsClient.deactivate` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsiddeactivatejson) | `200` | **M7**: not called yet. Target: no request body; confirmation first; the list is refreshed |
+| `POST /smtp-connections/:id/test.json` | `SmtpConnectionsClient.test` | [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson) | `201` | ✅ (`{ to }` only when a recipient is typed, otherwise `{}`; `smtp.code` / `smtp.message` shown on success; `SMTP_*` failures show `error.smtp` when present). **M9**: `429 TOO_MANY_REQUESTS` not listed (target: `error.message`, `Retry-After` ignored in v1), long SMTP replies not wrapped, help text missing the organization-user rule |
 | `GET /api-tokens.json` | `ApiTokensClient.list` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#get-api-tokensjson) | `200` | ✅ (`GET` with no body; `apiTokens` read in the API order, revoked ones flagged by `revokedAt`) |
 | `POST /api-tokens.json` | `ApiTokensClient.create` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#post-api-tokensjson) | `201` | ✅ (only `name` (trimmed) and `scopes` sent; the plain `token` shown once and never stored; `VALIDATION_FAILED` details mapped to the name / scopes fields) |
 | `DELETE /api-tokens/:id.json` | `ApiTokensClient.revoke` | [api-tokens.md](../api/endpoints/pidgey-admin/api-tokens.md#delete-api-tokensidjson) | `204` | ✅ (no request body; empty body parsed as `{}`; the list is reloaded) |
