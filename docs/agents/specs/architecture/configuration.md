@@ -77,9 +77,15 @@ Used by the SMTP session of [email/send-flow.md](../email/send-flow.md) (test em
 | `SMTP_COMMAND_TIMEOUT` | `10` | Seconds for each command's reply, including the `STARTTLS` handshake and the reply to the final `.` of `DATA`. |
 | `SMTP_TOTAL_TIMEOUT` | `25` | Seconds for the whole SMTP session: a deadline fixed at connect time; every operation waits `min(its own timeout, time remaining)`. Must stay below the web server / proxy request timeout (see the deployment docs). |
 | `SMTP_CA_FILE` | empty | Path to a PEM CA bundle that **replaces** the system CA store for SMTP TLS verification (to trust both, concatenate them). Empty: the system store (`openssl.cafile` / `openssl.capath` / the OpenSSL default). Test and CI set it to the test CA (see [email/smtp-connections.md](../email/smtp-connections.md#tls-policy)). |
+| `SMTP_ALLOW_PRIVATE_HOSTS` | `false` | When `true`, the send-time [host check](../email/send-flow.md#host-check) denies no address, so internal relays and Mailpit are reachable. When `false` (any value other than exactly `true`, see [Rules](#rules)), a host that resolves to a loopback, private, link-local, shared, unspecified, multicast or reserved address is refused with `409 SMTP_HOST_NOT_ALLOWED`. The development and test env files (docker compose `.env`, CI) set `true`; production keeps the default unless a self-hosted setup needs an internal relay. |
+| `SMTP_TEST_MAX_ATTEMPTS` | `10` | Test emails allowed per organization within one `SMTP_TEST_WINDOW` (a count, see [Rules](#rules); see [test-email limit](../api/endpoints/pidgey-admin/smtp-connections.md#test-email-limit)). |
+| `SMTP_TEST_WINDOW` | `3600` (1 h) | Length of the fixed test-email window, in seconds (a duration). |
 | `SMTP_EHLO_NAME` | empty | The client name sent as the `EHLO` argument; recommended: the host's public FQDN, ideally matching its reverse DNS. Empty: the address literal of the socket's local address (e.g. `[203.0.113.7]`, see [send-flow.md](../email/send-flow.md#ehlo)). |
 
-- The three timeouts are durations (positive integers, see [Rules](#rules)).
+- The three timeouts and `SMTP_TEST_WINDOW` are durations and `SMTP_TEST_MAX_ATTEMPTS` is a
+  count (positive integers, see [Rules](#rules)); an invalid value refuses boot with
+  `<NAME>: not a positive integer`. `SMTP_ALLOW_PRIVATE_HOSTS` is a boolean and never
+  refuses boot.
   `SMTP_CONNECT_TIMEOUT` and `SMTP_COMMAND_TIMEOUT` must each be `<= SMTP_TOTAL_TIMEOUT`;
   otherwise boot is refused.
 - `SMTP_CA_FILE`, when set, must name an existing, readable file; otherwise boot is
@@ -97,6 +103,21 @@ Used by the SMTP session of [email/send-flow.md](../email/send-flow.md) (test em
   carries arguments (and no secret, see
   [send-flow.md](../email/send-flow.md#secret-hygiene)) regardless of the host's `php.ini`.
   This is not a setting and `bin/check-config` does not check it.
+
+### Logging
+
+Used by the operator log
+([api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#operator-log)) and the
+request log ([request-handler/front-controller.md](../request-handler/front-controller.md)),
+both written through the Monolog logger built by `Pidgey\Infra\LoggerFactory` (see
+[backend.md](backend.md#logging)).
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `LOG_LEVEL` | `info` | Minimum level written to the log: one of the PSR-3 level names `debug`, `info`, `notice`, `warning`, `error`, `critical`, `alert`, `emergency` (lower case, exact). |
+
+- Any other value refuses boot with `LOG_LEVEL: invalid level` (reported once, never with
+  the value).
 
 ### Authentication
 
@@ -267,7 +288,8 @@ the staging folder before migrating and swapping (see
   `PREVIOUS_SECRET_KEYS` rules, the [SMTP encryption key](#smtp-encryption-keys) rules, the
   `sodium` extension check (below), the required `DB_*` settings, the `DB_MIGRATE_*` pairing
   rule (see [Runtime and database](#runtime-and-database)), the `ALLOWED_ORIGINS` rules
-  (see [Origins](#origins)) and the [SMTP transport](#smtp-transport) rules.
+  (see [Origins](#origins)), the [SMTP transport](#smtp-transport) rules and the
+  [`LOG_LEVEL`](#logging) rule.
 - Also checks that the running PHP is **8.4.x**, since production is pinned to PHP 8.4 (see
   [deployment/server.md](../../deployment/server.md#host-requirements)). This catches a wrong
   `PHP_BIN` or a host change.
@@ -285,7 +307,8 @@ the staging folder before migrating and swapping (see
   `ALLOWED_ORIGINS: not https`.
   The [SMTP encryption key rules](#smtp-encryption-keys) report the failure names listed
   there, and a missing `sodium` extension reports `PHP extension: sodium missing`.
-  The [SMTP transport rules](#smtp-transport) report the failure names listed there.
+  The [SMTP transport rules](#smtp-transport) report the failure names listed there, and
+  an invalid `LOG_LEVEL` reports `LOG_LEVEL: invalid level`.
   The `DB_MIGRATE_*` pairing rule reports:
   - `DB_MIGRATE_PASSWORD: missing` when `DB_MIGRATE_USER` is set and `DB_MIGRATE_PASSWORD` is
     not;
@@ -301,5 +324,4 @@ the staging folder before migrating and swapping (see
 
 ## Pending decisions
 
-- **Pending decision:** the log-level variable (name and default); logging is configured
-  through Monolog but no variable is read yet.
+None. The log-level variable is `LOG_LEVEL` (see [Logging](#logging)).

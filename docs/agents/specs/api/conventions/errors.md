@@ -90,7 +90,7 @@ code** derived from the status.
 | 404 | `NOT_FOUND` |
 | 409 | `CONFLICT` |
 | 423 | `LOCKED` |
-| 429 | `TOO_MANY_REQUESTS` (reserved, not currently emitted) |
+| 429 | `TOO_MANY_REQUESTS` (emitted only by the SMTP connection test email, see [Too many requests](#too-many-requests)) |
 | 500 | `INTERNAL_ERROR` |
 | other | `HTTP_<status>`, e.g. `HTTP_422` |
 
@@ -106,7 +106,7 @@ here.
 | `USER_DENIED` | 403 | `This account has been denied access` | login |
 | `USER_NOT_PENDING` | 422 | `Only pending users can be approved` | admin approve |
 | `CANNOT_DENY_SELF` | 422 | `You cannot deny your own account` | admin deny |
-| `NO_SMTP_CONNECTION`, `SMTP_INSECURE_CREDENTIALS`, `SMTP_PASSWORD_UNREADABLE`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED`, `SMTP_TEMPORARY_FAILURE`, `SMTP_PROTOCOL_ERROR`, `SMTP_TIMEOUT` | 409 / 502 / 503 / 504 | Fixed messages in [email/failures.md](../../email/failures.md#fixed-messages). | `POST /v1/messages` and authenticated endpoints that send email (the SMTP connection test email, which never answers `NO_SMTP_CONNECTION`); never endpoints reachable without login (see [SMTP send failures](#smtp-send-failures)) |
+| `NO_SMTP_CONNECTION`, `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED`, `SMTP_PASSWORD_UNREADABLE`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED`, `SMTP_TEMPORARY_FAILURE`, `SMTP_PROTOCOL_ERROR`, `SMTP_TIMEOUT` | 409 / 502 / 503 / 504 | Fixed messages in [email/failures.md](../../email/failures.md#fixed-messages). | `POST /v1/messages` and authenticated endpoints that send email (the SMTP connection test email, which never answers `NO_SMTP_CONNECTION`); never endpoints reachable without login (see [SMTP send failures](#smtp-send-failures)) |
 
 ## Generic errors
 
@@ -134,8 +134,24 @@ here.
 | 415 | Unsupported content type. |
 | 422 | Business rule violated on a valid request (e.g. `USER_NOT_PENDING`); never used for body validation. |
 | 423 | Locked (e.g. account edit lockout). |
+| 429 | Too many requests, with `Retry-After` (test email only, see [Too many requests](#too-many-requests)). |
 | 500 | Unexpected internal error. |
 | 502 / 503 / 504 | SMTP upstream failures (see [email/failures.md](../../email/failures.md)). |
+
+## Too many requests
+
+`429 TOO_MANY_REQUESTS` is answered only by the SMTP connection test email
+([endpoints/pidgey-admin/smtp-connections.md](../endpoints/pidgey-admin/smtp-connections.md#test-email-limit)),
+with the category code and one of two messages:
+
+| Case | `error.message` |
+| --- | --- |
+| Window limit reached | `Too many test emails; try again later` |
+| Another test email of the organization in progress | `A test email is already in progress` |
+
+- The response carries a **`Retry-After`** header: a whole number of seconds (delta-seconds,
+  never a date) until the attempt may succeed.
+- Other endpoints have no rate limit in v1 (see [api/pending.md](../pending.md)).
 
 ## Never `401` for a business rule
 

@@ -11,7 +11,7 @@ work and collecting every open decision.
 
 In scope (epic #149):
 
-- the SMTP connection endpoints: list, create, read, update, delete, activate;
+- the SMTP connection endpoints: list, create, read, update, delete, activate, deactivate;
 - encryption at rest of the stored SMTP password;
 - the SMTP transport and the synchronous send flow (connect, encryption, `AUTH`, `MAIL FROM` /
   `RCPT TO` / `DATA`, `QUIT`, failure mapping);
@@ -34,7 +34,7 @@ cookie-session gate, origin check and body validation (#120); the frontend SMTP 
 | --- | --- | --- |
 | [encryption.md](implement-email/encryption.md) | Password encryption at rest: service contract, key handling, rotation, failure on decrypt. | #151 (settled) |
 | [transport.md](implement-email/transport.md) | SMTP transport and send flow: transport and stream contracts, result / failure values, `SMTP_*` mapping, timeouts, TLS, `AUTH`, new configuration keys. | #152 (settled) |
-| [endpoints.md](implement-email/endpoints.md) | Connection endpoints (CRUD), activate, test email handler, operator log: hardening and lifecycle. | #153 |
+| [endpoints.md](implement-email/endpoints.md) | Connection endpoints (CRUD), activate, deactivate, test email handler (host policy, rate limit), operator log: hardening and lifecycle. | #153 (settled) |
 | [testing.md](implement-email/testing.md) | Test infrastructure: fake SMTP server, Mailpit integration, fixtures. | #154 |
 | [frontend.md](implement-email/frontend.md) | Frontend alignment of the SMTP screens with the real API. | #154 |
 
@@ -49,9 +49,9 @@ describes its building blocks. Each open item appears in exactly one detail file
 | SMTP transport | [email/send-flow.md](email/send-flow.md) (steps 5–7, timeouts); [email/failures.md](email/failures.md); [email/smtp-connections.md](email/smtp-connections.md) (`encryption`, credentials); [architecture/backend.md](architecture/backend.md#layers) (SMTP transport layer); [architecture/dependencies.md](architecture/dependencies.md) | [transport.md](implement-email/transport.md) |
 | Send flow | [email/send-flow.md](email/send-flow.md); [email/message-scope.md](email/message-scope.md) (v1 fields, `From:`); [email/failures.md](email/failures.md); [api/conventions/errors.md](api/conventions/errors.md#smtp-send-failures) | [transport.md](implement-email/transport.md) |
 | Connection endpoints (list, create, read, update, delete) | [api/endpoints/pidgey-admin/smtp-connections.md](api/endpoints/pidgey-admin/smtp-connections.md); [api/endpoints/pidgey-admin.md](api/endpoints/pidgey-admin.md) (access, guards, `:id`, shared rules); [organizations/scope.md](organizations/scope.md); [api/conventions/validation.md](api/conventions/validation.md) | [endpoints.md](implement-email/endpoints.md) |
-| Activate | [api/endpoints/pidgey-admin/smtp-connections.md](api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson); [email/smtp-connections.md](email/smtp-connections.md) (Active connection); [persistence/connection.md](persistence/connection.md) (transactions) | [endpoints.md](implement-email/endpoints.md) |
-| Test email | [api/endpoints/pidgey-admin/smtp-connections.md](api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson); [email/send-flow.md](email/send-flow.md) (steps 5–8); [email/failures.md](email/failures.md); [api/pending.md](api/pending.md) (rate limit, SSRF, credential redirection) | [endpoints.md](implement-email/endpoints.md) |
-| Operator log | [api/endpoints/pidgey-admin.md](api/endpoints/pidgey-admin.md#operator-log); [email/send-flow.md](email/send-flow.md) (step 8); [architecture/backend.md](architecture/backend.md#principles) (monolog) | [endpoints.md](implement-email/endpoints.md) |
+| Activate and deactivate | [api/endpoints/pidgey-admin/smtp-connections.md](api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson); [email/smtp-connections.md](email/smtp-connections.md) (Active connection); [organizations/data-model/smtp-connections.md](organizations/data-model/smtp-connections.md#at-most-one-active-connection); [persistence/connection.md](persistence/connection.md) (transactions) | [endpoints.md](implement-email/endpoints.md) |
+| Test email | [api/endpoints/pidgey-admin/smtp-connections.md](api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson); [email/send-flow.md](email/send-flow.md) (steps 5–8); [email/failures.md](email/failures.md); [email/smtp-connections.md](email/smtp-connections.md#host-policy); [organizations/data-model/smtp-test-limits.md](organizations/data-model/smtp-test-limits.md) | [endpoints.md](implement-email/endpoints.md) |
+| Operator log | [api/endpoints/pidgey-admin.md](api/endpoints/pidgey-admin.md#operator-log); [email/send-flow.md](email/send-flow.md) (step 8); [architecture/backend.md](architecture/backend.md#logging) (`LoggerFactory`); [architecture/configuration.md](architecture/configuration.md#logging) (`LOG_LEVEL`) | [endpoints.md](implement-email/endpoints.md) |
 | Frontend wiring | [frontend/screens.md](frontend/screens.md#smtp-connections-screens); [frontend/layout.md](frontend/layout.md) (`SmtpConnectionsClient`, `ApiError`); [frontend/api-compatibility.md](frontend/api-compatibility.md) | [frontend.md](implement-email/frontend.md) |
 | Test infrastructure | [email/testing.md](email/testing.md); [testing/backend.md](testing/backend.md); [docker/compose.md](docker/compose.md) (`mailpit`, `tests`); [architecture/configuration.md](architecture/configuration.md#smtp-development-and-tests) (`SMTP_HOST`, `SMTP_PORT`) | [testing.md](implement-email/testing.md) |
 
@@ -82,7 +82,7 @@ after #151–#154 land, by re-running `/arcanum-split-issue 149`.
 | # | Title | Depends on |
 | --- | --- | --- |
 | 1 | Password encryption service | #151 |
-| 2 | SMTP connection endpoints (list, create, read, update, delete) and activate | 1, #153 |
+| 2 | SMTP connection endpoints (list, create, read, update, delete), activate and deactivate | 1, #153 |
 | 3 | Fake SMTP server and Mailpit test support | #154 |
 | 4 | SMTP transport and send flow | #152, 3 |
 | 5 | Test email endpoint | 1, 2, 4 |

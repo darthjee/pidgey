@@ -138,7 +138,7 @@ Request logging is a front-controller step, not a middleware ([middlewares.md](m
 - It covers every request: success, early answer, preflight, errors and routing `404`s.
 - **Never logged:** headers, cookies, the body and the query string (redaction per [request-response/request.md](request-response/request.md#headers) and [api/authentication.md](../api/authentication.md)).
 - A **`500`** additionally logs the real exception at `error` ([request-response/errors.md](request-response/errors.md#errorformatter)).
-- The log level threshold is configured through Monolog; the log-level variable is still pending in [architecture/configuration.md](../architecture/configuration.md#pending-decisions).
+- The log level threshold is `LOG_LEVEL` (default `info`, see [architecture/configuration.md](../architecture/configuration.md#logging)).
 
 ## Failures outside the wrapper
 
@@ -181,4 +181,4 @@ For the implementation issues; no web server is needed.
 
 ## Pending decisions
 
-None. The log-level variable stays pending in [architecture/configuration.md](../architecture/configuration.md#pending-decisions).
+None.

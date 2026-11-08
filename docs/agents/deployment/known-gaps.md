@@ -52,6 +52,30 @@ but not the DNS lookup of the SMTP `host`: PHP's resolver uses the system resolv
 which the app cannot set. A slow or unreachable DNS server can therefore delay a test email
 beyond `SMTP_TOTAL_TIMEOUT`. Not tracked yet; the host's resolver is assumed to answer quickly.
 
+## SMTP host check does not restrict ports or public hosts
+
+With `SMTP_ALLOW_PRIVATE_HOSTS=false` (see [server.md](server.md#shared-env)), a send to an
+SMTP host that resolves to a non-public address is refused before any connection (see
+[email/smtp-connections.md](../specs/email/smtp-connections.md)). Ports are not restricted,
+and public hosts are allowed, so the test email still acts as a reachability oracle: an
+approved user can learn whether a public host accepts TCP connections on a given port from
+the error code and timing. The per-organization test-email rate limit (`SMTP_TEST_MAX_ATTEMPTS`
+per `SMTP_TEST_WINDOW`) slows this down but does not remove it. Not tracked yet.
+
+Setting `SMTP_ALLOW_PRIVATE_HOSTS=true` in production (for an internal relay) removes the
+check entirely and reopens server-side request forgery to internal addresses.
+
+## Test-email lease does not bound workers across organizations
+
+At most one test email is in flight per organization (a lease in `smtp_test_limits`), so one
+organization cannot tie up more than one PHP worker with slow SMTP servers. Many
+organizations can still each hold one at the same time: nothing bounds the total number of
+workers busy with test emails across organizations, and on the shared host that can exhaust
+the worker pool for up to `SMTP_TOTAL_TIMEOUT` seconds per request. With
+`USER_APPROVAL_REQUIRED=true` only approved users can send test emails, which limits who can
+do it. A global limit belongs to the open rate-limit decision in
+[api/pending.md](../specs/api/pending.md).
+
 ## No automated image builds
 
 The images CI and development use (`dev_pidgey-base`, `circleci_pidgey-base`,

@@ -104,6 +104,16 @@ Optional SMTP transport keys (rules and validation in
 | `SMTP_CA_FILE` | empty | Path to a PEM CA bundle. When set it **replaces** the system CA store for SMTP TLS verification; to trust both, concatenate the bundles into one file. Must be readable by `$SSH_USER`, or boot is refused. |
 | `SMTP_EHLO_NAME` | empty | The `EHLO` client name. Should be the host's public FQDN, ideally matching its reverse DNS. Empty: the socket's local address literal is sent instead. |
 
+Optional SMTP endpoint hardening and logging keys (rules and validation in
+[architecture/configuration.md](../specs/architecture/configuration.md)):
+
+| Key | Default | Value |
+| --- | --- | --- |
+| `SMTP_ALLOW_PRIVATE_HOSTS` | `false` | Leave it unset (or `false`) in production: a send to an SMTP host that resolves to a loopback, private, link-local (including the cloud metadata address), shared, unspecified, multicast or reserved address is refused with `409 SMTP_HOST_NOT_ALLOWED`. Set it to `true` only if an organization must use an internal relay; doing so **reopens server-side request forgery to internal addresses** for every organization. The development and test env files set it to `true` for Mailpit. |
+| `SMTP_TEST_MAX_ATTEMPTS` | `10` | Test emails allowed per organization per window. Every attempt that passes validation counts. |
+| `SMTP_TEST_WINDOW` | `3600` | Length of that fixed window, in seconds. |
+| `LOG_LEVEL` | `info` | Minimum level of the app's Monolog logger, which writes to the same destination as `error_log()` (the host's Apache error log). `info` keeps the operator log lines (`smtp-connection-*` actions). |
+
 Every other setting may be left out to take its default.
 
 Why: the `.env` holds the only real secrets of the deployment (`SECRET_KEY`,
