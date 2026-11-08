@@ -220,6 +220,29 @@ final class PasswordCipherTest extends TestCase
         $this->assertFalse($cipher->isCurrent(''));
     }
 
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function unknownVersionsForIsCurrent(): array
+    {
+        return [
+            'zero' => ["\x00"],
+            'next version' => ["\x02"],
+            'all bits' => ["\xff"],
+        ];
+    }
+
+    #[DataProvider('unknownVersionsForIsCurrent')]
+    public function testBytesWithAnUnknownVersionAreNeverCurrent(string $version): void
+    {
+        $cipher = $this->cipher();
+        $stored = $cipher->encrypt(self::PASSWORD, self::ORGANIZATION, self::CONNECTION);
+        $stored[0] = $version;
+
+        $this->assertSame(EncryptionKeys::keyIdOf(self::CURRENT), substr($stored, 1, 8));
+        $this->assertFalse($cipher->isCurrent($stored));
+    }
+
     public function testNothingSecretLeaksIntoFailuresOrDumps(): void
     {
         $keys = new EncryptionKeys(self::CURRENT, [self::PREVIOUS]);

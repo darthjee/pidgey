@@ -103,8 +103,9 @@ final readonly class PasswordCipher
     }
 
     /**
-     * Tells whether stored bytes were encrypted with the current key (by their key id), so that
-     * a key rotation can skip them; does not authenticate the bytes.
+     * Tells whether stored bytes were encrypted with the current key (by their version byte and
+     * key id), so that a key rotation can skip them; does not authenticate the bytes. Bytes with
+     * an unknown version are never current.
      *
      * @param string $stored The stored bytes.
      *
@@ -112,7 +113,8 @@ final readonly class PasswordCipher
      */
     public function isCurrent(string $stored): bool
     {
-        return substr($stored, 1, EncryptionKeys::KEY_ID_BYTES) === $this->keys->currentKeyId();
+        return str_starts_with($stored, self::VERSION)
+            && substr($stored, 1, EncryptionKeys::KEY_ID_BYTES) === $this->keys->currentKeyId();
     }
 
     /**
