@@ -78,6 +78,7 @@ the deploy.
 `SECRET_KEY`, `SMTP_ENCRYPTION_KEY`, `PREVIOUS_SMTP_ENCRYPTION_KEYS`, `DB_*`, `PHP_ENV`,
 `USER_APPROVAL_REQUIRED`, `TRUSTED_PROXY_HOPS`, the SMTP transport keys
 (`SMTP_CONNECT_TIMEOUT`, `SMTP_COMMAND_TIMEOUT`, `SMTP_TOTAL_TIMEOUT`, `SMTP_CA_FILE`,
-`SMTP_EHLO_NAME`) and every
+`SMTP_EHLO_NAME`), the SMTP endpoint hardening keys (`SMTP_ALLOW_PRIVATE_HOSTS`,
+`SMTP_TEST_MAX_ATTEMPTS`, `SMTP_TEST_WINDOW`), `LOG_LEVEL` and every
 other setting the app reads live **only** in the shared `.env` on the host (see
 [server.md](server.md#shared-env)). CI never sees them.
