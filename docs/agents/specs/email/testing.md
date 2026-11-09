@@ -111,7 +111,7 @@ Two fakes cover what Mailpit cannot produce. Both are test-only support classes 
 - Can inject the stream-level failures: timeout, connection closed by the peer, TLS
   failure, and bytes pending after `STARTTLS`.
 - Used by the transport unit tests for the reply-by-reply mapping, with a **frozen clock**
-  for the timeouts and the session deadline.
+  (`Pidgey\Tests\Support\FrozenClock`) for the timeouts and the session deadline.
 
 ### `Pidgey\Tests\Support\FakeSmtpServer`
 
@@ -166,7 +166,8 @@ covered by automated tests.
   - the unique index rejects a second active row inserted directly;
   - a `PATCH` racing an `activate` never changes `active`.
 - **Limits and host check:**
-  - the test-email limit (window, lease, `Retry-After`) runs with a frozen clock;
+  - the test-email limit (window, lease, `Retry-After`) runs with a frozen wall clock
+    (`Pidgey\Tests\Support\FrozenWallClock`);
   - the [host check](send-flow.md#host-check) is unit-tested through an injectable resolver;
     one integration test runs with `SMTP_ALLOW_PRIVATE_HOSTS=false` against `127.0.0.1` and
     expects `409 SMTP_HOST_NOT_ALLOWED`.

@@ -104,6 +104,7 @@ final class ConfigValidator
             ...$this->checkIntegers(),
             ...$this->checkTokenTtls(),
             ...$this->checkAllowedOrigins(),
+            ...$this->checkLogLevel(),
             ...$this->checkDevelopmentKey(),
             ...$this->checkSodium(),
         ];
@@ -419,6 +420,22 @@ final class ConfigValidator
         ksort($failures);
 
         return array_values($failures);
+    }
+
+    /**
+     * Checks that `LOG_LEVEL`, when set, is one of the logger's levels (exact, lower case).
+     *
+     * @return list<string>
+     */
+    private function checkLogLevel(): array
+    {
+        $level = Env::get('LOG_LEVEL');
+
+        if ($level === null || in_array($level, LoggerFactory::LEVELS, true)) {
+            return [];
+        }
+
+        return ['LOG_LEVEL: invalid level'];
     }
 
     /**

@@ -140,6 +140,7 @@ final class CheckConfigTest extends TestCase
                 'PREVIOUS_SMTP_ENCRYPTION_KEYS: duplicate key',
             ],
             'missing db host' => ["DB_HOST=\n", 'DB_HOST: missing'],
+            'invalid log level' => ["LOG_LEVEL=distinctive-log-level\n", 'LOG_LEVEL: invalid level'],
             'development secret key' => [
                 "SECRET_KEY=pidgey-development-only-insecure-secret-key-0000\n",
                 'SECRET_KEY: development key',
@@ -167,6 +168,7 @@ final class CheckConfigTest extends TestCase
         $this->assertStringNotContainsString('short-secret-value', $result['stderr']);
         $this->assertStringNotContainsString('short-previous-value', $result['stderr']);
         $this->assertStringNotContainsString('pidgey-development-only', $result['stderr']);
+        $this->assertStringNotContainsString('distinctive-log-level', $result['stderr']);
     }
 
     /**

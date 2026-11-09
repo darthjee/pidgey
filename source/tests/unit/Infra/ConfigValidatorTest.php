@@ -11,11 +11,13 @@ use PHPUnit\Framework\TestCase;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\Env;
+use Pidgey\Infra\LoggerFactory;
 use Pidgey\Infra\OriginParser;
 
 #[CoversClass(ConfigValidator::class)]
 #[UsesClass(EncryptionKeys::class)]
 #[UsesClass(Env::class)]
+#[UsesClass(LoggerFactory::class)]
 #[UsesClass(OriginParser::class)]
 final class ConfigValidatorTest extends TestCase
 {
@@ -53,6 +55,7 @@ final class ConfigValidatorTest extends TestCase
         'ACCOUNT_EDIT_MAX_ATTEMPTS',
         'ACCOUNT_EDIT_LOCK_TTL',
         'ALLOWED_ORIGINS',
+        'LOG_LEVEL',
         'PHP_ENV',
     ];
 
@@ -297,6 +300,54 @@ final class ConfigValidatorTest extends TestCase
         $this->assertSame(['PREVIOUS_SECRET_KEYS: empty entry', 'PREVIOUS_SECRET_KEYS: entry too short'], $failures);
         $this->assertNoValueLeaks($failures, 'short-one');
         $this->assertNoValueLeaks($failures, 'short-two');
+    }
+
+    /**
+     * @return array<string, array{string|null}>
+     */
+    public static function validLogLevels(): array
+    {
+        $cases = ['unset' => [null], 'empty' => ['']];
+
+        foreach (LoggerFactory::LEVELS as $level) {
+            $cases[$level] = [$level];
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('validLogLevels')]
+    public function testValidLogLevelsPass(?string $value): void
+    {
+        putenv($value === null ? 'LOG_LEVEL' : "LOG_LEVEL={$value}");
+
+        $this->assertSame([], (new ConfigValidator())->validate());
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function invalidLogLevels(): array
+    {
+        return [
+            'upper case' => ['INFO'],
+            'leading space' => [' info'],
+            'unknown name' => ['warn'],
+        ];
+    }
+
+    #[DataProvider('invalidLogLevels')]
+    public function testInvalidLogLevelFailsWithoutTheValue(string $value): void
+    {
+        putenv("LOG_LEVEL={$value}");
+
+        $failures = (new ConfigValidator())->validate();
+
+        $this->assertSame(['LOG_LEVEL: invalid level'], $failures);
+
+        foreach ($failures as $failure) {
+            $this->assertStringNotContainsString($value, $failure);
+        }
     }
 
     /**

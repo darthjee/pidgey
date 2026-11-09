@@ -76,7 +76,7 @@ All settled by #153.
   `Pidgey\Http\FieldRules`, `Pidgey\Http\Router` and `source/config/routes/*.php`,
   `Pidgey\Http\HandlerFactory`, `Pidgey\Repository\SmtpConnectionRepository` (today: create,
   find in organization, list; update and delete to be added), the password encryption service
-  ([encryption.md](encryption.md)), the operator log (below), `Pidgey\Infra\Clock`.
+  ([encryption.md](encryption.md)), the operator log (below), `Pidgey\Infra\WallClock`.
 - **Governing specs:** [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md);
   [api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md) (access, guards, `:id`,
   shared rules); [organizations/scope.md](../organizations/scope.md);
@@ -134,7 +134,8 @@ and is not copied here. It carries `id`, `name`, `host`, `port`, `encryption`, `
 - **Collaborators:** the send flow, `Pidgey\Repository\SmtpConnectionRepository`,
   `Pidgey\Repository\UserRepository` (the caller's email, the organization-user check of
   `to`), `Pidgey\Repository\SmtpTestLimitRepository`, `Pidgey\Infra\Transaction`,
-  `Pidgey\Infra\Clock`, `Pidgey\Http\Validator`, the operator log.
+  `Pidgey\Infra\WallClock` (the limit window is stored in the database),
+  `Pidgey\Http\Validator`, the operator log.
 - **Governing specs:** [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidtestjson);
   [email/send-flow.md](../email/send-flow.md) (steps 5–8);
   [email/failures.md](../email/failures.md);
@@ -178,8 +179,9 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
 5. **Test-email limit** — `Pidgey\Repository\SmtpTestLimitRepository`: window, lease and
    `Retry-After`.
 6. **Logger** — `Pidgey\Infra\LoggerFactory` (Monolog, `ErrorLogHandler`, `LOG_LEVEL`) wired
-   in `Pidgey\Container`; the operator log lines.
+   in `Pidgey\Container` (landed in #162); the operator log lines remain.
 7. **Configuration** — `ConfigValidator` / `bin/check-config`: `SMTP_ALLOW_PRIVATE_HOSTS`,
-   `SMTP_TEST_MAX_ATTEMPTS`, `SMTP_TEST_WINDOW`, `LOG_LEVEL` and their failure names
+   `SMTP_TEST_MAX_ATTEMPTS`, `SMTP_TEST_WINDOW`, `LOG_LEVEL` (landed in #162) and their
+   failure names
    ([architecture/configuration.md](../architecture/configuration.md#smtp-transport)); the
    development `.env` and the test / CI environment set `SMTP_ALLOW_PRIVATE_HOSTS=true`.

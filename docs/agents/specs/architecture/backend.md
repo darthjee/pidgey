@@ -42,7 +42,7 @@ Routing rule, shared by development and production:
 | Repositories | `Pidgey\Repository\` | All database access through raw PDO with prepared statements. Return plain entity/value objects. See [persistence/repositories.md](../persistence/repositories.md). |
 | Entities / values | `Pidgey\Model\` | Organization, User, SmtpConnection, ApiToken, Message, SendOutcome. Table entities follow [persistence/entities.md](../persistence/entities.md). |
 | SMTP transport | `Pidgey\Smtp\` | The protocol layer: transport interface and implementation, the stream interface and its socket implementation, reply and reply parser, session deadline, failure and failure code. Opens the connection, negotiates TLS/SSL, authenticates, sends, classifies failures into the error taxonomy (see [email](../email.md)). Knows nothing about HTTP, organizations, repositories or logging; depends only on `Pidgey\Infra\Clock`. |
-| Infrastructure | `Pidgey\Infra\` | Configuration loading, PDO factory, `Transaction` helper (see [persistence/connection.md](../persistence/connection.md)), logger factory, migrations runner, wall clock (`WallClock`, see [request-handler/request-response/errors.md](../request-handler/request-response/errors.md#wall-clock)). |
+| Infrastructure | `Pidgey\Infra\` | Configuration loading, PDO factory, `Transaction` helper (see [persistence/connection.md](../persistence/connection.md)), logger factory, migrations runner, wall clock (`WallClock`, see [request-handler/request-response/errors.md](../request-handler/request-response/errors.md#wall-clock)) and monotonic clock (`Clock`, for the SMTP session deadline). |
 
 Dependencies flow downward only: HTTP → feature namespaces → (Repositories, `Pidgey\Smtp\`).
 `Pidgey\Email\` depends on `Pidgey\Smtp\`, never the reverse. The HTTP exception carrying
@@ -53,10 +53,21 @@ Wiring is done manually (a small container/factory class: `Pidgey\Container` and
 
 ## Logging
 
-- `Pidgey\Infra\LoggerFactory` builds the application's **Monolog** logger, with an
-  `ErrorLogHandler`: lines go to the same destination as PHP's `error_log()`.
-- The minimum level is `LOG_LEVEL` (default `info`, see
-  [configuration.md](configuration.md#logging)).
+- `Pidgey\Infra\LoggerFactory` builds the application's **Monolog** logger:
+  - `LoggerFactory::create(level, handler = ErrorLogHandler)` takes the minimum level and an
+    optional handler; by default lines go to the same destination as PHP's `error_log()`.
+    An unknown level is rejected with `LOG_LEVEL: invalid level`, never echoing the value;
+  - `LoggerFactory::fromEnv()` reads the minimum level from `LOG_LEVEL` (default `info`, see
+    [configuration.md](configuration.md#logging)).
+- Channel `pidgey`; line format `pidgey.<LEVEL>: <message> <context> <extra>`. Line breaks
+  are flattened to one line per record, no processors are attached, and no stack traces are
+  written.
+- `Pidgey\Container::logger()` builds the logger on first use (through `fromEnv()`) and
+  reuses it; tests inject their own with `new Container(logger: …)`.
+- **Context objects:** an object in the log context is rendered as JSON when it implements
+  `JsonSerializable`, as its `__toString()` when it has one, and otherwise as its class name
+  only. A value object that holds a secret (e.g. `SecretString`) must therefore implement
+  **neither** interface, so it can only ever be logged as its class name.
 - Operator log lines (see
   [api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#operator-log)) are `info`
   lines whose message is the action name and whose context is JSON (`userId`,
