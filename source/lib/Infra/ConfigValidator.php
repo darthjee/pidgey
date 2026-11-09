@@ -60,7 +60,7 @@ final class ConfigValidator
     private const NON_NEGATIVE_INTEGERS = ['TRUSTED_PROXY_HOPS'];
 
     /** PHP_ENV values that are not production; any other value, or none, counts as production. */
-    private const NON_PRODUCTION_ENVIRONMENTS = ['development', 'test'];
+    public const NON_PRODUCTION_ENVIRONMENTS = ['development', 'test'];
 
     private const POSITIVE_INTEGER_PATTERN = '/^[1-9][0-9]*$/';
     private const NON_NEGATIVE_INTEGER_PATTERN = '/^[0-9]+$/';

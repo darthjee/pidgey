@@ -8,6 +8,7 @@ use Closure;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\EnvFile;
 use Pidgey\Infra\EnvFileUnreadable;
+use Pidgey\Infra\Runtime;
 
 /**
  * The `bin/check-config` command: checks the configuration without starting the app.
@@ -79,6 +80,8 @@ final class CheckConfigCommand
         } catch (EnvFileUnreadable) {
             $failures[] = 'env file: unreadable';
         }
+
+        Runtime::harden();
 
         $failures = [...$failures, ...($this->validator)()];
 
