@@ -11,6 +11,8 @@
 # Files written (in this directory):
 #   ca.pem                                - test CA certificate
 #   server.pem / server-key.pem           - leaf for mailpit-starttls, mailpit-ssl, localhost
+#                                           and the IP literal 127.0.0.1 (IP SAN, for the
+#                                           fake SMTP server)
 #   wrong-name.pem / wrong-name-key.pem   - leaf for wrong-name.invalid
 #   untrusted.pem / untrusted-key.pem     - self-signed leaf for localhost
 
@@ -53,7 +55,7 @@ EOF
     -out "$name.pem"
 }
 
-sign_leaf server mailpit-ssl "DNS:mailpit-starttls,DNS:mailpit-ssl,DNS:localhost"
+sign_leaf server mailpit-ssl "DNS:mailpit-starttls,DNS:mailpit-ssl,DNS:localhost,IP:127.0.0.1"
 sign_leaf wrong-name wrong-name.invalid "DNS:wrong-name.invalid"
 
 # Self-signed leaf, not issued by the test CA
