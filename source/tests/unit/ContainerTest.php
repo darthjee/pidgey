@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Pidgey\Tests\Unit;
 
 use DateTimeImmutable;
+use Monolog\Handler\AbstractHandler;
+use Monolog\Level;
+use Monolog\Logger;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -22,9 +25,12 @@ use Pidgey\Auth\Sessions;
 use Pidgey\Container;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Infra\Clock;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
+use Pidgey\Infra\LoggerFactory;
+use Pidgey\Infra\SystemClock;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\Transaction;
 use Pidgey\Infra\UserApproval;
@@ -37,6 +43,7 @@ use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
+use Psr\Log\NullLogger;
 use RuntimeException;
 
 #[CoversClass(Container::class)]
@@ -50,7 +57,9 @@ use RuntimeException;
 #[UsesClass(SecretKeys::class)]
 #[UsesClass(SessionRotation::class)]
 #[UsesClass(Sessions::class)]
+#[UsesClass(SystemClock::class)]
 #[UsesClass(SystemWallClock::class)]
+#[UsesClass(LoggerFactory::class)]
 #[UsesClass(EncryptionKeys::class)]
 #[UsesClass(PasswordCipher::class)]
 #[UsesClass(DatabaseConfig::class)]
@@ -82,6 +91,7 @@ final class ContainerTest extends TestCase
         'USER_APPROVAL_REQUIRED',
         'ACCOUNT_EDIT_MAX_ATTEMPTS',
         'ACCOUNT_EDIT_LOCK_TTL',
+        'LOG_LEVEL',
     ];
 
     private const SECRET_KEY = 'container-test-secret-key-0123456789abcdef';
@@ -111,6 +121,7 @@ final class ContainerTest extends TestCase
         putenv('USER_APPROVAL_REQUIRED');
         putenv('ACCOUNT_EDIT_MAX_ATTEMPTS');
         putenv('ACCOUNT_EDIT_LOCK_TTL');
+        putenv('LOG_LEVEL');
     }
 
     protected function tearDown(): void
@@ -306,6 +317,58 @@ final class ContainerTest extends TestCase
         $clock = $this->fixedClock(1_800_000_000);
 
         $this->assertSame($clock, (new Container($this->unusedConnections(), $clock))->wallClock());
+    }
+
+    public function testClockDefaultsToTheSystemClockAndIsMemoized(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $clock = $container->clock();
+
+        $this->assertInstanceOf(SystemClock::class, $clock);
+        $this->assertSame($clock, $container->clock());
+    }
+
+    public function testClockCanBeInjected(): void
+    {
+        $clock = $this->createStub(Clock::class);
+
+        $this->assertSame($clock, (new Container($this->unusedConnections(), clock: $clock))->clock());
+    }
+
+    public function testLoggerIsMemoizedAndOpensNoConnection(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $logger = $container->logger();
+
+        $this->assertSame($logger, $container->logger());
+    }
+
+    public function testLoggerCanBeInjected(): void
+    {
+        $logger = new NullLogger();
+
+        $this->assertSame($logger, (new Container($this->unusedConnections(), logger: $logger))->logger());
+    }
+
+    public function testLoggerDefaultsToThePidgeyChannelAtTheDefaultLevel(): void
+    {
+        $logger = (new Container($this->unusedConnections()))->logger();
+
+        $this->assertInstanceOf(Logger::class, $logger);
+        $this->assertSame('pidgey', $logger->getName());
+        $this->assertSame(Level::Info, $this->handlerLevel($logger));
+    }
+
+    public function testLoggerLevelFollowsTheEnvironment(): void
+    {
+        putenv('LOG_LEVEL=warning');
+
+        $logger = (new Container($this->unusedConnections()))->logger();
+
+        $this->assertInstanceOf(Logger::class, $logger);
+        $this->assertSame(Level::Warning, $this->handlerLevel($logger));
     }
 
     public function testAccessTokenIsMemoizedAndOpensNoConnection(): void
@@ -520,6 +583,15 @@ final class ContainerTest extends TestCase
         $factory->expects($this->never())->method('createServer');
 
         return $factory;
+    }
+
+    private function handlerLevel(Logger $logger): Level
+    {
+        $handlers = $logger->getHandlers();
+        $this->assertCount(1, $handlers);
+        $this->assertInstanceOf(AbstractHandler::class, $handlers[0]);
+
+        return $handlers[0]->getLevel();
     }
 
     private function fixedClock(int $timestamp): WallClock

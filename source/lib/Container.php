@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pidgey;
 
+use InvalidArgumentException;
 use PDO;
 use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccountEdit;
@@ -15,11 +16,14 @@ use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Infra\Clock;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
+use Pidgey\Infra\LoggerFactory;
 use Pidgey\Infra\PdoFactory;
+use Pidgey\Infra\SystemClock;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\Transaction;
 use Pidgey\Infra\UserApproval;
@@ -32,6 +36,7 @@ use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 /**
@@ -83,13 +88,22 @@ final class Container
     /**
      * Creates an empty container; nothing is built yet.
      *
-     * @param ConnectionFactory $connectionFactory Opens the database connection (swappable in tests).
-     * @param WallClock|null    $wallClock         Wall clock (swappable in tests); defaults to the
-     *                                             system clock, built on first use.
+     * New callers pass the arguments after `$wallClock` by name; the order never changes.
+     *
+     * @param ConnectionFactory    $connectionFactory Opens the database connection (swappable in tests).
+     * @param WallClock|null       $wallClock         Wall clock (swappable in tests); defaults to the
+     *                                                system clock, built on first use.
+     * @param Clock|null           $clock             Monotonic clock (swappable in tests); defaults to
+     *                                                the system clock, built on first use.
+     * @param LoggerInterface|null $logger            Application logger (swappable in tests);
+     *                                                defaults to the one built from `LOG_LEVEL`, on
+     *                                                first use.
      */
     public function __construct(
         private readonly ConnectionFactory $connectionFactory = new PdoFactory(),
         private ?WallClock $wallClock = null,
+        private ?Clock $clock = null,
+        private ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -101,6 +115,29 @@ final class Container
     public function wallClock(): WallClock
     {
         return $this->wallClock ??= new SystemWallClock();
+    }
+
+    /**
+     * Returns the request's monotonic clock, for durations, timeouts and pauses.
+     *
+     * @return Clock
+     */
+    public function clock(): Clock
+    {
+        return $this->clock ??= new SystemClock();
+    }
+
+    /**
+     * Returns the application logger, built from `LOG_LEVEL` on the first call, so a request that
+     * never logs never builds one.
+     *
+     * @return LoggerInterface
+     *
+     * @throws InvalidArgumentException When `LOG_LEVEL` is invalid.
+     */
+    public function logger(): LoggerInterface
+    {
+        return $this->logger ??= LoggerFactory::fromEnv();
     }
 
     /**
