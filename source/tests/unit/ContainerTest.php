@@ -25,6 +25,7 @@ use Pidgey\Auth\Sessions;
 use Pidgey\Container;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
@@ -43,6 +44,7 @@ use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
+use Pidgey\Smtp\SessionSettings;
 use Psr\Log\NullLogger;
 use RuntimeException;
 
@@ -74,6 +76,8 @@ use RuntimeException;
 #[UsesClass(AccountEditLockoutRepository::class)]
 #[UsesClass(ApiTokenRepository::class)]
 #[UsesClass(SmtpConnectionRepository::class)]
+#[UsesClass(AppPath::class)]
+#[UsesClass(SessionSettings::class)]
 final class ContainerTest extends TestCase
 {
     private const VARIABLES = [
@@ -92,6 +96,11 @@ final class ContainerTest extends TestCase
         'ACCOUNT_EDIT_MAX_ATTEMPTS',
         'ACCOUNT_EDIT_LOCK_TTL',
         'LOG_LEVEL',
+        'SMTP_CONNECT_TIMEOUT',
+        'SMTP_COMMAND_TIMEOUT',
+        'SMTP_TOTAL_TIMEOUT',
+        'SMTP_CA_FILE',
+        'SMTP_EHLO_NAME',
     ];
 
     private const SECRET_KEY = 'container-test-secret-key-0123456789abcdef';
@@ -122,6 +131,11 @@ final class ContainerTest extends TestCase
         putenv('ACCOUNT_EDIT_MAX_ATTEMPTS');
         putenv('ACCOUNT_EDIT_LOCK_TTL');
         putenv('LOG_LEVEL');
+        putenv('SMTP_CONNECT_TIMEOUT');
+        putenv('SMTP_COMMAND_TIMEOUT');
+        putenv('SMTP_TOTAL_TIMEOUT');
+        putenv('SMTP_CA_FILE');
+        putenv('SMTP_EHLO_NAME');
     }
 
     protected function tearDown(): void
@@ -574,6 +588,62 @@ final class ContainerTest extends TestCase
 
         putenv('USER_APPROVAL_REQUIRED=FALSE');
         $this->assertTrue($container->userApprovalRequired());
+    }
+
+    public function testSmtpSessionSettingsUseTheDefaultsAndOpenNoConnection(): void
+    {
+        $settings = (new Container($this->unusedConnections()))->smtpSessionSettings();
+
+        $this->assertEquals(new SessionSettings(10.0, 10.0, 25.0, null, null), $settings);
+    }
+
+    public function testSmtpSessionSettingsFollowTheEnvironment(): void
+    {
+        putenv('SMTP_CONNECT_TIMEOUT=3');
+        putenv('SMTP_COMMAND_TIMEOUT=4');
+        putenv('SMTP_TOTAL_TIMEOUT=12');
+        putenv('SMTP_CA_FILE=/etc/ssl/custom-ca.pem');
+        putenv('SMTP_EHLO_NAME=mail.example.com');
+
+        $settings = (new Container($this->unusedConnections()))->smtpSessionSettings();
+
+        $this->assertSame(3.0, $settings->connectTimeout);
+        $this->assertSame(4.0, $settings->commandTimeout);
+        $this->assertSame(12.0, $settings->totalTimeout);
+        $this->assertSame('/etc/ssl/custom-ca.pem', $settings->caFile);
+        $this->assertSame('mail.example.com', $settings->ehloName);
+    }
+
+    public function testSmtpSessionSettingsResolveARelativeCaFile(): void
+    {
+        putenv('SMTP_CA_FILE=tests/fixtures/tls/ca.pem');
+
+        $settings = (new Container($this->unusedConnections()))->smtpSessionSettings();
+
+        $this->assertSame(AppPath::root() . '/tests/fixtures/tls/ca.pem', $settings->caFile);
+        $this->assertFileExists((string) $settings->caFile);
+    }
+
+    public function testSmtpSessionSettingsTreatEmptyValuesAsUnset(): void
+    {
+        putenv('SMTP_CA_FILE=');
+        putenv('SMTP_EHLO_NAME=');
+
+        $settings = (new Container($this->unusedConnections()))->smtpSessionSettings();
+
+        $this->assertNull($settings->caFile);
+        $this->assertNull($settings->ehloName);
+    }
+
+    public function testSmtpSessionSettingsAreMemoized(): void
+    {
+        $container = new Container($this->unusedConnections());
+        $settings = $container->smtpSessionSettings();
+
+        putenv('SMTP_TOTAL_TIMEOUT=99');
+
+        $this->assertSame($settings, $container->smtpSessionSettings());
+        $this->assertSame(25.0, $container->smtpSessionSettings()->totalTimeout);
     }
 
     private function unusedConnections(): ConnectionFactory
