@@ -6,7 +6,8 @@ namespace Pidgey\Smtp;
 
 /**
  * Builds the stream context options of the TLS policy: always verify the certificate and the
- * peer name, TLS 1.2 or 1.3 only, no SNI for IP literals.
+ * peer name, TLS 1.2 or 1.3 only, no SNI for IP literals. Self-signed certificates are
+ * refused (the PHP default, never overridden).
  */
 final class TlsContext
 {
@@ -26,7 +27,6 @@ final class TlsContext
         $ssl = [
             'verify_peer' => true,
             'verify_peer_name' => true,
-            'allow_self_signed' => false,
             'peer_name' => $peerName,
             'SNI_enabled' => !$isIpLiteral,
             'crypto_method' => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT,

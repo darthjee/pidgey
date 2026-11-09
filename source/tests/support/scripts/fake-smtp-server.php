@@ -134,9 +134,7 @@ function applyThen($client, array $step): void
 
     if ($then === 'starttls') {
         enableTls($client);
-    } elseif ($then === 'inject') {
-        @fwrite($client, (string) ($step['bytes'] ?? ''));
-    } else {
+    } elseif ($then !== 'inject') {
         abortScenario('unknown then: ' . (string) $then);
     }
 }
@@ -203,7 +201,9 @@ if (($scenario['mode'] ?? 'plain') === 'ssl') {
 foreach ($scenario['steps'] ?? [] as $index => $step) {
     expectLine($client, $step, $index);
     usleep((int) ($step['delayMs'] ?? 0) * 1000);
-    sendReply($client, (string) ($step['reply'] ?? ''), (bool) ($step['drip'] ?? false));
+    // Injected bytes go out in the same write as the reply, so they reach the client with it.
+    $injected = ($step['then'] ?? null) === 'inject' ? (string) ($step['bytes'] ?? '') : '';
+    sendReply($client, (string) ($step['reply'] ?? '') . $injected, (bool) ($step['drip'] ?? false));
     applyThen($client, $step);
 }
 

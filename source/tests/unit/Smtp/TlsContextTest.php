@@ -31,7 +31,6 @@ final class TlsContextTest extends TestCase
 
         $this->assertTrue($ssl['verify_peer']);
         $this->assertTrue($ssl['verify_peer_name']);
-        $this->assertFalse($ssl['allow_self_signed']);
         $this->assertFalse($ssl['capture_peer_cert']);
         $this->assertSame($peerName, $ssl['peer_name']);
         $this->assertSame(
@@ -79,6 +78,26 @@ final class TlsContextTest extends TestCase
     public function testCaFileIsAbsentByDefault(): void
     {
         $this->assertArrayNotHasKey('cafile', TlsContext::options('smtp.example.com', null)['ssl']);
+    }
+
+    public function testNoOtherOptionIsSet(): void
+    {
+        $keys = array_keys(TlsContext::options('smtp.example.com', '/ca.pem')['ssl']);
+        sort($keys);
+
+        $this->assertSame(
+            [
+                'SNI_enabled',
+                'SNI_server_name',
+                'cafile',
+                'capture_peer_cert',
+                'crypto_method',
+                'peer_name',
+                'verify_peer',
+                'verify_peer_name',
+            ],
+            $keys,
+        );
     }
 
     public function testOnlyTheSslWrapperIsConfigured(): void
