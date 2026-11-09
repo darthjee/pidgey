@@ -77,7 +77,7 @@ All settled by #152.
   implicit TLS, `tls` plain then `STARTTLS`, `none` plain), greeting, `EHLO`, `AUTH` when
   credentials exist, `MAIL FROM` / `RCPT TO` / `DATA`, best-effort `QUIT`, and returns the
   reply to the final `.` or a classified failure. It knows nothing about HTTP,
-  organizations, repositories or logging; it depends only on `Pidgey\Infra\Clock`.
+  organizations, repositories or logging; it depends only on the monotonic `Pidgey\Infra\Clock`.
 - **Proposed names** (namespace `Pidgey\Smtp\`): `Pidgey\Smtp\Transport` (interface) and
   `Pidgey\Smtp\SmtpTransport`, `Pidgey\Smtp\SmtpStream` (stream abstraction) with a socket
   implementation `Pidgey\Smtp\SocketStream`, `Pidgey\Smtp\Reply`,
@@ -110,7 +110,7 @@ All settled by #152.
   `Pidgey\Smtp\HostPolicy` (resolve once, denied ranges, IPv4 preferred); and an HTTP exception
   `Pidgey\Http\SmtpFailureException` carrying `error.smtp`. Proposals only.
 - **Collaborators:** the SMTP transport (above), the password encryption service
-  ([encryption.md](encryption.md)), `Pidgey\Infra\Clock` (`Date` header), `Pidgey\Infra\Env`
+  ([encryption.md](encryption.md)), `Pidgey\Infra\WallClock` (`Date` header), `Pidgey\Infra\Env`
   (the [SMTP transport settings](../architecture/configuration.md#smtp-transport)), the
   application logger (monolog, see [endpoints.md](endpoints.md#building-block-operator-log)),
   `Pidgey\Http\HttpException` / `Pidgey\Http\ErrorResponse` / `Pidgey\Http\ErrorFormatter` (the

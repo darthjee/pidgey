@@ -101,7 +101,7 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
    - [x] `Mailpit` (with the smoke test reaching each instance);
    - [ ] `FakeSmtpStream`;
    - [ ] `FakeSmtpServer` and its server script;
-   - [ ] `CapturedLog`;
+   - [x] `CapturedLog`;
    - [ ] the lock-holder script.
 6. **Coverage** — the tests of the [required coverage](../email/testing.md#required-coverage)
    list, delivered by the backend issues that implement each part (encryption, transport,

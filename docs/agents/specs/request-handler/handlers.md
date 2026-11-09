@@ -80,7 +80,7 @@ The hook signatures are owned by [middlewares.md](middlewares.md#pidgeyhttpmiddl
 The "small container/factory class" of [architecture/backend.md](../architecture/backend.md).
 
 - **Namespace:** the root namespace (`Pidgey\Container`), as the composition root. It builds the HTTP, services and infra layers, so it belongs to none of them. Putting it in `Pidgey\Infra\` would invert "dependencies flow downward".
-- **Explicit typed getters**, lazy and memoized, e.g. `pdo(): PDO`, `logger(): LoggerInterface`, `wallClock(): WallClock`. Each service is built on its first call and reused for the rest of the request.
+- **Explicit typed getters**, lazy and memoized, e.g. `pdo(): PDO`, `logger(): LoggerInterface`, `wallClock(): WallClock`, `clock(): Clock`. Each service is built on its first call and reused for the rest of the request.
 - **One `Container` per request**, created by the front controller at boot ([front-controller.md](front-controller.md#bootstrap), see [Lifecycle](#lifecycle)).
 - **Out of scope:** the list of getters. The front controller creates the container, and each service's implementation issue adds its getter.
 

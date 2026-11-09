@@ -47,7 +47,9 @@ Test-only helpers for the email integration (behavior in
 | `Pidgey\Tests\Support\Mailpit` | `support/` | Mailpit HTTP API client: clear (`DELETE /api/v1/messages`), list, read. The only reader of the `TEST_MAILPIT_*` keys. |
 | `Pidgey\Tests\Support\FakeSmtpStream` | `support/` | In-memory, scripted implementation of the transport's stream abstraction, for unit tests. |
 | `Pidgey\Tests\Support\FakeSmtpServer` | `support/` | Starts the fake SMTP server script as a child process, reads its port, kills it in teardown. |
-| `Pidgey\Tests\Support\CapturedLog` | `support/` | A Monolog `TestHandler` injected into the container's logger, for the canary-password assertions. |
+| `Pidgey\Tests\Support\FrozenClock` | `support/` | A monotonic `Clock` whose `sleep()` advances `now()` instead of waiting, for the timeouts and the session deadline. |
+| `Pidgey\Tests\Support\FrozenWallClock` | `support/` | A UTC `WallClock` frozen at a given instant, moved forward with `advance()`, for the test-email limit window. |
+| `Pidgey\Tests\Support\CapturedLog` | `support/` | A logger built through `LoggerFactory::create('debug', TestHandler)` and injected with `new Container(logger: …)`; exposes the records and formatted lines, and `assertNotLogged()` fails if a line holds the secret in plain or base64 form. For the canary-password assertions. |
 | Fake SMTP server script | `fixtures/` | `stream_socket_server` script, run through `proc_open`: serves one session from a JSON scenario. |
 | Lock holder script | `fixtures/` | Child process that holds an organization lock, for the concurrent `activate` test. |
 | TLS material | `fixtures/tls/` | Test CA, leaf certificates and the regeneration script ([TLS fixtures](../email/testing.md#tls-fixtures)). |
