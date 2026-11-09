@@ -78,7 +78,7 @@ Committed, test-only material in `source/tests/fixtures/tls/`:
 | File | Content |
 | --- | --- |
 | `ca.pem` | The test CA certificate |
-| `server.pem` / `server-key.pem` | Leaf signed by the test CA; SAN `mailpit-starttls`, `mailpit-ssl`, `localhost` |
+| `server.pem` / `server-key.pem` | Leaf signed by the test CA; SAN `DNS:mailpit-starttls`, `DNS:mailpit-ssl`, `DNS:localhost`, `IP:127.0.0.1` |
 | `wrong-name.pem` / `wrong-name-key.pem` | Leaf signed by the test CA; SAN `wrong-name.invalid` |
 | `untrusted.pem` / `untrusted-key.pem` | Self-signed leaf; SAN `localhost` |
 | `generate.sh` | Regenerates all of the above with `openssl` |
@@ -86,16 +86,25 @@ Committed, test-only material in `source/tests/fixtures/tls/`:
 - The CA private key is **not committed**: `generate.sh` creates a new CA on each run and
   re-signs every leaf with it, so all files are regenerated together.
 - The two Mailpit TLS instances use `server.pem` / `server-key.pem`.
+- The `IP:127.0.0.1` SAN makes the IP-literal rule of the
+  [TLS policy](smtp-connections.md#tls-policy) (an IP-literal `host` must match an IP SAN,
+  no SNI) testable against the fake SMTP server on `127.0.0.1`.
 
 Rules:
 
 - The certificates have a long validity (100 years).
 - The private keys are test-only and never used outside tests.
-- The test environment sets `SMTP_CA_FILE=tests/fixtures/tls/ca.pem`. Certificate
-  verification is **never disabled**.
+- The test environment sets `SMTP_CA_FILE=tests/fixtures/tls/ca.pem`, relative to the app
+  root `source/` (see
+  [architecture/configuration.md](../architecture/configuration.md#smtp-transport)).
+  Certificate verification is **never disabled** (see [Guard tests](#guard-tests)).
 - The wrong-name and untrusted cases (`SMTP_TLS_FAILED`) run against the fake SMTP server,
   not Mailpit.
 - Expired certificates are **not** tested: date checks are OpenSSL's behavior.
+- A TLS 1.0 / 1.1 refusal is **not** tested against a server (the image's OpenSSL 3 cannot
+  offer them at the default security level). The TLS 1.2+ minimum and the "no SNI for an IP
+  literal" rule are unit-tested on the pure builder of the TLS context options
+  (`Pidgey\Smtp\TlsContext`), without a socket.
 
 ## Fake SMTP server
 
@@ -104,29 +113,74 @@ Two fakes cover what Mailpit cannot produce. Both are test-only support classes 
 
 ### `Pidgey\Tests\Support\FakeSmtpStream`
 
-- In memory; implements the transport's stream abstraction (open, local address, write a
-  line, read a line, upgrade to TLS, close).
-- Scripted as an ordered list of expected client lines and server replies. A client line
-  that does not match the script fails the test.
+- In memory; implements the stream abstraction `Pidgey\Smtp\SmtpStream` (open, local
+  address, write a line, read a line, upgrade to TLS, close).
+- Scripted as an ordered list of steps: an expected open, an expected client line (exact,
+  or by prefix, e.g. `AUTH PLAIN `), a server reply (raw bytes, optionally after a delay),
+  an expected TLS upgrade, and an injected failure. A client line or operation that does
+  not match the script fails the test; at the end the test asserts that the script was
+  fully consumed.
 - Can inject the stream-level failures: timeout, connection closed by the peer, TLS
-  failure, and bytes pending after `STARTTLS`.
-- Used by the transport unit tests for the reply-by-reply mapping, with a **frozen clock**
-  (`Pidgey\Tests\Support\FrozenClock`) for the timeouts and the session deadline.
+  failure, connect failure, and bytes pending after `STARTTLS` (unexpected data).
+- **Time model:** it shares a **frozen clock** (`Pidgey\Tests\Support\FrozenClock`) with
+  the code under test. A delay on a reply or a failure advances that clock; a delay longer
+  than the time the read was given advances the clock by exactly that time and fails with
+  a timeout. The per-reply budget, slowloris and the session deadline are therefore
+  deterministic in unit tests.
+- Used by the transport unit tests for the reply-by-reply mapping.
 
 ### `Pidgey\Tests\Support\FakeSmtpServer`
 
-- A PHP `stream_socket_server` script started as a **child process** (`proc_open`). It
-  listens on `127.0.0.1` with an ephemeral port, which it prints on stdout.
-- Reads a JSON scenario and serves **one session**: plain, STARTTLS or implicit TLS, with the
-  [TLS fixtures](#tls-fixtures).
+- A PHP `stream_socket_server` script, `source/tests/support/scripts/fake-smtp-server.php`,
+  started as a **child process** (`proc_open`, with `PHP_BINARY`). It listens on
+  `127.0.0.1` with an ephemeral port and prints `PORT=<n>` on stdout once listening; the
+  test waits at most 5 s for that line.
+- Reads a JSON scenario and serves **one session**:
+  - `mode`: `plain`, `starttls` or `ssl` (implicit TLS);
+  - `cert`: `server`, `wrong-name` or `untrusted` (the [TLS fixtures](#tls-fixtures));
+  - `steps[]`, each with:
+    - `expect` (an exact client line) or `expectPrefix` (e.g. `AUTH PLAIN `);
+    - `reply`: raw bytes, so malformed replies and bare LF are possible;
+    - `delayMs`: a wait before replying;
+    - `drip`: send the reply one byte at a time (slowloris);
+    - `then`: `close`, `hang` (accept and never answer), `starttls` (run the handshake) or
+      `inject` (send its `bytes` right after the `220`, before the handshake).
+- A client line that does not match the step's `expect` is reported on stderr and the
+  script exits non-zero. Teardown stops the process (`proc_terminate` + `proc_close`) and
+  **asserts its exit status and an empty stderr**, so a client mistake fails the test
+  instead of turning into a misleading timeout. A shutdown function stops it as well, so a
+  fatal error in the test leaves no orphan process.
 - Covers, in integration tests:
-  - a server that accepts and never answers (timeouts);
+  - a server that accepts and never answers (timeouts), and a slow drip (slowloris);
   - `tls` without `STARTTLS` advertised;
   - no supported `AUTH` mechanism;
   - multi-line, malformed and `4xx` replies;
-  - wrong-name and untrusted certificates (`SMTP_TLS_FAILED`).
-- The test process kills it in teardown.
+  - a close with no reply;
+  - bytes pending after the `STARTTLS` `220`;
+  - wrong-name and untrusted certificates (`SMTP_TLS_FAILED`), and the IP SAN for an
+    IP-literal peer name.
 - Timeout tests set short SMTP timeouts **per test**, never globally.
+
+### Real-wait timeouts
+
+- The stream and session-deadline APIs take timeouts in seconds as floats, so socket tests
+  pass sub-second timeouts (0.2–0.5 s) directly, without `Env`.
+- Elapsed time is measured with `hrtime` and asserted with loose bounds (at least the
+  timeout, less than the timeout plus 1 s), so a slow CI does not flake. These tests are
+  few (about ten, a few seconds in total).
+
+## Guard tests
+
+- **No disabled verification:** a test scans `source/lib` and `source/tests` and fails on
+  `'verify_peer' => false`, `'verify_peer_name' => false` or `allow_self_signed`.
+- **`SecretString`** (see [send-flow.md](send-flow.md#secret-hygiene)): a `(string)` cast
+  throws; `serialize` and `clone` throw; `print_r` and `var_dump` show `[redacted]`;
+  `json_encode` gives `{}`; a Monolog context logs the class name only (captured through
+  `Pidgey\Tests\Support\CapturedLog`); `reveal()` throws after `wipe()`. `var_export`
+  exposing private properties is a documented, accepted gap (never used by the app).
+- **Boot hardening:** `Runtime::harden()` is unit-tested per `PHP_ENV` (unset, production,
+  development, test), and a test scans `public/index.php` and `bin/*` and fails when an
+  entry point does not call it.
 
 ## Failure paths
 
