@@ -15,6 +15,7 @@ use Pidgey\Smtp\ReplyParser;
 use Pidgey\Smtp\SmtpStream;
 use Pidgey\Smtp\StreamFailure;
 use Pidgey\Smtp\StreamFailureKind;
+use Pidgey\Tests\Support\FakeSmtpStream;
 use Pidgey\Tests\Support\FrozenClock;
 
 #[CoversClass(ReplyParser::class)]
@@ -23,8 +24,17 @@ use Pidgey\Tests\Support\FrozenClock;
 #[UsesClass(Reply::class)]
 #[UsesClass(StreamFailure::class)]
 #[UsesClass(StreamFailureKind::class)]
+#[UsesClass(FakeSmtpStream::class)]
+#[UsesClass(FrozenClock::class)]
 final class ReplyParserTest extends TestCase
 {
+    private FrozenClock $clock;
+
+    protected function setUp(): void
+    {
+        $this->clock = new FrozenClock();
+    }
+
     /**
      * @return array<string, array{list<string>, integer, list<string>}>
      */
@@ -167,6 +177,21 @@ final class ReplyParserTest extends TestCase
         }
     }
 
+    public function testTheBudgetBoundsTheWholeReplyNotEachLine(): void
+    {
+        $stream = (new FakeSmtpStream($this->clock))
+            ->reply("250-first\r\n", 6.0)
+            ->reply("250 last\r\n", 6.0);
+
+        try {
+            (new ReplyParser())->read($stream, $this->budget());
+            $this->fail('expected a timeout');
+        } catch (StreamFailure $failure) {
+            $this->assertSame(StreamFailureKind::Timeout, $failure->kind());
+            $this->assertSame(10.0, $this->clock->now());
+        }
+    }
+
     public function testEveryLineGetsTheSameReplyBudget(): void
     {
         $budget = $this->budget();
@@ -193,26 +218,21 @@ final class ReplyParserTest extends TestCase
      */
     private function stream(array $lines): SmtpStream
     {
-        $stream = $this->createStub(SmtpStream::class);
-        $stream->method('readLine')->willReturnCallback(static function () use (&$lines): string {
-            $next = array_shift($lines);
+        $stream = new FakeSmtpStream($this->clock);
 
-            if ($next === null) {
-                throw new StreamFailure(StreamFailureKind::Closed);
+        foreach ($lines as $line) {
+            if ($line instanceof StreamFailureKind) {
+                $stream->fail($line);
+            } else {
+                $stream->reply($line);
             }
-
-            if ($next instanceof StreamFailureKind) {
-                throw new StreamFailure($next);
-            }
-
-            return $next;
-        });
+        }
 
         return $stream;
     }
 
     private function budget(): Deadline
     {
-        return Deadline::start(new FrozenClock(), 10.0);
+        return Deadline::start($this->clock, 10.0);
     }
 }
