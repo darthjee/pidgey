@@ -77,14 +77,20 @@ All settled by #152.
   implicit TLS, `tls` plain then `STARTTLS`, `none` plain), greeting, `EHLO`, `AUTH` when
   credentials exist, `MAIL FROM` / `RCPT TO` / `DATA`, best-effort `QUIT`, and returns the
   reply to the final `.` or a classified failure. It knows nothing about HTTP,
-  organizations, repositories or logging; it depends only on the monotonic `Pidgey\Infra\Clock`.
+  organizations, repositories or logging; it depends only on `Pidgey\Infra\` (the monotonic
+  `Clock` and `SecretString`).
 - **Proposed names** (namespace `Pidgey\Smtp\`): `Pidgey\Smtp\Transport` (interface) and
   `Pidgey\Smtp\SmtpTransport`, `Pidgey\Smtp\SmtpStream` (stream abstraction) with a socket
   implementation `Pidgey\Smtp\SocketStream`, `Pidgey\Smtp\Reply`,
   `Pidgey\Smtp\ReplyParser`, `Pidgey\Smtp\Deadline`, `Pidgey\Smtp\SmtpFailure`,
-  `Pidgey\Smtp\FailureCode`. Proposals only.
-- **Collaborators:** `Pidgey\Infra\Clock` (session deadline). The settings (host, port,
-  encryption, timeouts, CA file, `EHLO` name) and the credentials are passed in by the send
+  `Pidgey\Smtp\FailureCode`. Proposals only, except the names delivered by #163:
+  `Pidgey\Smtp\SmtpStream`, `SocketStream`, `Reply`, `ReplyParser`, `Deadline`,
+  `EhloExtensions`, `SessionSettings`, `TlsContext`, `StreamFailure` (with
+  `StreamFailureKind`), `MalformedReply`, and `Pidgey\Infra\SecretString`.
+- **Collaborators:** `Pidgey\Infra\Clock` (session deadline), `Pidgey\Infra\SecretString`
+  (the password). The connection settings (host, checked IP, port, encryption), the session
+  settings (`Pidgey\Smtp\SessionSettings`: timeouts, CA file, `EHLO` name, built by
+  `Pidgey\Container::smtpSessionSettings()`) and the credentials are passed in by the send
   flow; the transport does not read `Env` or the repository.
 - **Governing specs:** [email/send-flow.md](../email/send-flow.md#smtp-session) (session,
   replies, timeouts, secret hygiene);
@@ -106,7 +112,9 @@ All settled by #152.
   load the connection (the caller does).
 - **Proposed names** (namespace `Pidgey\Email\`): `Pidgey\Email\SendFlow` (or
   `Pidgey\Email\Mailer`), `Pidgey\Email\Message`, `Pidgey\Email\MimeBuilder`,
-  `Pidgey\Email\SendOutcome`, `Pidgey\Email\SecretString`; the host check
+  `Pidgey\Email\SendOutcome`; the password value object is `Pidgey\Infra\SecretString`
+  (delivered by #163; `PasswordCipher::decrypt()` keeps returning a `string`, which the send
+  flow wraps into a `SecretString` immediately); the host check
   `Pidgey\Smtp\HostPolicy` (resolve once, denied ranges, IPv4 preferred); and an HTTP exception
   `Pidgey\Http\SmtpFailureException` carrying `error.smtp`. Proposals only.
 - **Collaborators:** the SMTP transport (above), the password encryption service
@@ -126,14 +134,15 @@ All settled by #152.
 
 Names are **proposals** (see the lifecycle rules in [implement-email.md](../implement-email.md)).
 
-1. **Reply parser** — `Pidgey\Smtp\ReplyParser` / `Pidgey\Smtp\Reply`: multi-line parsing,
-   limits, malformed replies, the `EHLO` extension list, the joined reply text
-   ([Replies](../email/send-flow.md#replies)).
-2. **Stream** — `Pidgey\Smtp\SmtpStream` and `Pidgey\Smtp\SocketStream`: connect, implicit
-   TLS, in-place `STARTTLS` upgrade with TLS 1.2+ and the verification policy (peer name,
-   SNI rules, `SMTP_CA_FILE`), the local address, per-operation timeouts
+1. [x] **Reply parser** — `Pidgey\Smtp\ReplyParser` / `Pidgey\Smtp\Reply` /
+   `Pidgey\Smtp\EhloExtensions`: multi-line parsing, limits, malformed replies, the `EHLO`
+   extension list, the joined reply text ([Replies](../email/send-flow.md#replies)).
+2. [x] **Stream** — `Pidgey\Smtp\SmtpStream`, `Pidgey\Smtp\SocketStream` and
+   `Pidgey\Smtp\TlsContext`: connect, implicit TLS, in-place `STARTTLS` upgrade with
+   TLS 1.2+ and the verification policy (peer name, SNI rules, `SMTP_CA_FILE`), the local
+   address, per-operation timeouts, the pending-bytes check
    ([TLS policy](../email/smtp-connections.md#tls-policy)).
-3. **Session deadline** — `Pidgey\Smtp\Deadline` on `Pidgey\Infra\Clock`: every wait is
+3. [x] **Session deadline** — `Pidgey\Smtp\Deadline` on `Pidgey\Infra\Clock`: every wait is
    `min(its own timeout, time remaining)` ([Timeouts](../email/send-flow.md#timeouts)).
 4. **Transport** — `Pidgey\Smtp\SmtpTransport`: the step sequence, the no-downgrade and
    injection guard, `AUTH` `PLAIN` / `LOGIN`, dot-stuffing, best-effort `QUIT`, failure
@@ -142,8 +151,10 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
 5. **MIME builder** — `Pidgey\Email\MimeBuilder`: headers, RFC 2047 subject,
    quoted-printable bodies, `multipart/alternative`
    ([Message format](../email/message-scope.md#message-format)).
-6. **Secret value object** — `Pidgey\Email\SecretString`, `#[SensitiveParameter]` on every
-   secret-carrying parameter, `sodium_memzero()` after the session
+6. [x] **Secret value object** — `Pidgey\Infra\SecretString` (`reveal()`, `wipe()` with
+   `sodium_memzero()`, neither `__toString` nor `JsonSerializable`) and
+   `#[SensitiveParameter]` on the stream's line write; the send flow (#165) marks its own
+   secret-carrying parameters and wipes the password after the session
    ([Secret hygiene](../email/send-flow.md#secret-hygiene)).
 7. **Send flow** — `Pidgey\Email\SendFlow`: send-time checks (including the host check
    through `Pidgey\Smtp\HostPolicy`, [Host check](../email/send-flow.md#host-check)), echo redaction,
@@ -158,8 +169,10 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
    ([Field rules](../api/endpoints/pidgey-admin/smtp-connections.md#field-rules)); the
    `subject` control-character rule for `POST /v1/messages` later
    ([Validation](../email/message-scope.md#validation)).
-10. **Configuration** — `ConfigValidator` / `bin/check-config`: the five SMTP transport keys,
-    their rules and failure names; `zend.exception_ignore_args` at web and CLI boot
+10. [x] **Configuration** — `ConfigValidator` / `bin/check-config`: the five SMTP transport
+    keys, their rules and failure names; `Pidgey\Smtp\SessionSettings` through
+    `Container::smtpSessionSettings()`; `zend.exception_ignore_args` at web and CLI boot
+    through `Pidgey\Infra\Runtime::harden()`
     ([SMTP transport](../architecture/configuration.md#smtp-transport)).
 11. **Tests** — reply-by-reply unit tests against a fake stream, integration tests against
     Mailpit and the test CA, and the canary-password leak test (see
@@ -189,14 +202,24 @@ without a socket (unit tests) and a socket fixture or Mailpit plugs in for integ
 - **open** a target (the checked IP, port, the peer name `host`, implicit TLS or not, CA file) within a given timeout (the
   connect timeout, capped by the deadline);
 - **local address** of the open socket (for the `EHLO` address literal);
-- **write** a line (CRLF added), **read** a line (up to 2048 bytes), each within a given
-  timeout; the write of an `AUTH` line takes a `#[SensitiveParameter]`;
+- **write** a line (CRLF added, looping until every byte is written), **read** a line (up
+  to 2048 bytes of content plus CRLF), each within a given deadline; the line write takes a
+  `#[SensitiveParameter]`;
 - **upgrade** to TLS in place (for `STARTTLS`), with the verification policy, within a given
-  timeout; reports whether unread bytes were pending (the injection guard);
-- **close**;
-- each operation either succeeds or reports a stream-level failure: connect failure (before
-  TCP is established, including a connect timeout), TLS failure (with the OpenSSL reason,
-  for the log only), timeout, or connection closed by the peer.
+  deadline; fails with "unexpected data" when bytes are pending before the handshake (the
+  injection guard);
+- **close** (idempotent);
+- each operation either succeeds or reports a stream-level failure (`StreamFailure`, kind
+  `StreamFailureKind`): connect failure (before TCP is established, including a connect
+  timeout), TLS failure (with the OpenSSL reason, for the log only), timeout, connection
+  closed by the peer before any byte, or unexpected data; its message is fixed text, never
+  sent or received bytes;
+- **per-reply budget:** the caller computes one deadline per reply,
+  `min(command timeout, session time remaining)`, and passes it to every line read of that
+  reply (see [Timeouts](../email/send-flow.md#timeouts)).
+
+Delivered by #163 as `Pidgey\Smtp\SmtpStream` / `Pidgey\Smtp\SocketStream`, with the
+`Pidgey\Tests\Support\FakeSmtpStream` fake ([email/testing.md](../email/testing.md#fake-smtp-server)).
 
 ### Result
 
