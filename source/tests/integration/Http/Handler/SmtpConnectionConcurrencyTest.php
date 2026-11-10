@@ -6,26 +6,17 @@ namespace Pidgey\Tests\Integration\Http\Handler;
 
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
-use Pidgey\Container;
-use Pidgey\Http\ErrorFormatter;
-use Pidgey\Http\FrontController;
 use Pidgey\Http\Handler\SmtpConnectionActivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionDeactivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionHandler;
 use Pidgey\Http\Handler\SmtpConnectionStateHandler;
-use Pidgey\Http\Request;
-use Pidgey\Http\Response;
-use Pidgey\Http\Router;
 use Pidgey\Http\SmtpConnectionRules;
-use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\PdoFactory;
-use Pidgey\Model\User;
 use Pidgey\Repository\OrganizationRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
-use Pidgey\Tests\Support\CapturedLog;
 use Pidgey\Tests\Support\LockHookPdo;
-use Pidgey\Tests\Support\SessionEndpointTestCase;
+use Pidgey\Tests\Support\SmtpConnectionEndpointTestCase;
 
 /**
  * Concurrent activations, deactivations and updates of SMTP connections, against the real
@@ -41,7 +32,7 @@ use Pidgey\Tests\Support\SessionEndpointTestCase;
 #[CoversClass(SmtpConnectionStateHandler::class)]
 #[CoversClass(OrganizationRepository::class)]
 #[CoversClass(SmtpConnectionRepository::class)]
-final class SmtpConnectionConcurrencyTest extends SessionEndpointTestCase
+final class SmtpConnectionConcurrencyTest extends SmtpConnectionEndpointTestCase
 {
     private const LOCK_HOLDER = __DIR__ . '/../../../fixtures/scripts/organization-lock-holder.php';
 
@@ -52,29 +43,11 @@ final class SmtpConnectionConcurrencyTest extends SessionEndpointTestCase
 
     private const LOCKED_TIMEOUT_SECONDS = 10;
 
-    private const ENCRYPTION_KEY = 'smtp-connection-concurrency-test-key-0123456789abcdef';
-
-    private Router $router;
-
-    private CapturedLog $log;
-
-    private string|false $savedEncryptionKey = false;
-
     /** @var resource|null */
     private $child = null;
 
     /** @var array<int, resource> */
     private array $childPipes = [];
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->savedEncryptionKey = getenv('SMTP_ENCRYPTION_KEY');
-        putenv('SMTP_ENCRYPTION_KEY=' . self::ENCRYPTION_KEY);
-        $this->router = require __DIR__ . '/../../../../config/routes.php';
-        $this->log = new CapturedLog();
-    }
 
     protected function tearDown(): void
     {
@@ -87,7 +60,6 @@ final class SmtpConnectionConcurrencyTest extends SessionEndpointTestCase
                 $this->assertSame('', $stdout, 'organization-lock-holder: unexpected output');
             }
         } finally {
-            $this->restoreEncryptionKey();
             parent::tearDown();
         }
     }
@@ -105,7 +77,7 @@ final class SmtpConnectionConcurrencyTest extends SessionEndpointTestCase
         $waited = microtime(true) - $started;
 
         $this->assertSame(200, $response->status(), $response->body());
-        $this->assertTrue(self::json($response)['smtpConnection']['active']);
+        $this->assertTrue(self::item($response)['active']);
         $this->assertGreaterThanOrEqual(self::MIN_WAIT_SECONDS, $waited);
         $this->assertSame([$second], $this->activeIds($organizationId));
     }
@@ -123,7 +95,7 @@ final class SmtpConnectionConcurrencyTest extends SessionEndpointTestCase
         $waited = microtime(true) - $started;
 
         $this->assertSame(200, $response->status(), $response->body());
-        $this->assertFalse(self::json($response)['smtpConnection']['active']);
+        $this->assertFalse(self::item($response)['active']);
         $this->assertGreaterThanOrEqual(self::MIN_WAIT_SECONDS, $waited);
         $this->assertSame([], $this->activeIds($organizationId));
     }
@@ -146,12 +118,13 @@ final class SmtpConnectionConcurrencyTest extends SessionEndpointTestCase
             'PATCH',
             "/smtp-connections/{$updated}.json",
             ['name' => 'renamed during an activation'],
-            $hooked,
+            [],
+            static fn (): PDO => $hooked,
         );
 
         $this->assertSame(200, $response->status(), $response->body());
-        $this->assertSame('renamed during an activation', self::json($response)['smtpConnection']['name']);
-        $this->assertFalse(self::json($response)['smtpConnection']['active']);
+        $this->assertSame('renamed during an activation', self::item($response)['name']);
+        $this->assertFalse(self::item($response)['active']);
         $this->assertSame([$other], $this->activeIds($organizationId));
     }
 
@@ -166,11 +139,18 @@ final class SmtpConnectionConcurrencyTest extends SessionEndpointTestCase
             $this->assertSame(200, $activation->status(), $activation->body());
         });
 
-        $response = $this->send($user, 'PATCH', "/smtp-connections/{$updated}.json", ['port' => 2525], $hooked);
+        $response = $this->send(
+            $user,
+            'PATCH',
+            "/smtp-connections/{$updated}.json",
+            ['port' => 2525],
+            [],
+            static fn (): PDO => $hooked,
+        );
 
         $this->assertSame(200, $response->status(), $response->body());
-        $this->assertTrue(self::json($response)['smtpConnection']['active']);
-        $this->assertSame(2525, self::json($response)['smtpConnection']['port']);
+        $this->assertTrue(self::item($response)['active']);
+        $this->assertSame(2525, self::item($response)['port']);
         $this->assertSame([$updated], $this->activeIds($organizationId));
     }
 
@@ -186,51 +166,28 @@ final class SmtpConnectionConcurrencyTest extends SessionEndpointTestCase
             // ...when the earlier one adds them and commits.
             $first = $this->send($user, 'PATCH', "/smtp-connections/{$id}.json", [
                 'username' => 'mailer',
-                'password' => self::randomPassword('smtp-'),
+                'password' => self::$canary,
             ]);
             $this->assertSame(200, $first->status(), $first->body());
         });
 
-        $response = $this->send($user, 'PATCH', "/smtp-connections/{$id}.json", ['encryption' => 'none'], $hooked);
+        $response = $this->send(
+            $user,
+            'PATCH',
+            "/smtp-connections/{$id}.json",
+            ['encryption' => 'none'],
+            [],
+            static fn (): PDO => $hooked,
+        );
 
-        $this->assertSame(400, $response->status(), $response->body());
-        $this->assertContains(SmtpConnectionRules::ENCRYPTION_REQUIRED, self::json($response)['error']['details']);
+        $this->assertValidationFailed(
+            $response,
+            [SmtpConnectionRules::ENCRYPTION_REQUIRED, SmtpConnectionRules::PASSWORD_REQUIRED],
+        );
         $row = $this->row('smtp_connections', 'id', $id);
         $this->assertSame('tls', $row['encryption']);
         $this->assertSame('mailer', $row['username']);
         $this->assertNotNull($row['password']);
-    }
-
-    /**
-     * Sends a gated JSON request as the user, through a front controller with a fresh container
-     * (over the given PDO, or a new connection) and a captured log.
-     *
-     * @param array<string, mixed> $body
-     */
-    private function send(User $user, string $method, string $path, array $body = [], ?PDO $pdo = null): Response
-    {
-        $connections = $pdo === null ? new PdoFactory() : $this->createStub(ConnectionFactory::class);
-
-        if ($pdo !== null) {
-            $connections->method('create')->willReturn($pdo);
-        }
-
-        $logger = $this->log->logger();
-        $controller = new FrontController(
-            $this->router,
-            new ErrorFormatter(logger: function (string $line): void {
-                $this->logged[] = $line;
-            }),
-            static fn (): Container => new Container($connections, logger: $logger),
-        );
-
-        return $controller->handle(new Request([
-            'method' => $method,
-            'uri' => $path,
-            'headers' => ['Content-Type' => 'application/json'],
-            'cookies' => $this->accessCookie($user),
-            'body' => json_encode($body === [] ? (object) [] : $body, JSON_THROW_ON_ERROR),
-        ]));
     }
 
     private function lockHookPdo(): LockHookPdo
@@ -281,29 +238,5 @@ final class SmtpConnectionConcurrencyTest extends SessionEndpointTestCase
         $this->childPipes = [];
 
         return [$exitCode, $stdout, $stderr];
-    }
-
-    /**
-     * Returns the ids of the organization's active connections.
-     *
-     * @return list<int>
-     */
-    private function activeIds(int $organizationId): array
-    {
-        $statement = $this->pdo->prepare(
-            'SELECT id FROM smtp_connections WHERE organization_id = :organization_id AND active = TRUE ORDER BY id',
-        );
-        $statement->execute(['organization_id' => $organizationId]);
-
-        return array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN));
-    }
-
-    private function restoreEncryptionKey(): void
-    {
-        putenv(
-            $this->savedEncryptionKey === false
-                ? 'SMTP_ENCRYPTION_KEY'
-                : 'SMTP_ENCRYPTION_KEY=' . $this->savedEncryptionKey,
-        );
     }
 }
