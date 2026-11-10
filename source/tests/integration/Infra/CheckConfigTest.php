@@ -141,6 +141,19 @@ final class CheckConfigTest extends TestCase
             ],
             'missing db host' => ["DB_HOST=\n", 'DB_HOST: missing'],
             'invalid log level' => ["LOG_LEVEL=distinctive-log-level\n", 'LOG_LEVEL: invalid level'],
+            'smtp timeout' => [
+                "SMTP_CONNECT_TIMEOUT=distinctive-timeout\n",
+                'SMTP_CONNECT_TIMEOUT: not a positive integer',
+            ],
+            'smtp timeout above total' => [
+                "SMTP_COMMAND_TIMEOUT=99999\n",
+                'SMTP_COMMAND_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT',
+            ],
+            'unreadable smtp ca file' => [
+                "SMTP_CA_FILE=/distinctive/missing/ca.pem\n",
+                'SMTP_CA_FILE: not readable',
+            ],
+            'invalid smtp ehlo name' => ["SMTP_EHLO_NAME=distinctive_ehlo_name\n", 'SMTP_EHLO_NAME: invalid hostname'],
             'development secret key' => [
                 "SECRET_KEY=pidgey-development-only-insecure-secret-key-0000\n",
                 'SECRET_KEY: development key',
@@ -169,6 +182,10 @@ final class CheckConfigTest extends TestCase
         $this->assertStringNotContainsString('short-previous-value', $result['stderr']);
         $this->assertStringNotContainsString('pidgey-development-only', $result['stderr']);
         $this->assertStringNotContainsString('distinctive-log-level', $result['stderr']);
+        $this->assertStringNotContainsString('distinctive-timeout', $result['stderr']);
+        $this->assertStringNotContainsString('99999', $result['stderr']);
+        $this->assertStringNotContainsString('/distinctive/missing', $result['stderr']);
+        $this->assertStringNotContainsString('distinctive_ehlo_name', $result['stderr']);
     }
 
     /**

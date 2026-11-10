@@ -13,12 +13,14 @@ use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\Env;
 use Pidgey\Infra\EnvFile;
 use Pidgey\Infra\EnvFileUnreadable;
+use Pidgey\Infra\Runtime;
 
 #[CoversClass(CheckConfigCommand::class)]
 #[UsesClass(ConfigValidator::class)]
 #[UsesClass(Env::class)]
 #[UsesClass(EnvFile::class)]
 #[UsesClass(EnvFileUnreadable::class)]
+#[UsesClass(Runtime::class)]
 final class CheckConfigCommandTest extends TestCase
 {
     private const MISSING_FILE = __DIR__ . '/../../../fixtures/env/does-not-exist.env';

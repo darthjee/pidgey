@@ -15,12 +15,12 @@ API uses the same envelope as every other endpoint.
 | `SMTP_INSECURE_CREDENTIALS` | The connection has credentials but `encryption: none`; checked before the password is decrypted, the server is never contacted. | 409 |
 | `SMTP_HOST_NOT_ALLOWED` | The connection's `host` resolves to (or is) an address in a denied range while `SMTP_ALLOW_PRIVATE_HOSTS` is `false` (see [send-flow.md](send-flow.md#host-check)); the server is never contacted. | 409 |
 | `SMTP_PASSWORD_UNREADABLE` | The stored SMTP password could not be decrypted (wrong or removed key, corrupt bytes, associated-data mismatch); the server is never contacted. | 409 |
-| `SMTP_CONNECTION_FAILED` | DNS / TCP connect failure, or a timeout before TCP is established. | 502 |
+| `SMTP_CONNECTION_FAILED` | DNS / TCP connect failure, a timeout before TCP is established, or the peer closing the connection without sending any greeting. | 502 |
 | `SMTP_TLS_FAILED` | `tls` without `STARTTLS` in the `EHLO` reply, `STARTTLS` not answered `220`, bytes received between `220` and the handshake, or any handshake, certificate verification or protocol-version failure (`ssl` and `tls`). | 502 |
 | `SMTP_AUTH_FAILED` | The server rejected the credentials, offers no supported mechanism while credentials are set, or answered `530` to `MAIL FROM` without credentials. | 502 |
 | `SMTP_REJECTED` | The server rejected the connection (greeting `554`, `EHLO`), the sender, a recipient or the message (5xx reply). | 502 |
 | `SMTP_TEMPORARY_FAILURE` | The server returned a 4xx reply (greeting `421` included). | 503 |
-| `SMTP_PROTOCOL_ERROR` | The server sent a malformed reply (see [send-flow.md](send-flow.md#replies)). | 502 |
+| `SMTP_PROTOCOL_ERROR` | The server sent a malformed reply, or closed the connection with no reply after the greeting (see [send-flow.md](send-flow.md#replies)). | 502 |
 | `SMTP_TIMEOUT` | Any timeout after TCP is established (handshake, greeting, any reply, the session deadline). | 504 |
 | `INTERNAL_ERROR` | Unexpected error (real error logged, never sent). | 500 |
 
@@ -94,6 +94,10 @@ ports never get a hint, and no create / update validation rejects these pairs (s
   established is `SMTP_CONNECTION_FAILED`; any timeout after it (the `ssl` or `STARTTLS`
   handshake, the greeting, any reply, the session deadline) is `SMTP_TIMEOUT`. An
   `SMTP_TIMEOUT` after the final `.` does not prove the message was not delivered.
+- **Close with no reply:** the peer closing the connection before sending any byte of the
+  expected reply (not mid-reply, which is malformed, see
+  [send-flow.md](send-flow.md#replies)): at the greeting → `SMTP_CONNECTION_FAILED`; at any
+  later step → `SMTP_PROTOCOL_ERROR`; during `QUIT` → ignored.
 - **TLS:** the OpenSSL reason (e.g. `certificate verify failed`) goes to the log line only,
   never the response.
 - **`QUIT`** is best-effort: its reply or failure never turns a sent message into a

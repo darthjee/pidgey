@@ -95,8 +95,16 @@ Used by the SMTP session of [email/send-flow.md](../email/send-flow.md) (test em
   refuses boot.
   `SMTP_CONNECT_TIMEOUT` and `SMTP_COMMAND_TIMEOUT` must each be `<= SMTP_TOTAL_TIMEOUT`;
   otherwise boot is refused.
+- **Timeout precedence:** a timeout that is not a positive integer reports only
+  `<NAME>: not a positive integer` and is skipped by the `exceeds SMTP_TOTAL_TIMEOUT`
+  check; an invalid `SMTP_TOTAL_TIMEOUT` skips both `exceeds` checks. The comparison uses
+  the **effective** values (defaults applied): `SMTP_TOTAL_TIMEOUT=5` with
+  `SMTP_CONNECT_TIMEOUT` unset fails with `SMTP_CONNECT_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT`.
 - `SMTP_CA_FILE`, when set, must name an existing, readable file; otherwise boot is
-  refused. Its contents are not parsed at boot.
+  refused. Its contents are not parsed at boot. A **relative** path is resolved against the
+  app root (`source/`), never the working directory (which differs between web and CLI),
+  by both the validation and the transport; an absolute path is used as is. So the test
+  value `tests/fixtures/tls/ca.pem` is `source/tests/fixtures/tls/ca.pem`.
 - `SMTP_EHLO_NAME`, when set, must be an ASCII LDH hostname (letters, digits, hyphen; labels
   of 1–63 characters with no leading or trailing hyphen, at most 253 characters in total);
   otherwise boot is refused.
@@ -104,12 +112,21 @@ Used by the SMTP session of [email/send-flow.md](../email/send-flow.md) (test em
   `SMTP_CONNECT_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT`,
   `SMTP_COMMAND_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT`, `SMTP_CA_FILE: not readable`,
   `SMTP_EHLO_NAME: invalid hostname`.
+- **Session settings:** the SMTP layer never reads `Env`. `Pidgey\Container::smtpSessionSettings()`
+  builds a `Pidgey\Smtp\SessionSettings` once (memoized) from these keys: the connect,
+  command and total timeouts (in seconds, defaults applied from the `ConfigValidator`
+  constants `DEFAULT_SMTP_CONNECT_TIMEOUT`, `DEFAULT_SMTP_COMMAND_TIMEOUT`,
+  `DEFAULT_SMTP_TOTAL_TIMEOUT`), the CA file (absolute, or none when empty) and the `EHLO`
+  name (or none when empty). The transport and the send flow receive it built.
 - **Stack-trace arguments:** outside `development` / `test` (same `PHP_ENV` rule as the
-  [development key](#development-key)), the web and CLI boot set
-  `ini_set('zend.exception_ignore_args', '1')` (the setting is `INI_ALL`), so no stack trace
-  carries arguments (and no secret, see
+  [development key](#development-key); an unset `PHP_ENV` counts as production),
+  `Pidgey\Infra\Runtime::harden()` runs `ini_set('zend.exception_ignore_args', '1')` (the
+  setting is `INI_ALL`), so no stack trace carries arguments (and no secret, see
   [send-flow.md](../email/send-flow.md#secret-hygiene)) regardless of the host's `php.ini`.
-  This is not a setting and `bin/check-config` does not check it.
+  There is no shared boot: `public/index.php` and every `bin/*` entry point call it right
+  after loading the env file (a command that loads the env file itself, such as
+  `bin/check-config`, calls it right after that load). A test fails when an entry point
+  does not call it. This is not a setting and `bin/check-config` does not check it.
 
 ### Logging
 

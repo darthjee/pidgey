@@ -65,8 +65,9 @@ All settled by #154.
 - **Proposed names:** `Pidgey\Tests\Support\FakeSmtpStream` (in memory),
   `Pidgey\Tests\Support\FakeSmtpServer` (child-process socket fixture),
   `Pidgey\Tests\Support\Mailpit` (HTTP API client, the only reader of `TEST_MAILPIT_*`),
-  `Pidgey\Tests\Support\CapturedLog` (Monolog `TestHandler`); the child-process scripts
-  (fake SMTP server, organization lock holder) under `source/tests/fixtures/`; TLS material
+  `Pidgey\Tests\Support\CapturedLog` (Monolog `TestHandler`); the fake SMTP server script
+  `source/tests/support/scripts/fake-smtp-server.php` (delivered by #163) and the
+  organization lock holder script under `source/tests/fixtures/`; TLS material
   under `source/tests/fixtures/tls/`
   ([testing/backend.md](../testing/backend.md#email-test-support)).
 - **Collaborators:** the stream abstraction and transport ([transport.md](transport.md)),
@@ -99,8 +100,8 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
    `SMTP_PORT` ([docker/compose.md](../docker/compose.md#environment)).
 5. **Support classes** ([testing/backend.md](../testing/backend.md#email-test-support)):
    - [x] `Mailpit` (with the smoke test reaching each instance);
-   - [ ] `FakeSmtpStream`;
-   - [ ] `FakeSmtpServer` and its server script;
+   - [x] `FakeSmtpStream`;
+   - [x] `FakeSmtpServer` and its server script (`source/tests/support/scripts/fake-smtp-server.php`);
    - [x] `CapturedLog`;
    - [ ] the lock-holder script.
 6. **Coverage** — the tests of the [required coverage](../email/testing.md#required-coverage)

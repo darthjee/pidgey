@@ -35,6 +35,15 @@ final class ConfigValidator
     /** Default `ACCOUNT_EDIT_LOCK_TTL`, in seconds. */
     public const DEFAULT_ACCOUNT_EDIT_LOCK_TTL = 300;
 
+    /** Default `SMTP_CONNECT_TIMEOUT`, in seconds. */
+    public const DEFAULT_SMTP_CONNECT_TIMEOUT = 10;
+
+    /** Default `SMTP_COMMAND_TIMEOUT`, in seconds. */
+    public const DEFAULT_SMTP_COMMAND_TIMEOUT = 10;
+
+    /** Default `SMTP_TOTAL_TIMEOUT`, in seconds. */
+    public const DEFAULT_SMTP_TOTAL_TIMEOUT = 25;
+
     /** Settings that must be set and non-empty. */
     private const REQUIRED = ['DB_HOST', 'DB_NAME', 'DB_USER'];
 
@@ -54,13 +63,27 @@ final class ConfigValidator
         'PASSWORD_RESET_COOLDOWN',
         'ACCOUNT_EDIT_MAX_ATTEMPTS',
         'ACCOUNT_EDIT_LOCK_TTL',
+        'SMTP_CONNECT_TIMEOUT',
+        'SMTP_COMMAND_TIMEOUT',
+        'SMTP_TOTAL_TIMEOUT',
     ];
+
+    /** SMTP timeouts that must not exceed `SMTP_TOTAL_TIMEOUT`, with their defaults. */
+    private const SMTP_STEP_TIMEOUTS = [
+        'SMTP_CONNECT_TIMEOUT' => self::DEFAULT_SMTP_CONNECT_TIMEOUT,
+        'SMTP_COMMAND_TIMEOUT' => self::DEFAULT_SMTP_COMMAND_TIMEOUT,
+    ];
+
+    /** One hostname label: ASCII letters, digits and hyphens, 1 to 63, no edge hyphen. */
+    private const HOSTNAME_LABEL_PATTERN = '/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/';
+
+    private const HOSTNAME_MAX_BYTES = 253;
 
     /** Counts that may be zero: non-negative integers when set. */
     private const NON_NEGATIVE_INTEGERS = ['TRUSTED_PROXY_HOPS'];
 
     /** PHP_ENV values that are not production; any other value, or none, counts as production. */
-    private const NON_PRODUCTION_ENVIRONMENTS = ['development', 'test'];
+    public const NON_PRODUCTION_ENVIRONMENTS = ['development', 'test'];
 
     private const POSITIVE_INTEGER_PATTERN = '/^[1-9][0-9]*$/';
     private const NON_NEGATIVE_INTEGER_PATTERN = '/^[0-9]+$/';
@@ -103,6 +126,9 @@ final class ConfigValidator
             ...$this->checkMigrationUser(),
             ...$this->checkIntegers(),
             ...$this->checkTokenTtls(),
+            ...$this->checkSmtpTimeouts(),
+            ...$this->checkSmtpCaFile(),
+            ...$this->checkSmtpEhloName(),
             ...$this->checkAllowedOrigins(),
             ...$this->checkLogLevel(),
             ...$this->checkDevelopmentKey(),
@@ -374,14 +400,81 @@ final class ConfigValidator
             return [];
         }
 
-        // Compared as digit strings so that values beyond PHP_INT_MAX stay exact.
-        $comparison = strlen($access) <=> strlen($refresh) ?: strcmp($access, $refresh);
-
-        if ($comparison < 0) {
+        if (self::compareDigits($access, $refresh) < 0) {
             return [];
         }
 
         return ['ACCESS_TOKEN_TTL: not less than REFRESH_TOKEN_TTL'];
+    }
+
+    /**
+     * Checks that `SMTP_CONNECT_TIMEOUT` and `SMTP_COMMAND_TIMEOUT` do not exceed
+     * `SMTP_TOTAL_TIMEOUT`, on effective values (defaults applied); an invalid value skips the
+     * comparisons it takes part in.
+     *
+     * @return list<string>
+     */
+    private function checkSmtpTimeouts(): array
+    {
+        $total = (string) Env::get('SMTP_TOTAL_TIMEOUT', (string) self::DEFAULT_SMTP_TOTAL_TIMEOUT);
+
+        if (preg_match(self::POSITIVE_INTEGER_PATTERN, $total) !== 1) {
+            return [];
+        }
+
+        $failures = [];
+
+        foreach (self::SMTP_STEP_TIMEOUTS as $name => $default) {
+            $value = (string) Env::get($name, (string) $default);
+
+            if (
+                preg_match(self::POSITIVE_INTEGER_PATTERN, $value) === 1
+                && self::compareDigits($value, $total) > 0
+            ) {
+                $failures[] = "{$name}: exceeds SMTP_TOTAL_TIMEOUT";
+            }
+        }
+
+        return $failures;
+    }
+
+    /**
+     * Checks that `SMTP_CA_FILE`, when set, names a readable file (relative to the app root).
+     *
+     * @return list<string>
+     */
+    private function checkSmtpCaFile(): array
+    {
+        $path = Env::get('SMTP_CA_FILE');
+
+        if ($path === null) {
+            return [];
+        }
+
+        $resolved = AppPath::resolve($path);
+
+        if (is_file($resolved) && is_readable($resolved)) {
+            return [];
+        }
+
+        return ['SMTP_CA_FILE: not readable'];
+    }
+
+    /**
+     * Checks that `SMTP_EHLO_NAME`, when set, is an ASCII hostname (letters, digits and hyphens;
+     * labels of 1 to 63 bytes with no edge hyphen; at most 253 bytes; not an IP literal).
+     *
+     * @return list<string>
+     */
+    private function checkSmtpEhloName(): array
+    {
+        $name = Env::get('SMTP_EHLO_NAME');
+
+        if ($name === null || self::isHostname($name)) {
+            return [];
+        }
+
+        return ['SMTP_EHLO_NAME: invalid hostname'];
     }
 
     /**
@@ -473,6 +566,45 @@ final class ConfigValidator
     private function isDevelopmentOrTest(): bool
     {
         return in_array(Env::get('PHP_ENV'), self::NON_PRODUCTION_ENVIRONMENTS, true);
+    }
+
+    /**
+     * Tells whether a name is an ASCII hostname; IP addresses and names ending in an all-digit
+     * label are refused.
+     *
+     * @param string $name The candidate name.
+     *
+     * @return boolean
+     */
+    private static function isHostname(string $name): bool
+    {
+        if (strlen($name) > self::HOSTNAME_MAX_BYTES || filter_var($name, FILTER_VALIDATE_IP) !== false) {
+            return false;
+        }
+
+        $labels = explode('.', $name);
+
+        foreach ($labels as $label) {
+            if (preg_match(self::HOSTNAME_LABEL_PATTERN, $label) !== 1) {
+                return false;
+            }
+        }
+
+        return !ctype_digit((string) end($labels));
+    }
+
+    /**
+     * Compares two positive integers written as digit strings, so that values beyond
+     * PHP_INT_MAX stay exact.
+     *
+     * @param string $left  Digits without leading zeros.
+     * @param string $right Digits without leading zeros.
+     *
+     * @return integer Negative, zero or positive, like `strcmp()`.
+     */
+    private static function compareDigits(string $left, string $right): int
+    {
+        return strlen($left) <=> strlen($right) ?: strcmp($left, $right);
     }
 
     /**

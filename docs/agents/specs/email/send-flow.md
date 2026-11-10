@@ -90,6 +90,8 @@ and classified per [Replies](#replies); the failure codes and fixed messages are
 - Wait for the greeting. Connecting, the `ssl` handshake and the greeting are bounded by
   the **connect timeout** (see [Timeouts](#timeouts)); a greeting timeout is
   `SMTP_TIMEOUT` (TCP succeeded).
+- The peer closing the connection before sending any greeting byte →
+  `SMTP_CONNECTION_FAILED` (see [Replies](#replies)).
 - Greeting `220` → continue. `554` → `SMTP_REJECTED` (rejected the connection); `421` or
   any other 4xx → `SMTP_TEMPORARY_FAILURE`; both with `error.smtp`.
 
@@ -102,9 +104,12 @@ and classified per [Replies](#replies); the failure codes and fixed messages are
   - otherwise the address literal of the socket's local address after connecting, e.g.
     `[203.0.113.7]` or `[IPv6:2001:db8::7]`.
   - Never `gethostname()`, the host of `FRONTEND_BASE_URL`, or the connection's `host`.
-- The `EHLO` reply: the first line is the server's greeting name; each later line is one
-  extension (case-insensitive keyword plus parameters), read for `STARTTLS`, `AUTH`,
-  `SMTPUTF8` and `SIZE`.
+- The `EHLO` reply: the first line is always the server's greeting name, never an
+  extension; each later line is one extension (case-insensitive keyword plus parameters),
+  read for `STARTTLS`, `AUTH`, `SMTPUTF8` and `SIZE`.
+- `AUTH` mechanisms are read from both `AUTH PLAIN LOGIN` and the legacy `AUTH=LOGIN PLAIN`
+  form; several `AUTH` lines merge into the union of their mechanisms (case-insensitive,
+  compared in upper case).
 - `EHLO` rejected → classified as any other reply (5xx `SMTP_REJECTED` "rejected the
   connection", 4xx `SMTP_TEMPORARY_FAILURE`). **No `HELO` fallback** (`HELO` cannot
   negotiate TLS or `AUTH`).
@@ -173,14 +178,19 @@ with `encryption: none` the [send-time checks](#send-time-checks) already refuse
 Parsing follows RFC 5321 §4.2:
 
 - Lines are `NNN-text` (continuation) and `NNN text` / `NNN` (last line); read until the
-  last line. Every line of one reply must carry the same code.
+  last line. Every line of one reply must carry the same code. `NNN` without text and
+  `NNN-` with an empty text are valid.
 - CRLF is expected; a bare LF is tolerated on read (a trailing CR is stripped). Pidgey
   always writes CRLF.
-- Limits: at most 100 lines per reply, at most 2048 bytes per line.
+- Limits: at most 100 lines per reply, at most 2048 bytes per line. The line limit counts
+  the content **without** the CRLF: no LF within 2048 + 2 bytes is a limit exceeded.
+- Raw bytes (NUL, a stray CR inside the text, non-ASCII) pass through the parser untouched;
+  sanitization happens later (see [failures.md](failures.md#sanitization-and-length-cap)).
 
 **Malformed reply** → `502 SMTP_PROTOCOL_ERROR`, no `error.smtp`:
 
-- a line not starting with three digits followed by `-`, a space or the end of the line;
+- a line not starting with three digits followed by `-`, a space or the end of the line
+  (an empty line, a bare CRLF, is malformed);
 - a code outside 200–599;
 - mixed codes within one reply;
 - a limit exceeded;
@@ -189,13 +199,23 @@ Parsing follows RFC 5321 §4.2:
 A close **between** replies (e.g. `421` then close) is not malformed: the received reply is
 used normally.
 
+A close **with no reply at all** (the peer closes before sending any byte of the expected
+reply) is not malformed either; the stream reports it as a distinct "closed" failure,
+classified by step (see [failures.md](failures.md#classification-rules)):
+
+- at the greeting → `SMTP_CONNECTION_FAILED` (servers that block a client often accept the
+  TCP connection, then drop it);
+- at any later step → `SMTP_PROTOCOL_ERROR`;
+- during `QUIT` → ignored (`QUIT` is best-effort).
+
 #### Reply text
 
 Used for `error.smtp.message` and for the success `smtp.message`:
 
 1. Drop the code and separator of every line and join the texts with one space.
-2. If every line starts with the same enhanced status code (e.g. `5.1.1`), keep it once,
-   at the front.
+2. If every line starts with the same enhanced status code `X.Y.Z` (e.g. `5.1.1`) whose
+   `X` equals the reply code's first digit, keep it once, at the front. Otherwise the text
+   is kept as is.
 3. Then redact and sanitize (see [failures.md](failures.md#echo-redaction)).
 
 Example: the three-line Gmail `550-5.1.1 …` reply becomes
@@ -225,7 +245,12 @@ by `SMTP_CONNECT_TIMEOUT`, `SMTP_COMMAND_TIMEOUT` and `SMTP_TOTAL_TIMEOUT` (see
 
 - **Connect timeout:** TCP connect, the `ssl` handshake and the `220` greeting.
 - **Command timeout:** each command's reply, including the `STARTTLS` handshake and the
-  reply to the final `.`.
+  reply to the final `.`. It bounds the **whole reply**, not each line: one budget
+  `min(command timeout, time remaining)` is computed per reply and each line read gets what
+  is left of it, so a server sending one line just under the timeout cannot stretch a reply
+  (slowloris). Each write (looping until every byte is written) is bounded the same way.
+- A wait whose remaining time is zero or less fails immediately as a timeout, without any
+  I/O.
 - **Session deadline:** fixed at connect time from `SMTP_TOTAL_TIMEOUT` (using
   `Pidgey\Infra\Clock`); every operation waits `min(its own timeout, time remaining)`.
 - No separate `DATA` timeout (RFC 5321's 10 minutes cannot fit a synchronous request).
@@ -255,16 +280,26 @@ exception trace) or an exception message:
 
 1. Every parameter carrying a secret (decrypt, transport credentials, the stream write of
    an `AUTH` line, …) is marked `#[SensitiveParameter]`.
-2. The password travels in a value object (e.g. `Pidgey\Email\SecretString`) whose
-   `__toString`, `__debugInfo`, `__serialize` and `jsonSerialize` return `[redacted]`; the
-   value is only obtained through one explicit method (e.g. `reveal()`), called where the
-   `AUTH` line is built.
+2. The password travels in the value object `Pidgey\Infra\SecretString` (see
+   [architecture/backend.md](../architecture/backend.md#logging)):
+   - it implements **neither** `__toString` nor `JsonSerializable`: an accidental
+     `(string)` cast throws instead of silently sending a placeholder as the password, and a
+     log context renders it as its class name only;
+   - `__debugInfo` returns `[redacted]` (`print_r`, `var_dump`); `__serialize`,
+     `__unserialize` and `__clone` throw;
+   - `reveal()` is the only accessor, called where the `AUTH` line is built;
+   - `wipe()` overwrites the value with `sodium_memzero()`; afterwards `reveal()` throws.
+
+   `var_export` can still show private properties: an accepted, documented gap, since the
+   application never uses it. The password decryption returns a plain string, wrapped into a
+   `SecretString` immediately by the send flow.
 3. Exception messages are built only from fixed text, the step name and the server's reply
    — never from a line Pidgey sent.
 4. Echo redaction of reply texts (see [failures.md](failures.md#echo-redaction)).
-5. Best effort: `sodium_memzero()` on the decrypted password after the session (PHP may hold
-   copies; defense in depth, not a guarantee).
-6. Outside `development` / `test`, the boot sets `zend.exception_ignore_args` (see
+5. Best effort: `SecretString::wipe()` (`sodium_memzero()`) on the decrypted password after
+   the session (PHP may hold copies; defense in depth, not a guarantee).
+6. Outside `development` / `test`, the boot sets `zend.exception_ignore_args` through
+   `Pidgey\Infra\Runtime::harden()` (see
    [architecture/configuration.md](../architecture/configuration.md#smtp-transport)), so no
    stack trace carries arguments.
 

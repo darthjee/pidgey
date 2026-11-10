@@ -16,6 +16,7 @@ use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\ConnectionFactory;
@@ -36,6 +37,7 @@ use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
+use Pidgey\Smtp\SessionSettings;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -84,6 +86,8 @@ final class Container
     private ?EncryptionKeys $encryptionKeys = null;
 
     private ?PasswordCipher $passwordCipher = null;
+
+    private ?SessionSettings $smtpSessionSettings = null;
 
     /**
      * Creates an empty container; nothing is built yet.
@@ -192,6 +196,28 @@ final class Container
     public function passwordCipher(): PasswordCipher
     {
         return $this->passwordCipher ??= new PasswordCipher($this->encryptionKeys());
+    }
+
+    /**
+     * Returns the SMTP transport settings, read from `SMTP_CONNECT_TIMEOUT`,
+     * `SMTP_COMMAND_TIMEOUT`, `SMTP_TOTAL_TIMEOUT`, `SMTP_CA_FILE` (resolved against the app
+     * root) and `SMTP_EHLO_NAME` on the first call.
+     *
+     * @return SessionSettings
+     *
+     * @throws RuntimeException When a timeout is not a non-negative integer.
+     */
+    public function smtpSessionSettings(): SessionSettings
+    {
+        $caFile = Env::get('SMTP_CA_FILE');
+
+        return $this->smtpSessionSettings ??= new SessionSettings(
+            (float) Env::integer('SMTP_CONNECT_TIMEOUT', ConfigValidator::DEFAULT_SMTP_CONNECT_TIMEOUT),
+            (float) Env::integer('SMTP_COMMAND_TIMEOUT', ConfigValidator::DEFAULT_SMTP_COMMAND_TIMEOUT),
+            (float) Env::integer('SMTP_TOTAL_TIMEOUT', ConfigValidator::DEFAULT_SMTP_TOTAL_TIMEOUT),
+            $caFile === null ? null : AppPath::resolve($caFile),
+            Env::get('SMTP_EHLO_NAME'),
+        );
     }
 
     /**
