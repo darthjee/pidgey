@@ -118,6 +118,30 @@ final class SmtpConnectionTest extends TestCase
         $this->assertFalse($connection->hasPassword());
     }
 
+    public function testDebugOutputHidesTheEncryptedPassword(): void
+    {
+        $canary = 'ciphertext-canary-3f9a';
+        $connection = SmtpConnection::fromRow(['password' => $canary] + $this->row());
+
+        $debug = $connection->__debugInfo();
+
+        $this->assertStringNotContainsString($canary, print_r($connection, true));
+        ob_start();
+        var_dump($connection);
+        $this->assertStringNotContainsString($canary, (string) ob_get_clean());
+        $this->assertArrayNotHasKey('encryptedPassword', $debug);
+        $this->assertTrue($debug['hasPassword']);
+        $this->assertSame('mailer', $debug['username']);
+        $this->assertSame(12, $debug['id']);
+    }
+
+    public function testDebugOutputWithoutAPassword(): void
+    {
+        $connection = SmtpConnection::fromRow(['password' => null] + $this->row());
+
+        $this->assertFalse($connection->__debugInfo()['hasPassword']);
+    }
+
     /**
      * @return array<string, mixed>
      */

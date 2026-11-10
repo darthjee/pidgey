@@ -665,6 +665,7 @@ final class SmtpConnectionRulesTest extends TestCase
         $this->assertStringNotContainsString(self::CANARY, print_r($change, true));
         $this->assertStringNotContainsString(self::CANARY, var_export($change->__debugInfo(), true));
         $this->assertSame('[redacted]', $change->__debugInfo()['password']);
+        $this->assertStringNotContainsString(self::STORED_BYTES, print_r($change, true));
         $this->assertNull(
             SmtpConnectionRules::forUpdate([], $this->stored())->__debugInfo()['password'],
         );
