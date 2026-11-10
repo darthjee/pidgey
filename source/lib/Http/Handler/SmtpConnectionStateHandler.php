@@ -25,10 +25,13 @@ use Throwable;
 /**
  * Shared flow of `POST /smtp-connections/:id/activate.json` and `…/deactivate.json`, gated.
  *
- * In one transaction: lock the organization row, load the target connection (`404` when
- * unknown or foreign), change `active`, reload; then answer `200` with the item and write one
- * operator log line. The body is ignored. The organization lock serializes every activation
- * and deactivation of the organization.
+ * In one transaction: lock the organization row, lock the target connection row (`404` when
+ * unknown, foreign or deleted meanwhile), change `active`, reload; then answer `200` with the
+ * item and write one operator log line. The body is ignored. The organization lock serializes
+ * every activation and deactivation of the organization; the row lock is a locking (current)
+ * read, so a DELETE committed after the transaction's snapshot is seen, and it keeps the row
+ * from being deleted until the change commits. The reload is a locking read too, so the item
+ * reflects the committed row even when the change was a no-op (already active or inactive).
  */
 abstract class SmtpConnectionStateHandler extends RequestHandler
 {
@@ -85,13 +88,13 @@ abstract class SmtpConnectionStateHandler extends RequestHandler
         $connection = $this->transaction->run(function () use ($organizationId, $id): SmtpConnection {
             $this->organizations->lockForUpdate($organizationId);
 
-            if ($this->connections->findInOrganization($organizationId, $id) === null) {
+            if ($this->connections->lockInOrganization($organizationId, $id) === null) {
                 throw new NotFoundException(SmtpConnectionHandler::NOT_FOUND);
             }
 
             $this->apply($organizationId, $id);
 
-            return $this->connections->findInOrganization($organizationId, $id)
+            return $this->connections->lockInOrganization($organizationId, $id)
                 ?? throw new LogicException("SMTP connection {$id} vanished while locked.");
         });
 

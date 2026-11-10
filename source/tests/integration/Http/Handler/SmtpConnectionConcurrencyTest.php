@@ -6,10 +6,12 @@ namespace Pidgey\Tests\Integration\Http\Handler;
 
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Pidgey\Http\Handler\SmtpConnectionActivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionDeactivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionHandler;
 use Pidgey\Http\Handler\SmtpConnectionStateHandler;
+use Pidgey\Http\OperatorLog;
 use Pidgey\Http\SmtpConnectionRules;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\PdoFactory;
@@ -188,6 +190,49 @@ final class SmtpConnectionConcurrencyTest extends SmtpConnectionEndpointTestCase
         $this->assertSame('tls', $row['encryption']);
         $this->assertSame('mailer', $row['username']);
         $this->assertNotNull($row['password']);
+    }
+
+    /**
+     * @return array<string, array{string, boolean}>
+     */
+    public static function stateChanges(): array
+    {
+        return [
+            'activate' => ['activate', false],
+            'deactivate' => ['deactivate', true],
+        ];
+    }
+
+    #[DataProvider('stateChanges')]
+    public function testAStateChangeRacingADeleteAnswers404WithoutALogLine(string $action, bool $active): void
+    {
+        $user = $this->account();
+        $organizationId = $user->organizationId;
+        $id = $this->fixtures->smtpConnection(organizationId: $organizationId, active: $active);
+        $hooked = $this->lockHookPdo();
+        $hooked->beforeNextLock(function () use ($user, $id, $hooked): void {
+            // The state change has already read a snapshot that still holds the connection...
+            $hooked->query('SELECT COUNT(*) FROM smtp_connections')->fetchColumn();
+            // ...when a delete commits.
+            $delete = $this->send($user, 'DELETE', "/smtp-connections/{$id}.json");
+            $this->assertSame(204, $delete->status(), $delete->body());
+        });
+
+        $response = $this->send(
+            $user,
+            'POST',
+            "/smtp-connections/{$id}/{$action}.json",
+            [],
+            [],
+            static fn (): PDO => $hooked,
+        );
+
+        $this->assertError($response, 404, 'NOT_FOUND', 'SMTP connection not found');
+        $this->assertSame(0, $this->rowCount('smtp_connections'));
+        $this->assertSame(
+            [OperatorLog::SMTP_CONNECTION_DELETE],
+            array_column($this->operatorLines(), 0),
+        );
     }
 
     private function lockHookPdo(): LockHookPdo
