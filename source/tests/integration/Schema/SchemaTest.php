@@ -460,14 +460,38 @@ final class SchemaTest extends IntegrationTestCase
                 'active' => ['type' => 'tinyint(1)', 'nullable' => false, 'default' => '0', 'extra' => ''],
                 'created_at' => self::CREATED_AT,
                 'updated_at' => self::UPDATED_AT,
+                'active_organization_id' => [
+                    'type' => 'bigint',
+                    'nullable' => true,
+                    'default' => null,
+                    'extra' => 'STORED GENERATED',
+                ],
             ],
             $this->columns('smtp_connections'),
         );
     }
 
+    public function testSmtpConnectionsActiveOrganizationIdIsGeneratedFromActive(): void
+    {
+        $statement = self::pdo()->prepare(
+            'SELECT generation_expression FROM information_schema.columns '
+            . 'WHERE table_schema = DATABASE() AND table_name = :table AND column_name = :column',
+        );
+        $statement->execute(['table' => 'smtp_connections', 'column' => 'active_organization_id']);
+        $expression = strtolower((string) $statement->fetchColumn());
+
+        $this->assertStringContainsString('if(', str_replace(' ', '', $expression));
+        $this->assertStringContainsString('`active`', $expression);
+        $this->assertStringContainsString('`organization_id`', $expression);
+        $this->assertStringContainsString('null', $expression);
+    }
+
     public function testSmtpConnectionsUniqueKeys(): void
     {
-        $this->assertSame([], $this->uniqueKeys('smtp_connections'));
+        $this->assertSame(
+            ['uq_smtp_connections_active_organization_id' => ['active_organization_id']],
+            $this->uniqueKeys('smtp_connections'),
+        );
     }
 
     public function testSmtpConnectionsIndexes(): void

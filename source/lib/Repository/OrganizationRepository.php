@@ -62,4 +62,23 @@ final class OrganizationRepository
 
         return $row === false ? null : Organization::fromRow($row);
     }
+
+    /**
+     * Locks one organization row (`SELECT … FOR UPDATE`); must run inside a transaction, which
+     * holds the lock until it ends. Serializes the organization-wide changes, e.g. activating an
+     * SMTP connection.
+     *
+     * @param integer $id Primary key.
+     *
+     * @return boolean False when no organization has this id (nothing is locked).
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function lockForUpdate(int $id): bool
+    {
+        $statement = $this->pdo->prepare('SELECT id FROM organizations WHERE id = :id FOR UPDATE');
+        $statement->execute(['id' => $id]);
+
+        return $statement->fetchColumn() !== false;
+    }
 }

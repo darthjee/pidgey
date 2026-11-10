@@ -220,6 +220,148 @@ final class SmtpConnectionRepository
     }
 
     /**
+     * Locks one connection of an organization (`SELECT … FOR UPDATE`) and reads it; must run
+     * inside a transaction, which holds the row lock until it ends.
+     *
+     * @param integer $organizationId Organization the connection must belong to.
+     * @param integer $id             Primary key.
+     *
+     * @return SmtpConnection|null Null when no connection of this organization has this id.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function lockInOrganization(int $organizationId, int $id): ?SmtpConnection
+    {
+        return $this->fetchOne(
+            'SELECT ' . self::COLUMNS . ' FROM smtp_connections '
+            . 'WHERE organization_id = :organization_id AND id = :id FOR UPDATE',
+            ['organization_id' => $organizationId, 'id' => $id],
+        );
+    }
+
+    /**
+     * Writes the editable settings of one connection: name, host, port, encryption, username,
+     * from address and, only when `$passwordChanged`, the password. Never writes `active`, so an
+     * update cannot overwrite a concurrent activation or deactivation.
+     *
+     * Validation (credential pairing, encryption) is the caller's job; the caller should hold
+     * the row lock of lockInOrganization() in the same transaction.
+     *
+     * @param SmtpConnection $merged            Stored row merged with the request; its id and
+     *                                          organization id select the row. Its
+     *                                          `encryptedPassword` is ignored.
+     * @param boolean        $passwordChanged   Whether the password column is written.
+     * @param string|null    $encryptedPassword New ciphertext bytes, or null to clear the
+     *                                          password; ignored when `$passwordChanged` is
+     *                                          false.
+     *
+     * @return void
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function update(
+        SmtpConnection $merged,
+        bool $passwordChanged,
+        #[SensitiveParameter] ?string $encryptedPassword,
+    ): void {
+        $password = $passwordChanged ? ', password = :password' : '';
+        $statement = $this->pdo->prepare(
+            'UPDATE smtp_connections SET name = :name, host = :host, port = :port, '
+            . 'encryption = :encryption, username = :username, from_address = :from_address' . $password
+            . ' WHERE organization_id = :organization_id AND id = :id',
+        );
+        $statement->bindValue('name', $merged->name, PDO::PARAM_STR);
+        $statement->bindValue('host', $merged->host, PDO::PARAM_STR);
+        $statement->bindValue('port', $merged->port, PDO::PARAM_INT);
+        $statement->bindValue('encryption', $merged->encryption->value, PDO::PARAM_STR);
+        $statement->bindValue(
+            'username',
+            $merged->username,
+            $merged->username === null ? PDO::PARAM_NULL : PDO::PARAM_STR,
+        );
+        $statement->bindValue('from_address', $merged->fromAddress, PDO::PARAM_STR);
+
+        if ($passwordChanged) {
+            $statement->bindValue(
+                'password',
+                $encryptedPassword,
+                $encryptedPassword === null ? PDO::PARAM_NULL : PDO::PARAM_LOB,
+            );
+        }
+
+        $statement->bindValue('organization_id', $merged->organizationId, PDO::PARAM_INT);
+        $statement->bindValue('id', $merged->id, PDO::PARAM_INT);
+        $statement->execute();
+    }
+
+    /**
+     * Deletes one connection of an organization (hard delete), active or not.
+     *
+     * @param integer $organizationId Organization the connection must belong to.
+     * @param integer $id             Primary key.
+     *
+     * @return boolean False when no connection of this organization has this id.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function delete(int $organizationId, int $id): bool
+    {
+        $statement = $this->pdo->prepare(
+            'DELETE FROM smtp_connections WHERE organization_id = :organization_id AND id = :id',
+        );
+        $statement->execute(['organization_id' => $organizationId, 'id' => $id]);
+
+        return $statement->rowCount() > 0;
+    }
+
+    /**
+     * Makes one connection the organization's only active connection: first deactivates every
+     * other connection of the organization, then activates the target, so the unique index on
+     * `active_organization_id` is never hit.
+     *
+     * Must run inside a transaction that already holds the organization row lock
+     * (OrganizationRepository::lockForUpdate()); this is documented, not checked.
+     *
+     * @param integer $organizationId Organization the connection belongs to.
+     * @param integer $id             Primary key of the connection to activate.
+     *
+     * @return void
+     *
+     * @throws PDOException When a statement fails.
+     */
+    public function activate(int $organizationId, int $id): void
+    {
+        $params = ['organization_id' => $organizationId, 'id' => $id];
+        $this->pdo->prepare(
+            'UPDATE smtp_connections SET active = FALSE '
+            . 'WHERE organization_id = :organization_id AND id <> :id AND active = TRUE',
+        )->execute($params);
+        $this->pdo->prepare(
+            'UPDATE smtp_connections SET active = TRUE WHERE organization_id = :organization_id AND id = :id',
+        )->execute($params);
+    }
+
+    /**
+     * Makes one connection inactive; other connections are never changed.
+     *
+     * Must run inside a transaction that already holds the organization row lock
+     * (OrganizationRepository::lockForUpdate()); this is documented, not checked.
+     *
+     * @param integer $organizationId Organization the connection belongs to.
+     * @param integer $id             Primary key of the connection to deactivate.
+     *
+     * @return void
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function deactivate(int $organizationId, int $id): void
+    {
+        $this->pdo->prepare(
+            'UPDATE smtp_connections SET active = FALSE WHERE organization_id = :organization_id AND id = :id',
+        )->execute(['organization_id' => $organizationId, 'id' => $id]);
+    }
+
+    /**
      * Runs a single-row `password` query.
      *
      * @param string  $sql            Statement with `:organization_id` and `:id` placeholders.

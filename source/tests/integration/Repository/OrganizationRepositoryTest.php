@@ -65,4 +65,18 @@ final class OrganizationRepositoryTest extends RepositoryTestCase
 
         $this->assertNull($this->repository->findById($id + 1000000));
     }
+
+    public function testLockForUpdateLocksAnExistingOrganization(): void
+    {
+        $id = $this->fixtures->organization();
+
+        $this->assertTrue($this->repository->lockForUpdate($id));
+    }
+
+    public function testLockForUpdateReturnsFalseWhenNotFound(): void
+    {
+        $id = $this->fixtures->organization();
+
+        $this->assertFalse($this->repository->lockForUpdate($id + 1000000));
+    }
 }

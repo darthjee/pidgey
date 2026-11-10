@@ -67,12 +67,12 @@ Used by create and update. Strings are trimmed before validation, except `passwo
 | Field | Rules |
 | --- | --- |
 | `name` | **required**; string, not empty, max 255 characters |
-| `host` | **required**; string, not empty, max 255 characters; an ASCII hostname or an IP literal (IPv4, or IPv6 in brackets or bare); no whitespace or control characters. A hostname is LDH labels (letters, digits, hyphen; 1–63 characters each, no leading or trailing hyphen) separated by dots, at most 253 characters in total; an IDN must be entered in punycode (`smtp.xn--exmple-cua.de`), a Unicode host is rejected (no conversion). A bare IPv6 literal is stored as given and bracketed when the connect target is built. `host` is the connect target and the TLS peer name, never the `EHLO` argument |
-| `port` | **required**; integer (JSON number, no fraction, not a string), 1–65535 |
+| `host` | **required**; string, not empty, max 255 characters; an ASCII hostname or an IP literal (IPv4, or IPv6 in brackets or bare); no whitespace or control characters. A hostname is LDH labels (letters, digits, hyphen; 1–63 characters each, no leading or trailing hyphen) separated by dots, at most 253 characters in total; an IDN must be entered in punycode (`smtp.xn--exmple-cua.de`), a Unicode host is rejected (no conversion). Also rejected: a trailing dot (`smtp.example.com.`), an IPv6 zone id (`fe80::1%eth0`), and a dotted all-numeric value that is not a valid IPv4 (`999.1.1.1`). A bare IPv6 literal is stored as given and bracketed when the connect target is built. `host` is the connect target and the TLS peer name, never the `EHLO` argument |
+| `port` | **required**; integer (a JSON integer only: a float, even with no fraction such as `587.0`, a string or a boolean is rejected), 1–65535 |
 | `encryption` | **required**; one of `none`, `tls`, `ssl` |
 | `username` | optional; string, max 255 characters, no control characters |
 | `password` | optional; string, max 255 characters, no CR, LF or NUL |
-| `fromAddress` | **required**; valid email address, max 255 characters, no CR or LF |
+| `fromAddress` | **required**; valid email address, max 255 characters, no CR or LF, no other control characters (on create and update). The email check alone is not enough: a quoted local part may carry control characters such as NUL, U+0001 or VT, which would otherwise reach `MAIL FROM:` and the `From:` header. CR or LF gets `fromAddress must not contain line breaks`; any other control character gets `fromAddress must not contain control characters` |
 
 - **Header injection:** `host` is the connect target and TLS peer name, `fromAddress` ends
   up in SMTP commands and headers (`MAIL FROM`, `From:`, the `Message-ID` domain), and
@@ -95,6 +95,10 @@ Used by create and update. Strings are trimmed before validation, except `passwo
   password from being sent to a server it was not entered for. Changing `name`,
   `fromAddress` or `username` alone does not require it. Create always receives the
   password with the settings, so the rule does not apply there.
+- **What counts as a change (update only):** a field is unchanged only when its trimmed
+  value is **identical** to the stored one (exact, case-sensitive comparison). So
+  `SMTP.example.com` against a stored `smtp.example.com` is a change of `host` and triggers
+  credential redirection. A present, non-empty `password` is always a change.
 - **Port / encryption pairs** are not validated: an unusual pair (e.g. `ssl` on 587) is
   accepted and fails at send time with a hint (see
   [email/failures.md](../../../email/failures.md#port--encryption-hints)).
@@ -103,9 +107,9 @@ Used by create and update. Strings are trimmed before validation, except `passwo
   [conventions/validation.md](../../conventions/validation.md#message-templates), e.g.
   `port must be an integer`, `port must be between 1 and 65535`,
   `host must be a hostname or an IP address`, `username must not contain control characters`,
-  `fromAddress must not contain line breaks`. The cross-field rules above (credential
-  pairing, credentials require encryption, credential redirection) and the test-email `to`
-  rule have their own fixed messages.
+  `fromAddress must not contain line breaks`, `fromAddress must not contain control characters`.
+  The cross-field rules above (credential pairing, credentials require encryption,
+  credential redirection) and the test-email `to` rule have their own fixed messages.
 
 ## `GET /smtp-connections.json`
 
@@ -441,12 +445,19 @@ address beyond what the send flow already logs.
   rotation); the log line lists `password`.
 - `POST` with only `username` (or only `password`) → `400`.
 - `POST` with `active: true` → dropped; the connection is created inactive.
-- `port` as a string (`"587"`), `0`, `65536` or `587.5` → `400`.
+- `port` as a string (`"587"`), a float (`587.5`, or `587.0` with no fraction), a boolean,
+  `0` or `65536` → `400`; the wrong-type cases get only `port must be an integer`.
 - `host` with a space, a CR/LF or another control character → `400`; `fromAddress` with
-  CR/LF → `400`.
+  CR/LF → `400` — `fromAddress must not contain line breaks`.
+- `fromAddress` with a quoted local part containing U+0001 (`"a\u0001b"@example.com`, which
+  passes a plain email check), or another control character such as NUL or VT, on `POST`
+  or `PATCH` → `400 VALIDATION_FAILED` — `fromAddress must not contain control characters`.
 - Unicode `host` (`smtp.exämple.de`), a label over 63 characters, a label with a leading or
   trailing hyphen, or a hostname over 253 characters → `400` —
   `host must be a hostname or an IP address`; the punycode form is accepted.
+- `host` with a trailing dot (`smtp.example.com.`), an IPv6 zone id (`fe80::1%eth0`) or a
+  dotted all-numeric value that is not a valid IPv4 (`999.1.1.1`) → `400` —
+  `host must be a hostname or an IP address`.
 - `POST` with credentials and `encryption: none` → `400` —
   `username and password require encryption tls or ssl`; `PATCH` setting
   `encryption: none` on a connection with credentials, or adding credentials to a `none`
@@ -463,6 +474,10 @@ address beyond what the send flow already logs.
   connection with credentials → allowed, no `password` needed.
 - `PATCH` changing `host` on a connection without credentials → allowed.
 - `PATCH` sending the stored `host` value unchanged → not a change; no `password` needed.
+- `PATCH` sending the stored `host` with a different case (`SMTP.example.com` for a stored
+  `smtp.example.com`) on a connection with credentials, without `password` → `400` —
+  `password must be sent again when host, port or encryption changes` (case-sensitive
+  comparison).
 - Deactivating the active connection → `200` with `active: false`; the organization has no
   active connection; deactivating it again → `200` (idempotent).
 - Concurrent `activate` and `deactivate` → serialized by the organization lock.

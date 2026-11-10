@@ -5,15 +5,12 @@ declare(strict_types=1);
 namespace Pidgey\Http;
 
 use DateTimeImmutable;
-use DateTimeZone;
 
 /**
  * JSON error envelope: {"error":{"code","message"[,"details"][,"smtp"]},"statusCode","timestamp"}.
  */
 class ErrorResponse extends JsonResponse
 {
-    private const TIMESTAMP_FORMAT = 'Y-m-d\TH:i:s.v\Z';
-
     /**
      * Builds the envelope; details and smtp are omitted when null.
      *
@@ -46,7 +43,7 @@ class ErrorResponse extends JsonResponse
             [
                 'error' => $error,
                 'statusCode' => $status,
-                'timestamp' => $timestamp->setTimezone(new DateTimeZone('UTC'))->format(self::TIMESTAMP_FORMAT),
+                'timestamp' => Timestamp::format($timestamp),
             ],
             $status,
         );

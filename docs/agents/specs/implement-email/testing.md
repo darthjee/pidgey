@@ -67,7 +67,8 @@ All settled by #154.
   `Pidgey\Tests\Support\Mailpit` (HTTP API client, the only reader of `TEST_MAILPIT_*`),
   `Pidgey\Tests\Support\CapturedLog` (Monolog `TestHandler`); the fake SMTP server script
   `source/tests/support/scripts/fake-smtp-server.php` (delivered by #163) and the
-  organization lock holder script under `source/tests/fixtures/`; TLS material
+  organization lock holder script `source/tests/fixtures/scripts/organization-lock-holder.php`
+  (delivered by #164); TLS material
   under `source/tests/fixtures/tls/`
   ([testing/backend.md](../testing/backend.md#email-test-support)).
 - **Collaborators:** the stream abstraction and transport ([transport.md](transport.md)),
@@ -103,7 +104,7 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
    - [x] `FakeSmtpStream`;
    - [x] `FakeSmtpServer` and its server script (`source/tests/support/scripts/fake-smtp-server.php`);
    - [x] `CapturedLog`;
-   - [ ] the lock-holder script.
+   - [x] the lock-holder script (`source/tests/fixtures/scripts/organization-lock-holder.php`, #164).
 6. **Coverage** — the tests of the [required coverage](../email/testing.md#required-coverage)
    list, delivered by the backend issues that implement each part (encryption, transport,
    endpoints, test email).

@@ -14,7 +14,7 @@ use LogicException;
  */
 final class Validator
 {
-    /** @var array<string, FieldRules> Declared fields, in declaration order. */
+    /** @var array<string, FieldRules|IntegerRules> Declared fields, in declaration order. */
     private array $fields = [];
 
     /**
@@ -37,11 +37,25 @@ final class Validator
      */
     public function string(string $field): FieldRules
     {
-        if (array_key_exists($field, $this->fields)) {
-            throw new LogicException('Field already declared: ' . $field);
-        }
+        $this->guardUndeclared($field);
 
         return $this->fields[$field] = new FieldRules($field);
+    }
+
+    /**
+     * Declares an integer field and returns its fluent rules.
+     *
+     * @param string $field Body property name.
+     *
+     * @return IntegerRules
+     *
+     * @throws LogicException When the field was already declared.
+     */
+    public function integer(string $field): IntegerRules
+    {
+        $this->guardUndeclared($field);
+
+        return $this->fields[$field] = new IntegerRules($field);
     }
 
     /**
@@ -50,7 +64,7 @@ final class Validator
      * An optional field that is absent or null is omitted from the result, so a key is present
      * only when its field was sent.
      *
-     * @return array<string, string>
+     * @return array<string, string|int>
      *
      * @throws ValidationFailedException With every message, fields then rules in declaration order.
      */
@@ -77,5 +91,21 @@ final class Validator
         }
 
         return $values;
+    }
+
+    /**
+     * Rejects a second declaration of the same field.
+     *
+     * @param string $field Body property name.
+     *
+     * @return void
+     *
+     * @throws LogicException When the field was already declared.
+     */
+    private function guardUndeclared(string $field): void
+    {
+        if (array_key_exists($field, $this->fields)) {
+            throw new LogicException('Field already declared: ' . $field);
+        }
     }
 }

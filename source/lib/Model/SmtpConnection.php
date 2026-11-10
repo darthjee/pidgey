@@ -11,7 +11,8 @@ use UnexpectedValueException;
 /**
  * A row of the `smtp_connections` table: one organization SMTP connection.
  *
- * Holds the encrypted password bytes only, never a plain-text password.
+ * Holds the encrypted password bytes only, never a plain-text password; the bytes are kept out
+ * of var_dump() / print_r() output (see __debugInfo()).
  */
 final readonly class SmtpConnection
 {
@@ -87,5 +88,29 @@ final readonly class SmtpConnection
     public function hasPassword(): bool
     {
         return $this->encryptedPassword !== null;
+    }
+
+    /**
+     * Debug view without the encrypted password bytes: `encryptedPassword` is replaced by
+     * `hasPassword`.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'id' => $this->id,
+            'organizationId' => $this->organizationId,
+            'name' => $this->name,
+            'host' => $this->host,
+            'port' => $this->port,
+            'encryption' => $this->encryption,
+            'username' => $this->username,
+            'hasPassword' => $this->hasPassword(),
+            'fromAddress' => $this->fromAddress,
+            'active' => $this->active,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
+        ];
     }
 }

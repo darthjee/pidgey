@@ -146,6 +146,80 @@ final class FieldRules
     }
 
     /**
+     * Requires one of the given values, compared exactly (case-sensitive).
+     *
+     * @param string ...$values Accepted values, listed in the message in this order.
+     *
+     * @return self
+     */
+    public function oneOf(string ...$values): self
+    {
+        return $this->rule(
+            static fn (string $value): ?string => in_array($value, $values, true)
+                ? null
+                : 'must be one of the following values: ' . implode(', ', $values),
+        );
+    }
+
+    /**
+     * Requires an ASCII hostname or an IP literal, see HostName::isValid().
+     *
+     * @return self
+     */
+    public function hostname(): self
+    {
+        return $this->rule(
+            static fn (string $value): ?string => HostName::isValid($value)
+                ? null
+                : 'must be a hostname or an IP address',
+        );
+    }
+
+    /**
+     * Rejects a value containing a C0 control character (U+0000–U+001F) or DEL (U+007F).
+     *
+     * @return self
+     */
+    public function noControlCharacters(): self
+    {
+        return $this->rule(
+            static fn (string $value): ?string => preg_match('/[\x00-\x1F\x7F]/', $value) === 1
+                ? 'must not contain control characters'
+                : null,
+        );
+    }
+
+    /**
+     * Rejects a value containing a C0 control character or DEL other than CR and LF, which are
+     * left to noLineBreaks() so they get their own message.
+     *
+     * @return self
+     */
+    public function noOtherControlCharacters(): self
+    {
+        return $this->rule(
+            static fn (string $value): ?string => preg_match('/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/', $value)
+                === 1
+                ? 'must not contain control characters'
+                : null,
+        );
+    }
+
+    /**
+     * Rejects a value containing a CR or an LF.
+     *
+     * @return self
+     */
+    public function noLineBreaks(): self
+    {
+        return $this->rule(
+            static fn (string $value): ?string => strpbrk($value, "\r\n") !== false
+                ? 'must not contain line breaks'
+                : null,
+        );
+    }
+
+    /**
      * Evaluates the field against the body and returns its messages, in declaration order.
      *
      * @param array<string, mixed> $body Decoded request body.

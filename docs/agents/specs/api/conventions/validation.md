@@ -59,7 +59,7 @@ declares them, then each field's messages in the order its rules are declared.
 | max byte length N (UTF-8) | `<field> must be shorter than or equal to N bytes` |
 | no NUL byte | `<field> must not contain a NUL byte` |
 | one of a set | `<field> must be one of the following values: a, b, c` |
-| integer (JSON number, no fraction, not a string) | `<field> must be an integer` |
+| integer (a JSON integer; not a float, even with no fraction, a string or a boolean) | `<field> must be an integer` |
 | integer range `min`–`max` | `<field> must be between <min> and <max>` |
 | hostname or IP literal | `<field> must be a hostname or an IP address` |
 | no control characters | `<field> must not contain control characters` |
@@ -68,8 +68,10 @@ declares them, then each field's messages in the order its rules are declared.
 Endpoint specs list the rules for each field; the messages always follow these templates.
 
 In the range template, `<min>` and `<max>` are the bounds as decimal integers, e.g.
-`port must be between 1 and 65535`. A wrong-type integer field (a string such as `"587"`)
-gets `<field> must be an integer` and no further rule runs for it.
+`port must be between 1 and 65535`. Only a JSON integer passes the integer rule: a
+wrong-type integer field — a string such as `"587"`, a float, **including one with no
+fraction** such as `587.0`, or a boolean — gets `<field> must be an integer` and no further
+rule runs for it.
 
 **Pending decision:** message templates for rules not listed above (e.g. booleans), to be
 added when an endpoint spec first needs one.
