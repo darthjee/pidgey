@@ -10,13 +10,17 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Pidgey\Http\FieldRules;
+use Pidgey\Http\HostName;
 use Pidgey\Http\HttpException;
+use Pidgey\Http\IntegerRules;
 use Pidgey\Http\ValidationFailedException;
 use Pidgey\Http\Validator;
 
 #[CoversClass(Validator::class)]
 #[CoversClass(FieldRules::class)]
 #[UsesClass(HttpException::class)]
+#[UsesClass(HostName::class)]
+#[UsesClass(IntegerRules::class)]
 #[UsesClass(ValidationFailedException::class)]
 final class ValidatorTest extends TestCase
 {
@@ -76,6 +80,11 @@ final class ValidatorTest extends TestCase
         $max = static fn (FieldRules $r): FieldRules => $r->maxLength(3);
         $bytes = static fn (FieldRules $r): FieldRules => $r->maxBytes(3);
         $nul = static fn (FieldRules $r): FieldRules => $r->noNulByte();
+        $oneOf = static fn (FieldRules $r): FieldRules => $r->oneOf('none', 'tls', 'ssl');
+        $host = static fn (FieldRules $r): FieldRules => $r->hostname();
+        $control = static fn (FieldRules $r): FieldRules => $r->noControlCharacters();
+        $breaks = static fn (FieldRules $r): FieldRules => $r->noLineBreaks();
+        $oneOfMessage = 'f must be one of the following values: none, tls, ssl';
 
         return [
             'email passes' => [$email, 'bob@example.com', null],
@@ -91,6 +100,25 @@ final class ValidatorTest extends TestCase
             'max bytes counts bytes' => [$bytes, 'äö', 'f must be shorter than or equal to 3 bytes'],
             'no NUL byte passes' => [$nul, 'abc', null],
             'no NUL byte fails' => [$nul, "a\0b", 'f must not contain a NUL byte'],
+            'one of passes' => [$oneOf, 'tls', null],
+            'one of fails' => [$oneOf, 'starttls', $oneOfMessage],
+            'one of is case-sensitive' => [$oneOf, 'TLS', $oneOfMessage],
+            'one of rejects an empty value' => [$oneOf, '', $oneOfMessage],
+            'hostname passes' => [$host, 'smtp.example.com', null],
+            'hostname passes an IPv6 literal' => [$host, '[::1]', null],
+            'hostname fails' => [$host, 'smtp.exämple.de', 'f must be a hostname or an IP address'],
+            'hostname fails on a space' => [$host, 'smtp example.com', 'f must be a hostname or an IP address'],
+            'no control characters passes' => [$control, 'relay-user ä', null],
+            'no control characters fails on a tab' => [$control, "a\tb", 'f must not contain control characters'],
+            'no control characters fails on a NUL' => [$control, "a\0b", 'f must not contain control characters'],
+            'no control characters fails on CR' => [$control, "a\rb", 'f must not contain control characters'],
+            'no control characters fails on LF' => [$control, "a\nb", 'f must not contain control characters'],
+            'no control characters fails on US' => [$control, "a\x1Fb", 'f must not contain control characters'],
+            'no control characters fails on DEL' => [$control, "a\x7Fb", 'f must not contain control characters'],
+            'no line breaks passes' => [$breaks, "a\tb", null],
+            'no line breaks fails on CR' => [$breaks, "a\rb", 'f must not contain line breaks'],
+            'no line breaks fails on LF' => [$breaks, "a\nb", 'f must not contain line breaks'],
+            'no line breaks fails on CRLF' => [$breaks, "a\r\nb", 'f must not contain line breaks'],
         ];
     }
 
@@ -123,6 +151,70 @@ final class ValidatorTest extends TestCase
         $this->assertSame($rules, $rules->maxLength(1));
         $this->assertSame($rules, $rules->maxBytes(1));
         $this->assertSame($rules, $rules->noNulByte());
+        $this->assertSame($rules, $rules->oneOf('a'));
+        $this->assertSame($rules, $rules->hostname());
+        $this->assertSame($rules, $rules->noControlCharacters());
+        $this->assertSame($rules, $rules->noLineBreaks());
+    }
+
+    public function testIntegerFieldReturnsItsRules(): void
+    {
+        $validator = new Validator(['port' => 587]);
+
+        $this->assertInstanceOf(IntegerRules::class, $validator->integer('port'));
+    }
+
+    public function testStringAndIntegerFieldsMix(): void
+    {
+        $validator = new Validator([
+            'host' => ' smtp.example.com ',
+            'port' => 587,
+            'encryption' => 'tls',
+            'timeout' => null,
+        ]);
+        $validator->string('host')->trim()->notEmpty()->hostname();
+        $validator->integer('port')->range(1, 65535);
+        $validator->string('encryption')->trim()->notEmpty()->oneOf('none', 'tls', 'ssl');
+        $validator->integer('timeout')->optional();
+
+        $this->assertSame(
+            ['host' => 'smtp.example.com', 'port' => 587, 'encryption' => 'tls'],
+            $validator->validated(),
+        );
+    }
+
+    public function testStringAndIntegerFailuresAreReportedInDeclarationOrder(): void
+    {
+        $validator = new Validator([
+            'name' => '',
+            'port' => '587',
+            'encryption' => 'starttls',
+            'retries' => 0,
+        ]);
+        $validator->string('name')->trim()->notEmpty();
+        $validator->integer('port')->range(1, 65535);
+        $validator->string('encryption')->oneOf('none', 'tls', 'ssl');
+        $validator->integer('retries')->range(1, 3);
+
+        $this->assertSame(
+            [
+                'name should not be empty',
+                'port must be an integer',
+                'encryption must be one of the following values: none, tls, ssl',
+                'retries must be between 1 and 3',
+            ],
+            $this->details($validator),
+        );
+    }
+
+    public function testDeclaringAnIntegerFieldTwiceIsALogicError(): void
+    {
+        $validator = new Validator([]);
+        $validator->string('f');
+
+        $this->expectException(LogicException::class);
+
+        $validator->integer('f');
     }
 
     public function testTrimmedFieldReturnsTheTrimmedValue(): void
