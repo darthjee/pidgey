@@ -27,6 +27,32 @@ final class RoutesSecurityTest extends TestCase
         $this->assertSame([], RouteGuards::violations($router));
     }
 
+    public function testEverySmtpConnectionRouteListsTheGate(): void
+    {
+        /** @var Router $router */
+        $router = require __DIR__ . '/../../../config/routes.php';
+        $routes = [];
+
+        foreach ($router->routes() as $route) {
+            if (str_starts_with($route->pattern(), '/smtp-connections')) {
+                $routes[$route->method() . ' ' . $route->pattern()] = $route->middlewares();
+            }
+        }
+
+        $this->assertSame(
+            [
+                'GET /smtp-connections.json' => [Gate::class],
+                'POST /smtp-connections.json' => [Gate::class],
+                'GET /smtp-connections/:id.json' => [Gate::class],
+                'PATCH /smtp-connections/:id.json' => [Gate::class],
+                'DELETE /smtp-connections/:id.json' => [Gate::class],
+                'POST /smtp-connections/:id/activate.json' => [Gate::class],
+                'POST /smtp-connections/:id/deactivate.json' => [Gate::class],
+            ],
+            $routes,
+        );
+    }
+
     public function testTheFallbackIsPublicAndUnguarded(): void
     {
         $router = require __DIR__ . '/../../../config/routes.php';

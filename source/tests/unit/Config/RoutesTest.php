@@ -11,6 +11,10 @@ use Pidgey\Http\Handler\HashRedirectHandler;
 use Pidgey\Http\Handler\HealthHandler;
 use Pidgey\Http\Handler\LoginHandler;
 use Pidgey\Http\Handler\RegisterHandler;
+use Pidgey\Http\Handler\SmtpConnectionActivateHandler;
+use Pidgey\Http\Handler\SmtpConnectionDeactivateHandler;
+use Pidgey\Http\Handler\SmtpConnectionHandler;
+use Pidgey\Http\Handler\SmtpConnectionsHandler;
 use Pidgey\Http\Handler\StaticFileHandler;
 use Pidgey\Http\OriginCheck;
 use Pidgey\Http\Request;
@@ -45,6 +49,54 @@ final class RoutesTest extends TestCase
                 '/auth/register.json',
             ],
             'POST /auth/login.json' => ['POST', '/auth/login.json', LoginHandler::class, '/auth/login.json'],
+            'GET /smtp-connections.json' => [
+                'GET',
+                '/smtp-connections.json',
+                SmtpConnectionsHandler::class,
+                '/smtp-connections.json',
+            ],
+            'POST /smtp-connections.json' => [
+                'POST',
+                '/smtp-connections.json',
+                SmtpConnectionsHandler::class,
+                '/smtp-connections.json',
+            ],
+            'GET /smtp-connections/12.json' => [
+                'GET',
+                '/smtp-connections/12.json',
+                SmtpConnectionHandler::class,
+                '/smtp-connections/:id.json',
+            ],
+            'PATCH /smtp-connections/12.json' => [
+                'PATCH',
+                '/smtp-connections/12.json',
+                SmtpConnectionHandler::class,
+                '/smtp-connections/:id.json',
+            ],
+            'DELETE /smtp-connections/12.json' => [
+                'DELETE',
+                '/smtp-connections/12.json',
+                SmtpConnectionHandler::class,
+                '/smtp-connections/:id.json',
+            ],
+            'GET with a malformed id' => [
+                'GET',
+                '/smtp-connections/abc.json',
+                SmtpConnectionHandler::class,
+                '/smtp-connections/:id.json',
+            ],
+            'POST /smtp-connections/12/activate.json' => [
+                'POST',
+                '/smtp-connections/12/activate.json',
+                SmtpConnectionActivateHandler::class,
+                '/smtp-connections/:id/activate.json',
+            ],
+            'POST /smtp-connections/12/deactivate.json' => [
+                'POST',
+                '/smtp-connections/12/deactivate.json',
+                SmtpConnectionDeactivateHandler::class,
+                '/smtp-connections/:id/deactivate.json',
+            ],
         ];
     }
 
@@ -110,6 +162,11 @@ final class RoutesTest extends TestCase
             'non-GET deep link' => ['POST', '/foo'],
             'GET on the login endpoint' => ['GET', '/auth/login.json'],
             'PATCH on the register endpoint' => ['PATCH', '/auth/register.json'],
+            'PUT on a connection' => ['PUT', '/smtp-connections/12.json'],
+            'DELETE on the list' => ['DELETE', '/smtp-connections.json'],
+            'POST on a connection' => ['POST', '/smtp-connections/12.json'],
+            'GET on activate' => ['GET', '/smtp-connections/12/activate.json'],
+            'POST on test (not yet routed)' => ['POST', '/smtp-connections/12/test.json'],
         ];
     }
 
