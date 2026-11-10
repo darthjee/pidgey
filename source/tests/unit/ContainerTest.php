@@ -25,6 +25,7 @@ use Pidgey\Auth\Sessions;
 use Pidgey\Container;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Http\OperatorLog;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
 use Pidgey\Infra\ConnectionFactory;
@@ -62,6 +63,7 @@ use RuntimeException;
 #[UsesClass(SystemClock::class)]
 #[UsesClass(SystemWallClock::class)]
 #[UsesClass(LoggerFactory::class)]
+#[UsesClass(OperatorLog::class)]
 #[UsesClass(EncryptionKeys::class)]
 #[UsesClass(PasswordCipher::class)]
 #[UsesClass(DatabaseConfig::class)]
@@ -357,6 +359,16 @@ final class ContainerTest extends TestCase
         $logger = $container->logger();
 
         $this->assertSame($logger, $container->logger());
+    }
+
+    public function testOperatorLogIsMemoizedAndOpensNoConnection(): void
+    {
+        $container = new Container($this->unusedConnections(), logger: new NullLogger());
+
+        $operatorLog = $container->operatorLog();
+
+        $this->assertInstanceOf(OperatorLog::class, $operatorLog);
+        $this->assertSame($operatorLog, $container->operatorLog());
     }
 
     public function testLoggerCanBeInjected(): void

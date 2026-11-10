@@ -16,6 +16,7 @@ use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Http\OperatorLog;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
 use Pidgey\Infra\ConfigValidator;
@@ -89,6 +90,8 @@ final class Container
 
     private ?SessionSettings $smtpSessionSettings = null;
 
+    private ?OperatorLog $operatorLog = null;
+
     /**
      * Creates an empty container; nothing is built yet.
      *
@@ -142,6 +145,18 @@ final class Container
     public function logger(): LoggerInterface
     {
         return $this->logger ??= LoggerFactory::fromEnv();
+    }
+
+    /**
+     * Returns the operator log of the admin endpoints, written through the application logger.
+     *
+     * @return OperatorLog
+     *
+     * @throws InvalidArgumentException When `LOG_LEVEL` is invalid.
+     */
+    public function operatorLog(): OperatorLog
+    {
+        return $this->operatorLog ??= new OperatorLog($this->logger());
     }
 
     /**
