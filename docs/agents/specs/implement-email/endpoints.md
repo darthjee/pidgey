@@ -68,10 +68,17 @@ All settled by #153.
   credential-redirection rule on the merged state, encrypt a new password, persist, and
   answer the SMTP connection item. `PATCH` locks the connection row for
   read-merge-validate-write. They never return the password and never change `active`.
-- **Proposed names:** `Pidgey\Http\Handler\SmtpConnectionsHandler` (list, create) and
-  `Pidgey\Http\Handler\SmtpConnectionHandler` (read, update, delete), a field-rule set
-  `Pidgey\Http\SmtpConnectionRules`, a serializer `Pidgey\Http\SmtpConnectionPayload`, and
-  routes in a new `source/config/routes/smtp-connections.php`. Proposals only.
+- **Names (decided, #164):** `Pidgey\Http\Handler\SmtpConnectionsHandler` (list, create)
+  and `Pidgey\Http\Handler\SmtpConnectionHandler` (read, update, delete); the field-rule
+  set and fixed cross-field messages in `Pidgey\Http\SmtpConnectionRules`; the serializer
+  `Pidgey\Http\SmtpConnectionPayload`; the `:id` parser `Pidgey\Http\PathId::parse()`
+  (malformed → `400 BAD_REQUEST`, above `PHP_INT_MAX` → `404`); the host check of the
+  validator in `Pidgey\Http\HostName::isValid()`. Routes live in
+  `source/config/routes/organization.php`
+  ([request-handler/routing.md](../request-handler/routing.md#route-files)), required from
+  `source/config/routes.php` after `auth.php` and before the frontend fallback; every route
+  lists `[Gate::class]` and the global `OriginCheck` covers the writes. The
+  `smtp-connections.php` route file proposed earlier is dropped.
 - **Collaborators:** `Pidgey\Auth\Gate`, `Pidgey\Http\OriginCheck`, `Pidgey\Http\Validator`,
   `Pidgey\Http\FieldRules`, `Pidgey\Http\Router` and `source/config/routes/*.php`,
   `Pidgey\Http\HandlerFactory`, `Pidgey\Repository\SmtpConnectionRepository` (today: create,
@@ -101,10 +108,11 @@ and is not copied here. It carries `id`, `name`, `host`, `port`, `encryption`, `
   lock the organization row, load the target, set `active = false`. Both idempotent, both
   answer `200` with the item. Migration `0010_add_smtp_connections_active_unique.sql` adds
   the generated `active_organization_id` column and its unique index (defense in depth).
-- **Proposed names:** `Pidgey\Http\Handler\SmtpConnectionActivateHandler` and
-  `Pidgey\Http\Handler\SmtpConnectionDeactivateHandler`, with the transactional steps in the
-  repository (e.g. `SmtpConnectionRepository::activate` / `::deactivate`) or a small
-  `Pidgey\Email\ConnectionActivation`. Proposals only.
+- **Names (decided, #164):** `Pidgey\Http\Handler\SmtpConnectionActivateHandler` and
+  `Pidgey\Http\Handler\SmtpConnectionDeactivateHandler`. The steps live in the
+  repositories (`OrganizationRepository::lockForUpdate`,
+  `SmtpConnectionRepository::activate` / `::deactivate`) and the handler wraps them in
+  `Transaction::run`; there is **no** `Pidgey\Email\ConnectionActivation`.
 - **Collaborators:** `Pidgey\Infra\Transaction`, `Pidgey\Repository\OrganizationRepository`
   (row lock), `Pidgey\Repository\SmtpConnectionRepository`, the operator log.
 - **Governing specs:** [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md#post-smtp-connectionsidactivatejson)
@@ -154,8 +162,10 @@ and is not copied here. It carries `id`, `name`, `host`, `port`, `encryption`, `
 - **Format:** a Monolog `info` line, message = the action name, JSON context `userId`,
   `organizationId`, `connectionId`, `fields` (names only), through an `ErrorLogHandler` (same
   destination as today's `error_log()`); minimum level `LOG_LEVEL`.
-- **Names:** `Pidgey\Infra\LoggerFactory` (decided) and a small `Pidgey\Http\OperatorLog`
-  writing the lines (proposal).
+- **Names (decided):** `Pidgey\Infra\LoggerFactory` and
+  `Pidgey\Http\OperatorLog::record(string $action, int $userId, int $organizationId,
+  int $connectionId, ?array $fields = null)` writing the lines (#164; `fields` only on
+  update).
 - **Collaborators:** `monolog/monolog`, `Pidgey\Container`, the handlers above.
 - **Governing specs:** [api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#operator-log);
   [email/send-flow.md](../email/send-flow.md) (step 8);
@@ -165,21 +175,31 @@ and is not copied here. It carries `id`, `name`, `host`, `port`, `encryption`, `
 
 ## Implementation work
 
-Names are **proposals** (see the lifecycle rules in [implement-email.md](../implement-email.md)).
+Names not marked decided above are **proposals** (see the lifecycle rules in
+[implement-email.md](../implement-email.md)).
 
-1. **Handlers and routes** — list / create / read / update / delete, activate, deactivate and
-   test email handlers, registered in `source/config/routes/organization.php`
-   ([request-handler/routing.md](../request-handler/routing.md#route-files)).
-2. **Validation** — the shared message templates, the credential-redirection rule on
-   `PATCH`, and the organization-user rule of the test email `to`.
-3. **Migrations** — `0010_add_smtp_connections_active_unique.sql` (generated
-   `active_organization_id` and its unique index) and `0011_create_smtp_test_limits.sql`.
+1. **Handlers and routes** — registered in `source/config/routes/organization.php`
+   ([request-handler/routing.md](../request-handler/routing.md#route-files)):
+   - [x] list / create / read / update / delete, activate and deactivate (#164);
+   - [ ] the test email handler (#166).
+2. **Validation**:
+   - [x] the shared message templates (integer, range, one of a set, hostname or IP literal,
+     no control characters, no line breaks) and the credential-redirection rule on `PATCH`
+     (#164);
+   - [ ] the organization-user rule of the test email `to` (#166).
+3. **Migrations**:
+   - [x] `0010_add_smtp_connections_active_unique.sql` (generated `active_organization_id`
+     and its unique index `uq_smtp_connections_active_organization_id`) (#164);
+   - [ ] `0011_create_smtp_test_limits.sql` (#166).
 4. **Host policy** — `Pidgey\Smtp\HostPolicy` in the send flow: resolve once, denied ranges,
    connect to the checked IP ([transport.md](transport.md#building-block-send-flow)).
 5. **Test-email limit** — `Pidgey\Repository\SmtpTestLimitRepository`: window, lease and
    `Retry-After`.
 6. **Logger** — `Pidgey\Infra\LoggerFactory` (Monolog, `ErrorLogHandler`, `LOG_LEVEL`) wired
-   in `Pidgey\Container` (landed in #162); the operator log lines remain.
+   in `Pidgey\Container` (landed in #162); the operator log lines:
+   - [x] `smtp-connection-create`, `-update`, `-delete`, `-activate`, `-deactivate` through
+     `Pidgey\Http\OperatorLog` (#164);
+   - [ ] `smtp-connection-test` (#166).
 7. **Configuration** — `ConfigValidator` / `bin/check-config`: `SMTP_ALLOW_PRIVATE_HOSTS`,
    `SMTP_TEST_MAX_ATTEMPTS`, `SMTP_TEST_WINDOW`, `LOG_LEVEL` (landed in #162) and their
    failure names

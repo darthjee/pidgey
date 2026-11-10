@@ -51,7 +51,7 @@ Test-only helpers for the email integration (behavior in
 | `Pidgey\Tests\Support\FrozenWallClock` | `support/` | A UTC `WallClock` frozen at a given instant, moved forward with `advance()`, for the test-email limit window. |
 | `Pidgey\Tests\Support\CapturedLog` | `support/` | A logger built through `LoggerFactory::create('debug', TestHandler)` and injected with `new Container(logger: …)`; exposes the records and formatted lines, and `assertNotLogged()` fails if a line holds the secret in plain or base64 form. For the canary-password assertions. |
 | Fake SMTP server script | `support/scripts/fake-smtp-server.php` | `stream_socket_server` script, run through `proc_open`: serves one session from a JSON scenario (format in [email/testing.md](../email/testing.md#pidgeytestssupportfakesmtpserver)). |
-| Lock holder script | `fixtures/` | Child process that holds an organization lock, for the concurrent `activate` test. |
+| Lock holder script | `fixtures/scripts/organization-lock-holder.php` | Child process that holds an organization lock, for the concurrent `activate` and `activate` / `deactivate` tests. Arguments: organization id, hold time in milliseconds, optionally a connection id to activate before commit. It opens a transaction, prints `LOCKED` once `SELECT … FROM organizations WHERE id = ? FOR UPDATE` returns, holds the lock for the given time, activates the connection when one is given, commits and exits `0`. |
 | TLS material | `fixtures/tls/` | Test CA, leaf certificates and the regeneration script ([TLS fixtures](../email/testing.md#tls-fixtures)). |
 
 Guard tests (unit suite, details in
