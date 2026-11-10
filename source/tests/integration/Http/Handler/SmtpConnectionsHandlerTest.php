@@ -234,6 +234,14 @@ final class SmtpConnectionsHandlerTest extends SmtpConnectionEndpointTestCase
                 self::body(['username' => 'mailer', 'password' => "sec\0ret", 'encryption' => 'tls']),
                 ['password must not contain a NUL byte'],
             ],
+            'fromAddress with U+0001 in a quoted local part' => [
+                self::body(['fromAddress' => "\"a\x01b\"@example.com"]),
+                ['fromAddress must not contain control characters'],
+            ],
+            'fromAddress with NUL in a quoted local part' => [
+                self::body(['fromAddress' => "\"a\0b\"@example.com"]),
+                ['fromAddress must be an email', 'fromAddress must not contain control characters'],
+            ],
         ];
     }
 

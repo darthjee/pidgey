@@ -190,6 +190,22 @@ final class FieldRules
     }
 
     /**
+     * Rejects a value containing a C0 control character or DEL other than CR and LF, which are
+     * left to noLineBreaks() so they get their own message.
+     *
+     * @return self
+     */
+    public function noOtherControlCharacters(): self
+    {
+        return $this->rule(
+            static fn (string $value): ?string => preg_match('/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/', $value)
+                === 1
+                ? 'must not contain control characters'
+                : null,
+        );
+    }
+
+    /**
      * Rejects a value containing a CR or an LF.
      *
      * @return self

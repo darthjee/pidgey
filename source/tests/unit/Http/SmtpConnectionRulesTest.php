@@ -185,6 +185,22 @@ final class SmtpConnectionRulesTest extends TestCase
                 ['fromAddress' => "noreply@example.com\r\nBcc: x@example.com"],
                 ['fromAddress must be an email', 'fromAddress must not contain line breaks'],
             ],
+            'fromAddress with U+0001 in a quoted local part' => [
+                ['fromAddress' => "\"a\x01b\"@example.com"],
+                ['fromAddress must not contain control characters'],
+            ],
+            'fromAddress with NUL in a quoted local part' => [
+                ['fromAddress' => "\"a\0b\"@example.com"],
+                ['fromAddress must be an email', 'fromAddress must not contain control characters'],
+            ],
+            'fromAddress with VT in a quoted local part' => [
+                ['fromAddress' => "\"a\x0Bb\"@example.com"],
+                ['fromAddress must not contain control characters'],
+            ],
+            'fromAddress with DEL in a quoted local part' => [
+                ['fromAddress' => "\"a\x7Fb\"@example.com"],
+                ['fromAddress must not contain control characters'],
+            ],
             'long fromAddress' => [
                 ['fromAddress' => str_repeat('a', 250) . '@example.com'],
                 ['fromAddress must be an email', 'fromAddress must be shorter than or equal to 255 characters'],
@@ -373,6 +389,14 @@ final class SmtpConnectionRulesTest extends TestCase
         $this->assertFailure(
             fn () => SmtpConnectionRules::forUpdate([$field => '  '], $this->stored()),
             [$field . ' should not be empty'],
+        );
+    }
+
+    public function testUpdateRejectsControlCharactersInTheFromAddress(): void
+    {
+        $this->assertFailure(
+            fn () => SmtpConnectionRules::forUpdate(['fromAddress' => "\"a\x01b\"@example.com"], $this->stored()),
+            ['fromAddress must not contain control characters'],
         );
     }
 

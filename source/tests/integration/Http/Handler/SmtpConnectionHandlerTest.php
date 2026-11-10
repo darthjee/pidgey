@@ -438,6 +438,14 @@ final class SmtpConnectionHandlerTest extends SmtpConnectionEndpointTestCase
                 ['fromAddress' => "a@example.com\nBcc: b@example.com"],
                 ['fromAddress must be an email', 'fromAddress must not contain line breaks'],
             ],
+            'fromAddress with U+0001 in a quoted local part' => [
+                ['fromAddress' => "\"a\x01b\"@example.com"],
+                ['fromAddress must not contain control characters'],
+            ],
+            'fromAddress with NUL in a quoted local part' => [
+                ['fromAddress' => "\"a\0b\"@example.com"],
+                ['fromAddress must be an email', 'fromAddress must not contain control characters'],
+            ],
         ];
     }
 

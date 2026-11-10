@@ -166,7 +166,10 @@ final class SmtpConnectionRules
             $fromAddress->optional();
         }
 
-        $fromAddress->trim()->notEmpty()->email()->maxLength(self::MAX_CHARACTERS)->noLineBreaks();
+        $fromAddress->trim()->notEmpty()->email()
+            ->maxLength(self::MAX_CHARACTERS)
+            ->noLineBreaks()
+            ->noOtherControlCharacters();
 
         return $validator->validated();
     }

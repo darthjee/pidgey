@@ -84,6 +84,8 @@ final class ValidatorTest extends TestCase
         $host = static fn (FieldRules $r): FieldRules => $r->hostname();
         $control = static fn (FieldRules $r): FieldRules => $r->noControlCharacters();
         $breaks = static fn (FieldRules $r): FieldRules => $r->noLineBreaks();
+        $other = static fn (FieldRules $r): FieldRules => $r->noOtherControlCharacters();
+        $otherMessage = 'f must not contain control characters';
         $oneOfMessage = 'f must be one of the following values: none, tls, ssl';
 
         return [
@@ -116,6 +118,16 @@ final class ValidatorTest extends TestCase
             'no control characters fails on US' => [$control, "a\x1Fb", 'f must not contain control characters'],
             'no control characters fails on DEL' => [$control, "a\x7Fb", 'f must not contain control characters'],
             'no line breaks passes' => [$breaks, "a\tb", null],
+            'no other control characters passes' => [$other, 'relay-user ä', null],
+            'no other control characters ignores CR' => [$other, "a\rb", null],
+            'no other control characters ignores LF' => [$other, "a\nb", null],
+            'no other control characters fails on a NUL' => [$other, "a\0b", $otherMessage],
+            'no other control characters fails on SOH' => [$other, "a\x01b", $otherMessage],
+            'no other control characters fails on a tab' => [$other, "a\tb", $otherMessage],
+            'no other control characters fails on VT' => [$other, "a\x0Bb", $otherMessage],
+            'no other control characters fails on FF' => [$other, "a\x0Cb", $otherMessage],
+            'no other control characters fails on SO' => [$other, "a\x0Eb", $otherMessage],
+            'no other control characters fails on DEL' => [$other, "a\x7Fb", $otherMessage],
             'no line breaks fails on CR' => [$breaks, "a\rb", 'f must not contain line breaks'],
             'no line breaks fails on LF' => [$breaks, "a\nb", 'f must not contain line breaks'],
             'no line breaks fails on CRLF' => [$breaks, "a\r\nb", 'f must not contain line breaks'],
@@ -155,6 +167,7 @@ final class ValidatorTest extends TestCase
         $this->assertSame($rules, $rules->hostname());
         $this->assertSame($rules, $rules->noControlCharacters());
         $this->assertSame($rules, $rules->noLineBreaks());
+        $this->assertSame($rules, $rules->noOtherControlCharacters());
     }
 
     public function testIntegerFieldReturnsItsRules(): void
