@@ -6,9 +6,8 @@ namespace Pidgey\Tests\Unit\Support;
 
 use Closure;
 use PHPUnit\Framework\AssertionFailedError;
-use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Pidgey\Smtp\Deadline;
 use Pidgey\Smtp\ReplyParser;
@@ -17,11 +16,7 @@ use Pidgey\Smtp\StreamFailureKind;
 use Pidgey\Tests\Support\FakeSmtpStream;
 use Pidgey\Tests\Support\FrozenClock;
 
-#[CoversClass(FakeSmtpStream::class)]
-#[UsesClass(Deadline::class)]
-#[UsesClass(StreamFailure::class)]
-#[UsesClass(StreamFailureKind::class)]
-#[UsesClass(FrozenClock::class)]
+#[CoversNothing]
 final class FakeSmtpStreamTest extends TestCase
 {
     private FrozenClock $clock;

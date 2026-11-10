@@ -24,8 +24,6 @@ use Pidgey\Tests\Support\FrozenClock;
 #[UsesClass(Reply::class)]
 #[UsesClass(StreamFailure::class)]
 #[UsesClass(StreamFailureKind::class)]
-#[UsesClass(FakeSmtpStream::class)]
-#[UsesClass(FrozenClock::class)]
 final class ReplyParserTest extends TestCase
 {
     private FrozenClock $clock;

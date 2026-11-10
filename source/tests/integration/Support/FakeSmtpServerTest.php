@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Pidgey\Tests\Integration\Support;
 
 use PHPUnit\Framework\AssertionFailedError;
-use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\TestCase;
 use Pidgey\Tests\Support\FakeSmtpServer;
 
-#[CoversClass(FakeSmtpServer::class)]
+#[CoversNothing]
 final class FakeSmtpServerTest extends TestCase
 {
     private const CA_FILE = __DIR__ . '/../../fixtures/tls/ca.pem';
