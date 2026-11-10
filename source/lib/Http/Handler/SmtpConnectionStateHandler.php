@@ -77,6 +77,7 @@ abstract class SmtpConnectionStateHandler extends RequestHandler
      *
      * @throws BadRequestException When the `:id` is malformed.
      * @throws NotFoundException   When no connection of the organization has this id.
+     * @throws LogicException     When the caller's organization does not exist (answered `500`).
      * @throws Throwable           When a step fails (rolled back, answered `500`).
      */
     protected function process(ProcessingRequest $request): Response
@@ -86,7 +87,9 @@ abstract class SmtpConnectionStateHandler extends RequestHandler
         $organizationId = $user->organizationId();
 
         $connection = $this->transaction->run(function () use ($organizationId, $id): SmtpConnection {
-            $this->organizations->lockForUpdate($organizationId);
+            if (!$this->organizations->lockForUpdate($organizationId)) {
+                throw new LogicException("Organization {$organizationId} of the authenticated user does not exist.");
+            }
 
             if ($this->connections->lockInOrganization($organizationId, $id) === null) {
                 throw new NotFoundException(SmtpConnectionHandler::NOT_FOUND);

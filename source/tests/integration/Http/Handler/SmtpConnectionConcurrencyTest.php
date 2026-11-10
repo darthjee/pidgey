@@ -235,6 +235,39 @@ final class SmtpConnectionConcurrencyTest extends SmtpConnectionEndpointTestCase
         );
     }
 
+    #[DataProvider('stateChanges')]
+    public function testAStateChangeWithoutItsOrganizationAnswers500WithoutALogLine(string $action, bool $active): void
+    {
+        $user = $this->account();
+        $organizationId = $user->organizationId;
+        $id = $this->fixtures->smtpConnection(organizationId: $organizationId, active: $active);
+        $hooked = $this->lockHookPdo();
+        $hooked->beforeNextLock(function () use ($organizationId): void {
+            // The organization disappears between the gate and the organization lock.
+            $this->pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+
+            try {
+                $this->pdo->prepare('DELETE FROM organizations WHERE id = :id')->execute(['id' => $organizationId]);
+            } finally {
+                $this->pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+            }
+        });
+        $before = $this->row('smtp_connections', 'id', $id);
+
+        $response = $this->send(
+            $user,
+            'POST',
+            "/smtp-connections/{$id}/{$action}.json",
+            [],
+            [],
+            static fn (): PDO => $hooked,
+        );
+
+        $this->assertError($response, 500, 'INTERNAL_ERROR');
+        $this->assertSame($before, $this->row('smtp_connections', 'id', $id));
+        $this->assertSame([], $this->operatorLines());
+    }
+
     private function lockHookPdo(): LockHookPdo
     {
         $config = DatabaseConfig::fromEnv();
