@@ -7,7 +7,6 @@ namespace Pidgey\Tests\Unit\Http\Handler;
 use LogicException;
 use Monolog\Handler\TestHandler;
 use Monolog\Level;
-use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -22,7 +21,6 @@ use Pidgey\Http\Request;
 use Pidgey\Http\RequestHandler;
 use Pidgey\Http\Response;
 use Pidgey\Infra\ConnectionFactory;
-use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\LoggerFactory;
 use Pidgey\Tests\Support\CapturedLog;
 
@@ -212,17 +210,10 @@ final class StaticFileHandlerTest extends TestCase
 
     public function testBuildUsesTheContainerLoggerAndNoOtherService(): void
     {
-        $connections = new class implements ConnectionFactory {
-            public function create(DatabaseConfig $config): PDO
-            {
-                throw new LogicException('The database must not be touched.');
-            }
-
-            public function createServer(DatabaseConfig $config): PDO
-            {
-                throw new LogicException('The database must not be touched.');
-            }
-        };
+        $untouched = new LogicException('The database must not be touched.');
+        $connections = $this->createStub(ConnectionFactory::class);
+        $connections->method('create')->willThrowException($untouched);
+        $connections->method('createServer')->willThrowException($untouched);
         $handler = StaticFileHandler::build(new Container($connections, logger: $this->log->logger()));
 
         try {
