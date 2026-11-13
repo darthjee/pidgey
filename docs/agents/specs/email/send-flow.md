@@ -170,6 +170,8 @@ with `encryption: none` the [send-time checks](#send-time-checks) already refuse
   line starting with `.` gets an extra `.`; done by the transport, not the MIME builder),
   ending with `CRLF.CRLF`. A rejection of `DATA` or of the final `.` → `SMTP_REJECTED`
   ("rejected the message"); an oversized message is rejected by the server (`552`).
+  The transport splits the message on CRLF, bare CR or bare LF and rewrites every line with
+  CRLF before dot-stuffing, so a bare CR or LF never reaches the wire (SMTP smuggling).
 - **Success is the reply to the final `.`** (2xx); it feeds the success `smtp` field.
 - `QUIT` is best-effort: its reply or failure never turns a sent message into a failure.
 
