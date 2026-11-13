@@ -39,6 +39,8 @@ use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
 use Pidgey\Smtp\SessionSettings;
+use Pidgey\Smtp\SmtpTransport;
+use Pidgey\Smtp\Transport;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -89,6 +91,8 @@ final class Container
     private ?PasswordCipher $passwordCipher = null;
 
     private ?SessionSettings $smtpSessionSettings = null;
+
+    private ?Transport $smtpTransport = null;
 
     private ?OperatorLog $operatorLog = null;
 
@@ -233,6 +237,17 @@ final class Container
             $caFile === null ? null : AppPath::resolve($caFile),
             Env::get('SMTP_EHLO_NAME'),
         );
+    }
+
+    /**
+     * Returns the SMTP transport, built over the monotonic clock on the first call; opens no
+     * connection (each `send()` opens its own).
+     *
+     * @return Transport
+     */
+    public function smtpTransport(): Transport
+    {
+        return $this->smtpTransport ??= new SmtpTransport($this->clock());
     }
 
     /**

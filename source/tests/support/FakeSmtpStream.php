@@ -23,6 +23,8 @@ use SensitiveParameter;
  *   `ReplyParser::MAX_LINE_BYTES + 2` bytes per read, as the socket stream does.
  * - `fail()`: thrown by the call that reaches it (or by the `open()` / `upgradeToTls()` it
  *   follows).
+ * - `failRead()`: thrown by `readLine()` only, so it can follow `expectOpen()` (a close or a
+ *   timeout before the greeting).
  *
  * Delays advance the shared `FrozenClock`; a delay beyond the call's remaining deadline
  * advances it by that remaining time and throws a `Timeout`. A call with an expired deadline
@@ -36,6 +38,7 @@ final class FakeSmtpStream implements SmtpStream
     private const REPLY = 'reply';
     private const UPGRADE = 'upgrade';
     private const FAIL = 'fail';
+    private const FAIL_READ = 'read fail';
 
     /** @var list<array{type: string, value: string, delay: float, kind: StreamFailureKind|null}> */
     private array $script = [];
@@ -85,6 +88,11 @@ final class FakeSmtpStream implements SmtpStream
     public function fail(StreamFailureKind $kind, float $delay = 0.0): self
     {
         return $this->add(self::FAIL, '', $delay, $kind);
+    }
+
+    public function failRead(StreamFailureKind $kind, float $delay = 0.0): self
+    {
+        return $this->add(self::FAIL_READ, '', $delay, $kind);
     }
 
     /**
@@ -176,7 +184,7 @@ final class FakeSmtpStream implements SmtpStream
         if ($this->pending === null) {
             $entry = $this->next('readLine');
 
-            if ($entry['type'] === self::FAIL) {
+            if ($entry['type'] === self::FAIL || $entry['type'] === self::FAIL_READ) {
                 $this->throwFailure($entry, $deadline);
             }
 

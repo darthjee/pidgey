@@ -79,14 +79,14 @@ All settled by #152.
   reply to the final `.` or a classified failure. It knows nothing about HTTP,
   organizations, repositories or logging; it depends only on `Pidgey\Infra\` (the monotonic
   `Clock` and `SecretString`).
-- **Proposed names** (namespace `Pidgey\Smtp\`): `Pidgey\Smtp\Transport` (interface) and
-  `Pidgey\Smtp\SmtpTransport`, `Pidgey\Smtp\SmtpStream` (stream abstraction) with a socket
-  implementation `Pidgey\Smtp\SocketStream`, `Pidgey\Smtp\Reply`,
-  `Pidgey\Smtp\ReplyParser`, `Pidgey\Smtp\Deadline`, `Pidgey\Smtp\SmtpFailure`,
-  `Pidgey\Smtp\FailureCode`. Proposals only, except the names delivered by #163:
-  `Pidgey\Smtp\SmtpStream`, `SocketStream`, `Reply`, `ReplyParser`, `Deadline`,
-  `EhloExtensions`, `SessionSettings`, `TlsContext`, `StreamFailure` (with
-  `StreamFailureKind`), `MalformedReply`, and `Pidgey\Infra\SecretString`.
+- **Names** (namespace `Pidgey\Smtp\`), all delivered:
+  - by #163: `Pidgey\Smtp\SmtpStream` (stream abstraction) with its socket implementation
+    `SocketStream`, `Reply`, `ReplyParser`, `Deadline`, `EhloExtensions`, `SessionSettings`,
+    `TlsContext`, `StreamFailure` (with `StreamFailureKind`), `MalformedReply`, and
+    `Pidgey\Infra\SecretString`;
+  - by #173: `Pidgey\Smtp\Transport` (interface) and its implementation `SmtpTransport`,
+    `SmtpFailure`, `FailureCode`, `SmtpStep`, `TlsMode`, `Target`, `Credentials`, `Envelope`
+    and `SmtpResult`, wired through `Pidgey\Container::smtpTransport()`.
 - **Collaborators:** `Pidgey\Infra\Clock` (session deadline), `Pidgey\Infra\SecretString`
   (the password). The connection settings (host, checked IP, port, encryption), the session
   settings (`Pidgey\Smtp\SessionSettings`: timeouts, CA file, `EHLO` name, built by
@@ -144,9 +144,12 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
    ([TLS policy](../email/smtp-connections.md#tls-policy)).
 3. [x] **Session deadline** — `Pidgey\Smtp\Deadline` on `Pidgey\Infra\Clock`: every wait is
    `min(its own timeout, time remaining)` ([Timeouts](../email/send-flow.md#timeouts)).
-4. **Transport** — `Pidgey\Smtp\SmtpTransport`: the step sequence, the no-downgrade and
-   injection guard, `AUTH` `PLAIN` / `LOGIN`, dot-stuffing, best-effort `QUIT`, failure
-   classification ([SMTP session](../email/send-flow.md#smtp-session),
+4. [x] **Transport** — `Pidgey\Smtp\Transport` / `Pidgey\Smtp\SmtpTransport`, with
+   `SmtpFailure`, `FailureCode`, `SmtpStep`, `TlsMode`, `Target`, `Credentials`, `Envelope`,
+   `SmtpResult` and `Pidgey\Container::smtpTransport()`: the step sequence, the
+   no-downgrade and injection guard, `AUTH` `PLAIN` / `LOGIN`, line-ending normalization and
+   dot-stuffing, best-effort `QUIT`, failure classification
+   ([SMTP session](../email/send-flow.md#smtp-session),
    [Classification rules](../email/failures.md#classification-rules)).
 5. **MIME builder** — `Pidgey\Email\MimeBuilder`: headers, RFC 2047 subject,
    quoted-printable bodies, `multipart/alternative`
@@ -177,6 +180,9 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
 11. **Tests** — reply-by-reply unit tests against a fake stream, integration tests against
     Mailpit and the test CA, and the canary-password leak test (see
     [testing.md](testing.md)).
+    Transport: reply-by-reply unit tests, Mailpit and `FakeSmtpServer` integration tests and
+    the exception-message canary check are delivered by #173. The leak test through response
+    bodies and log records, and the HTTP columns of the failure mapping, follow with #165.
 
 ## Shared contracts
 
@@ -229,6 +235,10 @@ Delivered by #163 as `Pidgey\Smtp\SmtpStream` / `Pidgey\Smtp\SocketStream`, with
 | `message` | The reply text, redacted and sanitized ([failures.md](../email/failures.md#sanitization-and-length-cap)). |
 
 It becomes the success body `{ "status": "sent", "smtp": { "code", "message" } }`.
+
+The transport itself returns the **raw** `Reply` to the final `.` (`Pidgey\Smtp\SmtpResult`);
+echo redaction, sanitization and the enhanced-status join that produce `message` are done by
+the send flow (#165).
 
 ### Failure
 
