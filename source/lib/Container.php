@@ -16,6 +16,8 @@ use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Email\MimeBuilder;
+use Pidgey\Email\SendFlow;
 use Pidgey\Http\OperatorLog;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
@@ -97,6 +99,10 @@ final class Container
     private ?Transport $smtpTransport = null;
 
     private ?OperatorLog $operatorLog = null;
+
+    private ?MimeBuilder $mimeBuilder = null;
+
+    private ?SendFlow $sendFlow = null;
 
     /**
      * Creates an empty container; nothing is built yet.
@@ -267,6 +273,37 @@ final class Container
         return $this->hostPolicy ??= new HostPolicy(
             new SystemHostResolver(),
             Env::get('SMTP_ALLOW_PRIVATE_HOSTS') === 'true',
+        );
+    }
+
+    /**
+     * Returns the MIME builder, over the wall clock (opens no connection).
+     *
+     * @return MimeBuilder
+     */
+    public function mimeBuilder(): MimeBuilder
+    {
+        return $this->mimeBuilder ??= new MimeBuilder($this->wallClock());
+    }
+
+    /**
+     * Returns the send flow, built over the host policy, the password cipher, the MIME
+     * builder, the SMTP transport and its settings, and the logger on the first call; opens
+     * no connection.
+     *
+     * @return SendFlow
+     *
+     * @throws RuntimeException When `SMTP_ENCRYPTION_KEY` is missing or a timeout is invalid.
+     */
+    public function sendFlow(): SendFlow
+    {
+        return $this->sendFlow ??= new SendFlow(
+            $this->hostPolicy(),
+            $this->passwordCipher(),
+            $this->mimeBuilder(),
+            $this->smtpTransport(),
+            $this->smtpSessionSettings(),
+            $this->logger(),
         );
     }
 

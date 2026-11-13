@@ -25,6 +25,8 @@ use Pidgey\Auth\Sessions;
 use Pidgey\Container;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Email\MimeBuilder;
+use Pidgey\Email\SendFlow;
 use Pidgey\Http\OperatorLog;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
@@ -88,6 +90,8 @@ use RuntimeException;
 #[UsesClass(SessionSettings::class)]
 #[UsesClass(SmtpTransport::class)]
 #[UsesClass(HostPolicy::class)]
+#[UsesClass(MimeBuilder::class)]
+#[UsesClass(SendFlow::class)]
 #[UsesClass(HostCheck::class)]
 #[UsesClass(SystemHostResolver::class)]
 #[UsesClass(ReplyParser::class)]
@@ -410,6 +414,25 @@ final class ContainerTest extends TestCase
         $policy = new HostPolicy($this->createStub(HostResolver::class), true);
 
         $this->assertSame($policy, (new Container($this->unusedConnections(), hostPolicy: $policy))->hostPolicy());
+    }
+
+    public function testMimeBuilderIsMemoized(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $builder = $container->mimeBuilder();
+
+        $this->assertSame($builder, $container->mimeBuilder());
+    }
+
+    public function testSendFlowIsMemoizedAndOpensNoConnection(): void
+    {
+        $container = new Container($this->unusedConnections(), logger: new NullLogger());
+
+        $flow = $container->sendFlow();
+
+        $this->assertInstanceOf(SendFlow::class, $flow);
+        $this->assertSame($flow, $container->sendFlow());
     }
 
     public function testLoggerIsMemoizedAndOpensNoConnection(): void
