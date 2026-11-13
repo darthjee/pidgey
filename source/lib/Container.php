@@ -38,8 +38,10 @@ use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
+use Pidgey\Smtp\HostPolicy;
 use Pidgey\Smtp\SessionSettings;
 use Pidgey\Smtp\SmtpTransport;
+use Pidgey\Smtp\SystemHostResolver;
 use Pidgey\Smtp\Transport;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
@@ -109,12 +111,16 @@ final class Container
      * @param LoggerInterface|null $logger            Application logger (swappable in tests);
      *                                                defaults to the one built from `LOG_LEVEL`, on
      *                                                first use.
+     * @param HostPolicy|null      $hostPolicy        SMTP host policy (swappable in tests);
+     *                                                defaults to the system resolver and
+     *                                                `SMTP_ALLOW_PRIVATE_HOSTS`, on first use.
      */
     public function __construct(
         private readonly ConnectionFactory $connectionFactory = new PdoFactory(),
         private ?WallClock $wallClock = null,
         private ?Clock $clock = null,
         private ?LoggerInterface $logger = null,
+        private ?HostPolicy $hostPolicy = null,
     ) {
     }
 
@@ -248,6 +254,20 @@ final class Container
     public function smtpTransport(): Transport
     {
         return $this->smtpTransport ??= new SmtpTransport($this->clock());
+    }
+
+    /**
+     * Returns the SMTP host policy, built over the system resolver on the first call, with
+     * private hosts allowed only when `SMTP_ALLOW_PRIVATE_HOSTS` is exactly `true`.
+     *
+     * @return HostPolicy
+     */
+    public function hostPolicy(): HostPolicy
+    {
+        return $this->hostPolicy ??= new HostPolicy(
+            new SystemHostResolver(),
+            Env::get('SMTP_ALLOW_PRIVATE_HOSTS') === 'true',
+        );
     }
 
     /**
