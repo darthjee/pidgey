@@ -41,7 +41,8 @@ final class SmtpFailureException extends HttpException
      *
      * @return self
      *
-     * @throws LogicException When the outcome was sent, or its code is unknown.
+     * @throws LogicException When the outcome was sent, its code is unknown, or it was
+     *                        rejected at an unexpected step.
      */
     public static function fromOutcome(SendOutcome $outcome, int $port, SmtpEncryption $encryption): self
     {
@@ -159,19 +160,23 @@ final class SmtpFailureException extends HttpException
     }
 
     /**
-     * Returns the `SMTP_REJECTED` message of the failing step.
+     * Returns the `SMTP_REJECTED` message of the failing step; the transport rejects only at the
+     * greeting, `EHLO`, `MAIL FROM`, `RCPT TO`, `DATA` or the final `.`.
      *
      * @param string|null $step The step.
      *
      * @return string
+     *
+     * @throws LogicException When the step cannot produce `SMTP_REJECTED`.
      */
     private static function rejectedMessage(?string $step): string
     {
         return match ($step) {
+            SendOutcome::STEP_GREETING, SendOutcome::STEP_EHLO => 'The SMTP server rejected the connection',
             SendOutcome::STEP_MAIL_FROM => 'The SMTP server rejected the sender',
             SendOutcome::STEP_RCPT_TO => 'The SMTP server rejected the recipient',
             SendOutcome::STEP_DATA, SendOutcome::STEP_END_OF_DATA => 'The SMTP server rejected the message',
-            default => 'The SMTP server rejected the connection',
+            default => throw new LogicException('SmtpFailureException: SMTP_REJECTED at an unexpected step'),
         };
     }
 }

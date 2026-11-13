@@ -256,6 +256,32 @@ final class SmtpFailureExceptionTest extends TestCase
         SmtpFailureException::fromOutcome($outcome, 587, SmtpEncryption::Tls);
     }
 
+    /**
+     * Steps the transport never produces `SMTP_REJECTED` at.
+     *
+     * @return iterable<string, array{0: ?string}>
+     */
+    public static function unexpectedRejectedSteps(): iterable
+    {
+        yield 'no step' => [null];
+        yield 'send-time-check' => ['send-time-check'];
+        yield 'connect' => ['connect'];
+        yield 'starttls' => ['starttls'];
+        yield 'auth' => ['auth'];
+        yield 'unknown' => ['bogus'];
+    }
+
+    #[DataProvider('unexpectedRejectedSteps')]
+    public function testRefusesARejectionAtAnUnexpectedStep(?string $step): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('SmtpFailureException: SMTP_REJECTED at an unexpected step');
+
+        $outcome = SendOutcome::failed('SMTP_REJECTED', $step, self::REPLY_CODE, self::REPLY, null);
+
+        SmtpFailureException::fromOutcome($outcome, 587, SmtpEncryption::Tls);
+    }
+
     private function format(SmtpFailureException $exception): string
     {
         $clock = new class implements WallClock {
