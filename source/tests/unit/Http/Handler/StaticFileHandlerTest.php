@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Pidgey\Tests\Unit\Http\Handler;
 
+use LogicException;
+use Monolog\Handler\TestHandler;
+use Monolog\Level;
+use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use Pidgey\Container;
 use Pidgey\Http\BadRequestException;
 use Pidgey\Http\Handler\StaticFileHandler;
 use Pidgey\Http\HttpException;
@@ -16,10 +21,16 @@ use Pidgey\Http\ProcessingRequest;
 use Pidgey\Http\Request;
 use Pidgey\Http\RequestHandler;
 use Pidgey\Http\Response;
+use Pidgey\Infra\ConnectionFactory;
+use Pidgey\Infra\DatabaseConfig;
+use Pidgey\Infra\LoggerFactory;
+use Pidgey\Tests\Support\CapturedLog;
 
 #[CoversClass(StaticFileHandler::class)]
 #[UsesClass(BadRequestException::class)]
+#[UsesClass(Container::class)]
 #[UsesClass(HttpException::class)]
+#[UsesClass(LoggerFactory::class)]
 #[UsesClass(NotFoundException::class)]
 #[UsesClass(ProcessingRequest::class)]
 #[UsesClass(Request::class)]
@@ -33,13 +44,12 @@ final class StaticFileHandlerTest extends TestCase
 
     private ?string $tempDir = null;
 
-    /** @var list<string> */
-    private array $logged = [];
+    private CapturedLog $log;
 
     protected function setUp(): void
     {
         $this->fixture = dirname(__DIR__, 3) . '/fixtures/static';
-        $this->logged = [];
+        $this->log = new CapturedLog();
     }
 
     protected function tearDown(): void
@@ -66,7 +76,7 @@ final class StaticFileHandlerTest extends TestCase
             "Content-Security-Policy: frame-ancestors 'none'",
             'X-Frame-Options: DENY',
         ], $response->headers());
-        $this->assertSame([], $this->logged);
+        $this->assertSame([], $this->log->records());
     }
 
     public function testIgnoresTheQueryStringOnTheIndex(): void
@@ -104,7 +114,7 @@ final class StaticFileHandlerTest extends TestCase
             'X-Content-Type-Options: nosniff',
             self::ASSET_CACHE,
         ], $response->headers());
-        $this->assertSame([], $this->logged);
+        $this->assertSame([], $this->log->records());
     }
 
     /**
@@ -138,12 +148,15 @@ final class StaticFileHandlerTest extends TestCase
             $this->assertSame("Cannot GET /assets/a\rforged\nline.js", $error->getMessage());
         }
 
+        $records = $this->log->records();
+        $this->assertCount(1, $records);
+        $this->assertSame(Level::Debug, $records[0]->level);
         $this->assertSame(
-            ['StaticFileHandler: not served: ' . $this->fixture . '/assets/a\\rforged\\nline.js'],
-            $this->logged,
+            'StaticFileHandler: not served: ' . $this->fixture . '/assets/a\\rforged\\nline.js',
+            $records[0]->message,
         );
-        $this->assertStringNotContainsString("\n", $this->logged[0]);
-        $this->assertStringNotContainsString("\r", $this->logged[0]);
+        $this->assertStringNotContainsString("\n", $records[0]->message);
+        $this->assertStringNotContainsString("\r", $records[0]->message);
     }
 
     public function testANulByteIsABadRequestBeforeAnyFileLookup(): void
@@ -155,7 +168,7 @@ final class StaticFileHandlerTest extends TestCase
             $this->assertSame(400, $error->status());
         }
 
-        $this->assertSame([], $this->logged);
+        $this->assertSame([], $this->log->records());
     }
 
     public function testRejectsASymlinkEscapingTheBaseFolder(): void
@@ -197,11 +210,59 @@ final class StaticFileHandlerTest extends TestCase
         $this->assertInstanceOf(RequestHandler::class, new StaticFileHandler());
     }
 
+    public function testBuildUsesTheContainerLoggerAndNoOtherService(): void
+    {
+        $connections = new class implements ConnectionFactory {
+            public function create(DatabaseConfig $config): PDO
+            {
+                throw new LogicException('The database must not be touched.');
+            }
+
+            public function createServer(DatabaseConfig $config): PDO
+            {
+                throw new LogicException('The database must not be touched.');
+            }
+        };
+        $handler = StaticFileHandler::build(new Container($connections, logger: $this->log->logger()));
+
+        try {
+            $handler->handle(
+                new ProcessingRequest(new Request(['method' => 'GET', 'uri' => '/assets/missing.js'])),
+                [],
+            );
+            $this->fail('Expected a NotFoundException.');
+        } catch (NotFoundException $error) {
+            $this->assertSame(404, $error->status());
+        }
+
+        $records = $this->log->records();
+        $this->assertCount(1, $records);
+        $this->assertSame(Level::Debug, $records[0]->level);
+        $this->assertStringStartsWith('StaticFileHandler: not served: ', $records[0]->message);
+        $this->assertStringEndsWith('/assets/missing.js', $records[0]->message);
+    }
+
+    public function testAnInfoLoggerRecordsNothingOnANotFound(): void
+    {
+        $captured = new TestHandler();
+        $handler = new StaticFileHandler($this->fixture, LoggerFactory::create('info', $captured));
+
+        try {
+            $handler->handle(
+                new ProcessingRequest(new Request(['method' => 'GET', 'uri' => '/assets/missing.js'])),
+                [],
+            );
+            $this->fail('Expected a NotFoundException.');
+        } catch (NotFoundException $error) {
+            $this->assertSame(404, $error->status());
+        }
+
+        $this->assertSame([], $captured->getRecords());
+    }
+
     private function serve(string $uri, ?string $baseDir = null): Response
     {
-        $handler = new StaticFileHandler($baseDir ?? $this->fixture, function (string $line): void {
-            $this->logged[] = $line;
-        });
+        $handler = new StaticFileHandler($baseDir ?? $this->fixture, $this->log->logger());
 
         return $handler->handle(new ProcessingRequest(new Request(['method' => 'GET', 'uri' => $uri])), []);
     }
@@ -216,8 +277,10 @@ final class StaticFileHandlerTest extends TestCase
             $this->assertSame(404, $error->status());
         }
 
-        $this->assertCount(1, $this->logged);
-        $this->assertStringContainsString($resolved, $this->logged[0]);
+        $records = $this->log->records();
+        $this->assertCount(1, $records);
+        $this->assertSame(Level::Debug, $records[0]->level);
+        $this->assertStringContainsString($resolved, $records[0]->message);
     }
 
     private function makeTempDir(): string
