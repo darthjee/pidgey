@@ -438,7 +438,13 @@ Success: **`201`**, the same shape as the `POST /v1/messages` success body (fixt
 `testSent.json`):
 
 ```json
-{ "status": "sent", "smtp": { "code": 250, "message": "OK: queued as 1a2b3c" } }
+{
+  "status": "sent",
+  "smtp": {
+    "code": 250,
+    "message": "OK: queued as 1a2b3c"
+  }
+}
 ```
 
 Failure: the `SMTP_*` codes, statuses and `error.smtp` rules of
