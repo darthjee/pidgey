@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pidgey\Tests\Integration\Http\Handler;
 
+use Monolog\Level;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -291,11 +292,13 @@ final class RegisterHandlerTest extends SessionEndpointTestCase
 
         $this->assertSame(500, $response->status());
         $this->assertSame('INTERNAL_ERROR', self::json($response)['error']['code']);
-        $this->assertCount(1, $this->logged);
-        $this->assertStringContainsString('SQLSTATE 23000', $this->logged[0]);
-        $this->assertStringNotContainsString("Bob's Shop", $this->logged[0]);
-        $this->assertStringNotContainsString('bob@example.com', $this->logged[0]);
-        $this->assertStringNotContainsString('Duplicate entry', $this->logged[0]);
+        $records = $this->formatterLog->records();
+        $this->assertCount(1, $records);
+        $this->assertSame(Level::Error, $records[0]->level);
+        $this->assertStringContainsString('SQLSTATE 23000', $records[0]->message);
+        $this->assertStringNotContainsString("Bob's Shop", $records[0]->message);
+        $this->assertStringNotContainsString('bob@example.com', $records[0]->message);
+        $this->assertStringNotContainsString('Duplicate entry', $records[0]->message);
     }
 
     /**

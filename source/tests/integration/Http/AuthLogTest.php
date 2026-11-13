@@ -129,7 +129,7 @@ final class AuthLogTest extends SessionEndpointTestCase
 
         $this->assertSame(500, $register->status());
         $this->assertSame(500, $login->status());
-        $this->assertNotSame([], $this->logged);
+        $this->assertNotSame([], $this->formatterLog->records());
         $this->assertNothingSecretWasLogged();
     }
 
@@ -222,7 +222,7 @@ final class AuthLogTest extends SessionEndpointTestCase
         $response = $this->dispatch($this->router, $method, $path, ['refreshToken' => $token]);
 
         $this->assertSame(500, $response->status());
-        $this->assertNotSame([], $this->logged);
+        $this->assertNotSame([], $this->formatterLog->records());
         $this->assertNothingSecretWasLogged();
     }
 
@@ -356,7 +356,7 @@ final class AuthLogTest extends SessionEndpointTestCase
 
     private function assertNothingSecretWasLogged(): void
     {
-        $output = implode("\n", $this->logged) . "\n" . (string) file_get_contents($this->errorLog);
+        $output = implode("\n", $this->formatterLog->lines()) . "\n" . (string) file_get_contents($this->errorLog);
 
         foreach (array_unique($this->secrets) as $secret) {
             $this->assertNotSame('', $secret);

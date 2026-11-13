@@ -44,8 +44,8 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
 
     protected Fixtures $fixtures;
 
-    /** @var list<string> Lines the error formatter logged during the test. */
-    protected array $logged = [];
+    /** What the error formatter logged during the test. */
+    protected CapturedLog $formatterLog;
 
     /** @var array<string, string|false> */
     private array $saved = [];
@@ -62,6 +62,7 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
         putenv('SECRET_KEY=' . self::SECRET_KEY);
         putenv('ACCESS_TOKEN_TTL=' . self::ACCESS_TOKEN_TTL);
 
+        $this->formatterLog = new CapturedLog();
         $this->pdo = self::pdo();
         DatabaseCleaner::truncateAll($this->pdo);
         $this->fixtures = new Fixtures($this->pdo);
@@ -80,7 +81,7 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
 
     /**
      * Sends a JSON request with any method through a front controller with a fresh container
-     * per request; the error formatter's log lines are kept in `$logged`.
+     * per request; the error formatter logs to `$formatterLog`.
      *
      * @param array<string, mixed>|string $body    Encoded as JSON unless already a string.
      * @param array<string, string>       $headers Extra request headers (e.g. `Origin`).
@@ -94,10 +95,7 @@ abstract class SessionEndpointTestCase extends IntegrationTestCase
         array $headers = [],
         array $cookies = [],
     ): Response {
-        $logger = function (string $line): void {
-            $this->logged[] = $line;
-        };
-        $controller = new FrontController($router, new ErrorFormatter(logger: $logger));
+        $controller = new FrontController($router, new ErrorFormatter(logger: $this->formatterLog->logger()));
 
         return $controller->handle(new Request([
             'method' => $method,

@@ -24,7 +24,7 @@ use Pidgey\Model\User;
  * Pins `SMTP_ENCRYPTION_KEY` (restored afterwards), sends every request with a fresh container
  * whose application logger is a CapturedLog, and keeps every response body. After each passing
  * test, the class canary password must appear in no response body, no captured log line and no
- * error-formatter line.
+ * error-formatter record (`$formatterLog`).
  */
 abstract class SmtpConnectionEndpointTestCase extends SessionEndpointTestCase
 {
@@ -80,10 +80,7 @@ abstract class SmtpConnectionEndpointTestCase extends SessionEndpointTestCase
         }
 
         $this->log->assertNotLogged(self::$canary);
-
-        foreach ($this->logged as $line) {
-            $this->assertStringNotContainsString(self::$canary, $line, 'canary password in an error log line');
-        }
+        $this->formatterLog->assertNotLogged(self::$canary);
     }
 
     /**
@@ -114,9 +111,7 @@ abstract class SmtpConnectionEndpointTestCase extends SessionEndpointTestCase
         $logger = $this->log->logger();
         $controller = new FrontController(
             $this->router,
-            new ErrorFormatter(logger: function (string $line): void {
-                $this->logged[] = $line;
-            }),
+            new ErrorFormatter(logger: $this->formatterLog->logger()),
             static fn (): Container => new Container($connections, logger: $logger),
         );
         $encoded = is_string($body) ? $body : json_encode($body === [] ? (object) [] : $body, JSON_THROW_ON_ERROR);

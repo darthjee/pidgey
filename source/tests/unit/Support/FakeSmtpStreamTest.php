@@ -250,6 +250,26 @@ final class FakeSmtpStreamTest extends TestCase
         $this->stream->assertDone();
     }
 
+    public function testReadFailureAfterOpenIsLeftForTheRead(): void
+    {
+        $this->stream->expectOpen()->failRead(StreamFailureKind::Closed, 1.0);
+
+        $this->stream->open('192.0.2.1', 25, 'x', false, null, $this->deadline());
+
+        $this->assertFailure(StreamFailureKind::Closed, fn () => $this->stream->readLine($this->deadline()));
+        $this->assertSame(1.0, $this->clock->now());
+        $this->stream->assertDone();
+    }
+
+    public function testReadFailureReachedByAWriteFailsTheTest(): void
+    {
+        $this->stream->failRead(StreamFailureKind::Closed);
+
+        $this->expectException(AssertionFailedError::class);
+
+        $this->stream->writeLine('QUIT', $this->deadline());
+    }
+
     /**
      * @return array<string, array{StreamFailureKind}>
      */

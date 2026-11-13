@@ -21,6 +21,7 @@ use Pidgey\Http\ProcessingRequest;
 use Pidgey\Http\Request;
 use Pidgey\Http\Response;
 use Pidgey\Infra\WallClock;
+use Psr\Log\NullLogger;
 use Throwable;
 
 #[CoversClass(AdminCheck::class)]
@@ -105,8 +106,6 @@ final class AdminCheckTest extends TestCase
             }
         };
 
-        return new ErrorFormatter($clock, static function (string $line): void {
-            unset($line);
-        });
+        return new ErrorFormatter($clock, new NullLogger());
     }
 }
