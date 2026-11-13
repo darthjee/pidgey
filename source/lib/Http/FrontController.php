@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Pidgey\Http;
 
 use Closure;
+use InvalidArgumentException;
 use Pidgey\Container;
 use Pidgey\Infra\ConfigValidator;
+use Pidgey\Infra\LoggerFactory;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
 
@@ -48,8 +51,12 @@ final class FrontController
     }
 
     /**
-     * Production entry point: validates the configuration, builds the Request and the Router,
-     * dispatches, then sends the response.
+     * Production entry point: builds the boot logger, validates the configuration, builds the
+     * Request and the Router, dispatches, then sends the response.
+     *
+     * The boot logger is built first, from `LOG_LEVEL`; an invalid level falls back to
+     * `LoggerFactory::DEFAULT_LEVEL`, so the validation failure can still be logged. The same
+     * logger is shared with the ErrorFormatter and with every Container of the request.
      *
      * An invalid configuration is logged (failure names only, never values) and answered with
      * the 500 INTERNAL_ERROR envelope.
@@ -61,13 +68,19 @@ final class FrontController
      */
     public static function run(?Closure $validator = null): void
     {
-        $errorFormatter = new ErrorFormatter();
+        $logger = self::bootLogger();
+        $errorFormatter = new ErrorFormatter(logger: $logger);
         $validator ??= static fn (): array => (new ConfigValidator())->validate();
 
         try {
             self::assertValidConfiguration($validator);
             $request = new Request();
-            $response = (new self(self::loadRouter(self::ROUTES_FILE), $errorFormatter))->handle($request);
+            $controller = new self(
+                self::loadRouter(self::ROUTES_FILE),
+                $errorFormatter,
+                static fn (): Container => new Container(logger: $logger),
+            );
+            $response = $controller->handle($request);
         } catch (Throwable $error) {
             $response = $errorFormatter->format($error);
         }
@@ -119,6 +132,21 @@ final class FrontController
         $middlewares = $factory->middlewares([...$this->router->globalMiddlewares(), ...$match->middlewares]);
 
         return $handler->handle($processing, $middlewares);
+    }
+
+    /**
+     * Builds the application logger from `LOG_LEVEL`, falling back to the default level when the
+     * value is invalid (the configuration validation reports it).
+     *
+     * @return LoggerInterface
+     */
+    private static function bootLogger(): LoggerInterface
+    {
+        try {
+            return LoggerFactory::fromEnv();
+        } catch (InvalidArgumentException) {
+            return LoggerFactory::create(LoggerFactory::DEFAULT_LEVEL);
+        }
     }
 
     /**
