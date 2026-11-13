@@ -18,7 +18,7 @@ use Stringable;
 #[UsesClass(SecretString::class)]
 final class CredentialsTest extends TestCase
 {
-    private const CANARY = 'canary-smtp-password-4b1e';
+    private const CANARY = 'canary-credentials-marker-4b1e';
 
     public function testAccessorsReturnTheUsernameAndTheWrappedPassword(): void
     {

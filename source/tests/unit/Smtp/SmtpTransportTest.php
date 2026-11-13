@@ -52,7 +52,7 @@ use Throwable;
 #[UsesClass(Target::class)]
 final class SmtpTransportTest extends TestCase
 {
-    private const PASSWORD = 'canary-p4ss';
+    private const CANARY = 'canary-unit-marker-7c2d';
     private const USERNAME = 'mailer@example.com';
     private const HOST = 'smtp.example.com';
     private const CA_FILE = '/etc/pidgey/ca.pem';
@@ -512,7 +512,7 @@ final class SmtpTransportTest extends TestCase
     #[DataProvider('loginSteps')]
     public function testLoginRejectedAtAnyStepIsAnAuthFailure(int $rejectedAt): void
     {
-        $lines = ['AUTH LOGIN', base64_encode(self::USERNAME), base64_encode(self::PASSWORD)];
+        $lines = ['AUTH LOGIN', base64_encode(self::USERNAME), base64_encode(self::CANARY)];
         $replies = ["334 VXNlcm5hbWU6\r\n", "334 UGFzc3dvcmQ6\r\n", "235 ok\r\n"];
         $stream = $this->stream();
         $this->greet($stream);
@@ -969,12 +969,12 @@ final class SmtpTransportTest extends TestCase
 
         $result = $this->send($stream, credentials: $this->credentials());
 
-        $this->assertStringNotContainsString(self::PASSWORD, print_r($result, true));
+        $this->assertStringNotContainsString(self::CANARY, print_r($result, true));
     }
 
     public function testCanaryCheckDetectsALeak(): void
     {
-        $previous = new RuntimeException(self::PASSWORD);
+        $previous = new RuntimeException(self::CANARY);
         $leak = new SmtpFailure(FailureCode::AuthFailed, SmtpStep::Auth, null, null, $previous);
 
         $this->assertNotEmpty($this->leaks($leak));
@@ -1018,7 +1018,7 @@ final class SmtpTransportTest extends TestCase
         $stream
             ->expectLine('AUTH LOGIN')->reply("334 VXNlcm5hbWU6\r\n")
             ->expectLine(base64_encode(self::USERNAME))->reply("334 UGFzc3dvcmQ6\r\n")
-            ->expectLine(base64_encode(self::PASSWORD))->reply("235 2.7.0 ok\r\n");
+            ->expectLine(base64_encode(self::CANARY))->reply("235 2.7.0 ok\r\n");
     }
 
     /**
@@ -1086,12 +1086,12 @@ final class SmtpTransportTest extends TestCase
 
     private function credentials(): Credentials
     {
-        return new Credentials(self::USERNAME, new SecretString(self::PASSWORD));
+        return new Credentials(self::USERNAME, new SecretString(self::CANARY));
     }
 
     private function plainPayload(): string
     {
-        return base64_encode("\0" . self::USERNAME . "\0" . self::PASSWORD);
+        return base64_encode("\0" . self::USERNAME . "\0" . self::CANARY);
     }
 
     private function send(
@@ -1146,8 +1146,8 @@ final class SmtpTransportTest extends TestCase
     private function leaks(Throwable $failure): array
     {
         $secrets = [
-            self::PASSWORD,
-            base64_encode(self::PASSWORD),
+            self::CANARY,
+            base64_encode(self::CANARY),
             $this->plainPayload(),
             'AUTH PLAIN ' . $this->plainPayload(),
         ];

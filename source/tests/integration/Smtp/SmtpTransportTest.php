@@ -80,7 +80,7 @@ final class SmtpTransportTest extends TestCase
         'SMTP_TIMEOUT' => 'testHangingGreetingIsATimeout',
     ];
 
-    private const CANARY = 'canary-p4ss-integration';
+    private const CANARY = 'canary-integration-marker-9e4a';
     private const FIXTURE_CA = __DIR__ . '/../../fixtures/tls/ca.pem';
     private const EHLO_NAME = 'client.example';
     private const TIMEOUT = 5.0;
