@@ -113,6 +113,25 @@ describe('SmtpConnectionsClient', () => {
     });
   });
 
+  describe('.deactivate', () => {
+    it('posts to the deactivate endpoint without a body', async () => {
+      const response = { smtpConnection: { ...smtpConnection, active: false } };
+      spyOn(ApiClient, 'postJson').and.resolveTo(response);
+
+      const result = await SmtpConnectionsClient.deactivate(12);
+
+      expect(ApiClient.postJson).toHaveBeenCalledWith('/smtp-connections/12/deactivate.json');
+      expect(ApiClient.postJson.calls.mostRecent().args.length).toBe(1);
+      expect(result).toEqual(response);
+    });
+
+    it('passes through an undefined result', async () => {
+      spyOn(ApiClient, 'postJson').and.resolveTo(undefined);
+
+      expect(await SmtpConnectionsClient.deactivate(12)).toBeUndefined();
+    });
+  });
+
   describe('.test', () => {
     const result = loadFixture('smtpConnections/testSent');
 

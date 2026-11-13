@@ -9,6 +9,7 @@ describe('SmtpConnectionsHelper', () => {
 
   const buildHandlers = () => ({
     onActivate: jasmine.createSpy('onActivate').and.returnValue(jasmine.createSpy('handler')),
+    onDeactivate: jasmine.createSpy('onDeactivate').and.returnValue(jasmine.createSpy('handler')),
     onDelete: jasmine.createSpy('onDelete').and.returnValue(jasmine.createSpy('handler')),
     onOpenTest: jasmine.createSpy('onOpenTest').and.returnValue(jasmine.createSpy('handler')),
     onCloseTest: jasmine.createSpy('onCloseTest'),
@@ -91,6 +92,21 @@ describe('SmtpConnectionsHelper', () => {
       expect(renderPage(buildState({ connections: [inactive] })).contains('badge')).withContext('no badge').toBeFalse();
       expect(renderPage(buildState({ connections: [inactive] })).containsElement('button', 'Activate'))
         .withContext('activate').toBeTrue();
+    });
+
+    it('shows Deactivate only on the active connection', () => {
+      expect(renderPage(buildState({ connections: [active] })).containsElement('button', 'Deactivate'))
+        .withContext('active').toBeTrue();
+      expect(renderPage(buildState({ connections: [inactive] })).containsElement('button', 'Deactivate'))
+        .withContext('inactive').toBeFalse();
+    });
+
+    it('binds Deactivate to the active connection', () => {
+      const handlers = buildHandlers();
+
+      renderPage(buildState({ connections: [active] }), handlers);
+
+      expect(handlers.onDeactivate).toHaveBeenCalledWith(12);
     });
 
     it('binds the row actions to their connection', () => {

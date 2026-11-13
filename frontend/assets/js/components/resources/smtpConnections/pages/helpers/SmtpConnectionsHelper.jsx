@@ -1,5 +1,6 @@
 import Table from 'react-bootstrap/cjs/Table.js';
 import ActivateConnectionButton from '../connections/ActivateConnectionButton.jsx';
+import DeactivateConnectionButton from '../connections/DeactivateConnectionButton.jsx';
 import NoActiveConnectionNotice from '../connections/NoActiveConnectionNotice.jsx';
 import SmtpConnectionTestModal from '../connections/SmtpConnectionTestModal.jsx';
 
@@ -100,7 +101,8 @@ function credentialsLabel(connection) {
 
 /**
  * Render a single connection row: its name (linking to its edit form) with the Active badge,
- * its settings and its Activate / Send test email / Delete actions.
+ * its settings and its Activate (inactive row) / Deactivate (active row) / Send test email /
+ * Delete actions.
  *
  * @param {object} connection - The row's connection.
  * @param {object} handlers - Event handlers.
@@ -119,6 +121,7 @@ function renderRow(connection, handlers) {
       <td>{credentialsLabel(connection)}</td>
       <td>
         <ActivateConnectionButton connection={connection} onActivate={handlers.onActivate(connection.id)} />
+        <DeactivateConnectionButton connection={connection} onDeactivate={handlers.onDeactivate(connection.id)} />
         <button type="button" className="btn btn-sm btn-secondary me-2" onClick={handlers.onOpenTest(connection)}>
           Send test email
         </button>
@@ -142,9 +145,10 @@ const SmtpConnectionsHelper = {
    * @param {{connections: Array<object>, loading: boolean, loadError: (string|null),
    *   listError: (string|null), test: object}} state - Page state; `test` is the test-email
    *   modal state.
-   * @param {{onActivate: Function, onDelete: Function, onOpenTest: Function,
-   *   onCloseTest: Function, onRecipientChange: Function, onSubmitTest: Function}} handlers -
-   *   Event handlers; `onActivate` takes a connection id, `onDelete` / `onOpenTest` a
+   * @param {{onActivate: Function, onDeactivate: Function, onDelete: Function,
+   *   onOpenTest: Function, onCloseTest: Function, onRecipientChange: Function,
+   *   onSubmitTest: Function}} handlers - Event handlers; `onActivate` / `onDeactivate` take
+   *   a connection id, `onDelete` / `onOpenTest` a
    *   connection, and each returns that row's click handler.
    * @returns {React.ReactElement} The rendered SMTP connections page.
    */

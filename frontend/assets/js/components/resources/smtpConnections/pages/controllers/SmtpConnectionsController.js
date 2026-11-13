@@ -16,11 +16,20 @@ export const DELETE_CONFIRM_MESSAGE = 'Delete this SMTP connection? This cannot 
 export const DELETE_ACTIVE_CONFIRM_MESSAGE = 'Delete the active SMTP connection? Sending stops '
   + '(POST /v1/messages answers 409 NO_SMTP_CONNECTION) until another connection is activated.';
 
+/**
+ * Confirmation text shown before deactivating the active SMTP connection: sending stops until
+ * another connection is activated.
+ *
+ * @type {string}
+ */
+export const DEACTIVATE_CONFIRM_MESSAGE = 'Deactivate the active SMTP connection? Sending stops '
+  + '(POST /v1/messages answers 409 NO_SMTP_CONNECTION) until another connection is activated.';
+
 const defaultConfirm = (message) => window.confirm(message);
 
 /**
  * Controller for the SMTP connections list page: loads the organization's connections,
- * activates one and deletes one. Every method that reaches {@link SmtpConnectionsClient}
+ * activates, deactivates or deletes one. Every method that reaches {@link SmtpConnectionsClient}
  * treats an `undefined` result the same way: return without touching any further state —
  * `ApiClient` already opened the login modal itself on a session-expired `401`.
  */
@@ -33,7 +42,7 @@ export default class SmtpConnectionsController {
    * @param {Function} options.setLoadState - React state setter for the load state,
    *   `{ loading: boolean, loadError: (string|null) }`.
    * @param {Function} options.setListError - React state setter for the error of the last
-   *   row action (activate / delete).
+   *   row action (activate / deactivate / delete).
    * @param {typeof SmtpConnectionsClient} [options.client] - SMTP connections HTTP client
    *   override, for testability.
    * @param {Function} [options.confirm] - Confirmation dialog override (receives the message
@@ -92,6 +101,34 @@ export default class SmtpConnectionsController {
       this.setConnections((current) => current.map(
         (connection) => (connection.id === activated.id ? activated : { ...connection, active: false }),
       ));
+    } catch (error) {
+      this.setListError(error.message);
+    }
+  }
+
+  /**
+   * Ask for confirmation, then deactivate the connection and reload the list; on failure the
+   * error is shown above the list. Cancelling sends nothing.
+   *
+   * @param {number} id - The connection id.
+   * @returns {Promise<void>} Resolves once the request (and the reload) finishes, or
+   *   immediately when cancelled.
+   */
+  async handleDeactivate(id) {
+    if (!this.confirm(DEACTIVATE_CONFIRM_MESSAGE)) {
+      return;
+    }
+
+    this.setListError(null);
+
+    try {
+      const result = await this.client.deactivate(id);
+
+      if (!result) {
+        return;
+      }
+
+      await this.load();
     } catch (error) {
       this.setListError(error.message);
     }

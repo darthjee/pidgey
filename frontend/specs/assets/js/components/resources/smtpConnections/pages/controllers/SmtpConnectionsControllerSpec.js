@@ -1,5 +1,5 @@
 import SmtpConnectionsController, {
-  DELETE_ACTIVE_CONFIRM_MESSAGE, DELETE_CONFIRM_MESSAGE,
+  DEACTIVATE_CONFIRM_MESSAGE, DELETE_ACTIVE_CONFIRM_MESSAGE, DELETE_CONFIRM_MESSAGE,
 } from '../../../../../../../../assets/js/components/resources/smtpConnections/pages/controllers/SmtpConnectionsController.js';
 import ApiError from '../../../../../../../../assets/js/client/ApiError.js';
 import { installFakeWindow, uninstallFakeWindow } from '../../../../../../../support/fakeWindow.js';
@@ -22,7 +22,7 @@ describe('SmtpConnectionsController', () => {
     setConnections = jasmine.createSpy('setConnections');
     setLoadState = jasmine.createSpy('setLoadState');
     setListError = jasmine.createSpy('setListError');
-    client = jasmine.createSpyObj('client', ['list', 'activate', 'remove']);
+    client = jasmine.createSpyObj('client', ['list', 'activate', 'deactivate', 'remove']);
     confirm = jasmine.createSpy('confirm').and.returnValue(true);
     controller = new SmtpConnectionsController({
       setConnections, setLoadState, setListError, client, confirm,
@@ -85,6 +85,57 @@ describe('SmtpConnectionsController', () => {
       await controller.handleActivate(13);
 
       expect(setConnections).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('#handleDeactivate', () => {
+    it('asks for confirmation, warning that sending stops', async () => {
+      client.deactivate.and.resolveTo(undefined);
+
+      await controller.handleDeactivate(12);
+
+      expect(confirm).toHaveBeenCalledWith(DEACTIVATE_CONFIRM_MESSAGE);
+      expect(DEACTIVATE_CONFIRM_MESSAGE).toContain('409 NO_SMTP_CONNECTION');
+    });
+
+    it('sends nothing when the confirmation is declined', async () => {
+      confirm.and.returnValue(false);
+
+      await controller.handleDeactivate(12);
+
+      expect(client.deactivate).not.toHaveBeenCalled();
+      expect(setListError).not.toHaveBeenCalled();
+    });
+
+    it('deactivates, then reloads the list', async () => {
+      const deactivated = { ...first, active: false };
+      client.deactivate.and.resolveTo({ smtpConnection: deactivated });
+      client.list.and.resolveTo({ smtpConnections: [deactivated, second] });
+
+      await controller.handleDeactivate(12);
+
+      expect(client.deactivate).toHaveBeenCalledWith(12);
+      expect(setListError).toHaveBeenCalledWith(null);
+      expect(client.list).toHaveBeenCalled();
+      expect(setConnections).toHaveBeenCalledWith([deactivated, second]);
+    });
+
+    it('does not reload when the session ended', async () => {
+      client.deactivate.and.resolveTo(undefined);
+
+      await controller.handleDeactivate(12);
+
+      expect(client.list).not.toHaveBeenCalled();
+      expect(setConnections).not.toHaveBeenCalled();
+    });
+
+    it('shows the error as a list error on failure', async () => {
+      client.deactivate.and.rejectWith(loadApiError('smtpConnections/notFound'));
+
+      await controller.handleDeactivate(12);
+
+      expect(client.list).not.toHaveBeenCalled();
+      expect(setListError).toHaveBeenCalledWith('SMTP connection not found');
     });
   });
 

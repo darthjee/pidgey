@@ -24,7 +24,7 @@ export function buildLoadEffect(controller) {
 
 /**
  * SMTP connections page: lists the organization's SMTP connections, with per-row Activate,
- * Send test email and Delete actions. Open to any logged-in, approved user — there is no
+ * Deactivate, Send test email and Delete actions. Open to any logged-in, approved user — there is no
  * client-side login or admin check; a `401` is handled by `ApiClient`.
  *
  * @returns {React.ReactElement} The rendered SMTP connections page.
@@ -54,6 +54,7 @@ export default function SmtpConnections() {
     },
     {
       onActivate: (id) => () => controller.handleActivate(id),
+      onDeactivate: (id) => () => controller.handleDeactivate(id),
       onDelete: (connection) => () => controller.handleDelete(connection),
       onOpenTest: (connection) => () => testController.open(connection),
       onCloseTest: () => testController.close(),
