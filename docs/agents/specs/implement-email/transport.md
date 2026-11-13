@@ -106,17 +106,27 @@ All settled by #152.
   then decrypt / `SMTP_PASSWORD_UNREADABLE`), passes the **checked IP** to the transport as
   the connect target (with `host` kept as TLS peer name and SNI),
   builds the MIME message, runs the transport, maps the outcome to a success body or an
-  `SMTP_*` error (with echo redaction and sanitization of the reply text), and writes the
-  attempt log line (step 8 of [email/send-flow.md](../email/send-flow.md#attempt-log)). It
-  does not resolve the active connection (that is `POST /v1/messages`, out of scope) nor
-  load the connection (the caller does).
-- **Proposed names** (namespace `Pidgey\Email\`): `Pidgey\Email\SendFlow` (or
-  `Pidgey\Email\Mailer`), `Pidgey\Email\Message`, `Pidgey\Email\MimeBuilder`,
-  `Pidgey\Email\SendOutcome`; the password value object is `Pidgey\Infra\SecretString`
-  (delivered by #163; `PasswordCipher::decrypt()` keeps returning a `string`, which the send
-  flow wraps into a `SecretString` immediately); the host check
-  `Pidgey\Smtp\HostPolicy` (resolve once, denied ranges, IPv4 preferred); and an HTTP exception
-  `Pidgey\Http\SmtpFailureException` carrying `error.smtp`. Proposals only.
+  `SMTP_*` failure outcome (with echo redaction and sanitization of the reply text), and
+  writes the attempt log line (step 8 of
+  [email/send-flow.md](../email/send-flow.md#attempt-log)). It does not resolve the active
+  connection (that is `POST /v1/messages`, out of scope) nor load the connection (the caller
+  does).
+- **Outcome, not exceptions:** `SendFlow` returns a `Pidgey\Email\SendOutcome` (sent or
+  failed) and never throws for SMTP or send-time failures; the HTTP mapping of a failed
+  outcome is `Pidgey\Http\SmtpFailureException::fromOutcome()` (status, fixed message, port
+  hint, `error.smtp`), called by the HTTP handlers.
+- **Names**, all delivered by #165:
+  - `Pidgey\Email\`: `SendFlow`, `Message`, `MimeBuilder`, `SendOutcome`, `SendActor` (the
+    acting token or user, for the log), `ReplyText` (echo redaction and sanitization);
+  - `Pidgey\Smtp\`: `HostPolicy` (resolve once, denied ranges, IPv4 preferred) with the
+    `HostResolver` interface, its `SystemHostResolver` implementation and the `HostCheck`
+    result;
+  - `Pidgey\Http\SmtpFailureException` carrying `error.smtp`;
+  - wired through `Pidgey\Container::hostPolicy()` and `Pidgey\Container::sendFlow()`.
+
+  The password value object is `Pidgey\Infra\SecretString` (delivered by #163;
+  `PasswordCipher::decrypt()` keeps returning a `string`, which the send flow wraps into a
+  `SecretString` immediately).
 - **Collaborators:** the SMTP transport (above), the password encryption service
   ([encryption.md](encryption.md)), `Pidgey\Infra\WallClock` (`Date` header), `Pidgey\Infra\Env`
   (the [SMTP transport settings](../architecture/configuration.md#smtp-transport)), the
@@ -151,7 +161,7 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
    dot-stuffing, best-effort `QUIT`, failure classification
    ([SMTP session](../email/send-flow.md#smtp-session),
    [Classification rules](../email/failures.md#classification-rules)).
-5. **MIME builder** — `Pidgey\Email\MimeBuilder`: headers, RFC 2047 subject,
+5. [x] **MIME builder** — `Pidgey\Email\MimeBuilder`: headers, RFC 2047 subject,
    quoted-printable bodies, `multipart/alternative`
    ([Message format](../email/message-scope.md#message-format)).
 6. [x] **Secret value object** — `Pidgey\Infra\SecretString` (`reveal()`, `wipe()` with
@@ -159,12 +169,13 @@ Names are **proposals** (see the lifecycle rules in [implement-email.md](../impl
    `#[SensitiveParameter]` on the stream's line write; the send flow (#165) marks its own
    secret-carrying parameters and wipes the password after the session
    ([Secret hygiene](../email/send-flow.md#secret-hygiene)).
-7. **Send flow** — `Pidgey\Email\SendFlow`: send-time checks (including the host check
+7. [x] **Send flow** — `Pidgey\Email\SendFlow`: send-time checks (including the host check
    through `Pidgey\Smtp\HostPolicy`, [Host check](../email/send-flow.md#host-check)), echo redaction,
-   sanitization, outcome mapping, the attempt log line
+   sanitization (`Pidgey\Email\ReplyText`), the returned `Pidgey\Email\SendOutcome`, the
+   attempt log line `smtp-send-attempt`
    ([Send-time checks](../email/send-flow.md#send-time-checks),
    [`error.smtp`](../email/failures.md#errorsmtp)).
-8. **HTTP exception** — `Pidgey\Http\SmtpFailureException`: failure code → status, fixed
+8. [x] **HTTP exception** — `Pidgey\Http\SmtpFailureException::fromOutcome()`: failed outcome → status, fixed
    message (with the port hint), `error.smtp`
    ([Fixed messages](../email/failures.md#fixed-messages)).
 9. **Validation changes** — the `host` LDH rule and the credentials-require-encryption rule

@@ -44,6 +44,10 @@ Protects against server-side request forgery and DNS rebinding (see
 
 - The `host` is **resolved once** (A and AAAA records). An IP literal is used as is, without
   resolution.
+- Resolver rule: A records come from the system resolver (so the hosts file is honored);
+  AAAA records come from a DNS query. An error in the AAAA lookup is treated as "no AAAA
+  records", never as a failure. The result is the A addresses followed by the AAAA
+  addresses; an empty result is a resolution failure.
 - A resolution failure (no address, DNS error) keeps today's outcome:
   `SMTP_CONNECTION_FAILED`.
 - When `SMTP_ALLOW_PRIVATE_HOSTS` is `false` (the default, see
@@ -71,6 +75,16 @@ Protects against server-side request forgery and DNS rebinding (see
 - The TLS peer name and SNI stay the connection's `host` (the
   [TLS policy](smtp-connections.md#tls-policy) and its IP-literal rules are unchanged).
 - Ports are not restricted.
+
+**Pending decision — host check gaps** (security follow-ups, not decided):
+
+- IPv6 forms that embed an IPv4 address are not checked as their IPv4 address: NAT64
+  `64:ff9b::/96` and `64:ff9b:1::/48` (medium risk on DNS64/NAT64 networks, where a name
+  can reach an internal IPv4 address through the translator), IPv4-compatible `::/96` and
+  6to4 `2002::/16`.
+- Some reserved IPv4 ranges are not denied: `192.0.0.0/24` (IETF protocol assignments),
+  `198.18.0.0/15` (benchmarking) and the TEST-NETs (`192.0.2.0/24`, `198.51.100.0/24`,
+  `203.0.113.0/24`).
 
 ## SMTP session
 
@@ -267,11 +281,41 @@ by `SMTP_CONNECT_TIMEOUT`, `SMTP_COMMAND_TIMEOUT` and `SMTP_TOTAL_TIMEOUT` (see
 
 ## Attempt log
 
-One log line per attempt, via monolog: organization, connection id, token id (or the
-acting user for the test email), recipient, outcome (code, failing step, reply code,
-sanitized reply, and the OpenSSL reason for TLS failures). Never the body, the subject or
-credentials. There is **no protocol trace in v1**; a future debug trace must redact `AUTH`
-lines and `DATA` content.
+One log line per attempt, via monolog, with the message `smtp-send-attempt`: level `info`
+when the message was sent, `warning` when the attempt failed (send-time checks included).
+
+| Context field | Carries |
+| --- | --- |
+| `organizationId` | The connection's organization. |
+| `connectionId` | The connection used. |
+| `tokenId` / `userId` | The acting API token (`POST /v1/messages`) or the acting user (the test email); exactly one of them. |
+| `recipient` | The recipient address. |
+| `outcome` | `sent`, or the failure code (`SMTP_*`). |
+| `step` | The failing step, one of the [step values](#step-values). |
+| `replyCode` | The SMTP reply code, when a reply was received. |
+| `reply` | The reply text, redacted and sanitized ([failures.md](failures.md#sanitization-and-length-cap)), when a reply was received. |
+| `tlsReason` | The OpenSSL reason of a TLS failure (log only, never in a response). |
+
+### Step values
+
+The `step` field is a contract; its values are:
+
+| Value | Failing step |
+| --- | --- |
+| `connect` | TCP connect (including resolution failures). |
+| `greeting` | The server's `220` greeting. |
+| `ehlo` | `EHLO` (before or after `STARTTLS`). |
+| `starttls` | `STARTTLS` and the TLS handshake. |
+| `auth` | `AUTH` and its `334` steps, including "no supported mechanism" (credentials never sent, no reply). |
+| `mail-from` | `MAIL FROM` (including `530` without credentials). |
+| `rcpt-to` | `RCPT TO`. |
+| `data` | `DATA` (the `354` intermediate reply). |
+| `end-of-data` | The reply after the message content (`.`). |
+| `send-time-check` | `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED` and `SMTP_PASSWORD_UNREADABLE`; the server is never contacted. |
+
+Absent fields are omitted. Never the body, the subject, the username or the password.
+There is **no protocol trace in v1**; a future debug trace must redact `AUTH` lines and
+`DATA` content.
 
 ## Secret hygiene
 

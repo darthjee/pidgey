@@ -25,6 +25,8 @@ use Pidgey\Auth\Sessions;
 use Pidgey\Container;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Email\MimeBuilder;
+use Pidgey\Email\SendFlow;
 use Pidgey\Http\OperatorLog;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
@@ -45,9 +47,13 @@ use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
+use Pidgey\Smtp\HostCheck;
+use Pidgey\Smtp\HostPolicy;
+use Pidgey\Smtp\HostResolver;
 use Pidgey\Smtp\ReplyParser;
 use Pidgey\Smtp\SessionSettings;
 use Pidgey\Smtp\SmtpTransport;
+use Pidgey\Smtp\SystemHostResolver;
 use Psr\Log\NullLogger;
 use RuntimeException;
 
@@ -83,6 +89,11 @@ use RuntimeException;
 #[UsesClass(AppPath::class)]
 #[UsesClass(SessionSettings::class)]
 #[UsesClass(SmtpTransport::class)]
+#[UsesClass(HostPolicy::class)]
+#[UsesClass(MimeBuilder::class)]
+#[UsesClass(SendFlow::class)]
+#[UsesClass(HostCheck::class)]
+#[UsesClass(SystemHostResolver::class)]
 #[UsesClass(ReplyParser::class)]
 final class ContainerTest extends TestCase
 {
@@ -107,6 +118,7 @@ final class ContainerTest extends TestCase
         'SMTP_TOTAL_TIMEOUT',
         'SMTP_CA_FILE',
         'SMTP_EHLO_NAME',
+        'SMTP_ALLOW_PRIVATE_HOSTS',
     ];
 
     private const SECRET_KEY = 'container-test-secret-key-0123456789abcdef';
@@ -142,6 +154,7 @@ final class ContainerTest extends TestCase
         putenv('SMTP_TOTAL_TIMEOUT');
         putenv('SMTP_CA_FILE');
         putenv('SMTP_EHLO_NAME');
+        putenv('SMTP_ALLOW_PRIVATE_HOSTS');
     }
 
     protected function tearDown(): void
@@ -364,6 +377,62 @@ final class ContainerTest extends TestCase
 
         $this->assertInstanceOf(SmtpTransport::class, $transport);
         $this->assertSame($transport, $container->smtpTransport());
+    }
+
+    public function testHostPolicyIsMemoized(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $policy = $container->hostPolicy();
+
+        $this->assertSame($policy, $container->hostPolicy());
+    }
+
+    public function testHostPolicyDeniesPrivateHostsWhenTheFlagIsUnset(): void
+    {
+        $this->assertTrue((new Container($this->unusedConnections()))->hostPolicy()->check('127.0.0.1')->isDenied());
+    }
+
+    public function testHostPolicyAllowsPrivateHostsWhenTheFlagIsTrue(): void
+    {
+        putenv('SMTP_ALLOW_PRIVATE_HOSTS=true');
+
+        $check = (new Container($this->unusedConnections()))->hostPolicy()->check('127.0.0.1');
+
+        $this->assertSame('127.0.0.1', $check->ip());
+    }
+
+    public function testHostPolicyOnlyTakesTheExactValueTrue(): void
+    {
+        putenv('SMTP_ALLOW_PRIVATE_HOSTS=TRUE');
+
+        $this->assertTrue((new Container($this->unusedConnections()))->hostPolicy()->check('127.0.0.1')->isDenied());
+    }
+
+    public function testHostPolicyCanBeInjected(): void
+    {
+        $policy = new HostPolicy($this->createStub(HostResolver::class), true);
+
+        $this->assertSame($policy, (new Container($this->unusedConnections(), hostPolicy: $policy))->hostPolicy());
+    }
+
+    public function testMimeBuilderIsMemoized(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $builder = $container->mimeBuilder();
+
+        $this->assertSame($builder, $container->mimeBuilder());
+    }
+
+    public function testSendFlowIsMemoizedAndOpensNoConnection(): void
+    {
+        $container = new Container($this->unusedConnections(), logger: new NullLogger());
+
+        $flow = $container->sendFlow();
+
+        $this->assertInstanceOf(SendFlow::class, $flow);
+        $this->assertSame($flow, $container->sendFlow());
     }
 
     public function testLoggerIsMemoizedAndOpensNoConnection(): void

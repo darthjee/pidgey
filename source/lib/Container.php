@@ -16,6 +16,8 @@ use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Email\MimeBuilder;
+use Pidgey\Email\SendFlow;
 use Pidgey\Http\OperatorLog;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
@@ -38,8 +40,10 @@ use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
+use Pidgey\Smtp\HostPolicy;
 use Pidgey\Smtp\SessionSettings;
 use Pidgey\Smtp\SmtpTransport;
+use Pidgey\Smtp\SystemHostResolver;
 use Pidgey\Smtp\Transport;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
@@ -96,6 +100,10 @@ final class Container
 
     private ?OperatorLog $operatorLog = null;
 
+    private ?MimeBuilder $mimeBuilder = null;
+
+    private ?SendFlow $sendFlow = null;
+
     /**
      * Creates an empty container; nothing is built yet.
      *
@@ -109,12 +117,16 @@ final class Container
      * @param LoggerInterface|null $logger            Application logger (swappable in tests);
      *                                                defaults to the one built from `LOG_LEVEL`, on
      *                                                first use.
+     * @param HostPolicy|null      $hostPolicy        SMTP host policy (swappable in tests);
+     *                                                defaults to the system resolver and
+     *                                                `SMTP_ALLOW_PRIVATE_HOSTS`, on first use.
      */
     public function __construct(
         private readonly ConnectionFactory $connectionFactory = new PdoFactory(),
         private ?WallClock $wallClock = null,
         private ?Clock $clock = null,
         private ?LoggerInterface $logger = null,
+        private ?HostPolicy $hostPolicy = null,
     ) {
     }
 
@@ -248,6 +260,51 @@ final class Container
     public function smtpTransport(): Transport
     {
         return $this->smtpTransport ??= new SmtpTransport($this->clock());
+    }
+
+    /**
+     * Returns the SMTP host policy, built over the system resolver on the first call, with
+     * private hosts allowed only when `SMTP_ALLOW_PRIVATE_HOSTS` is exactly `true`.
+     *
+     * @return HostPolicy
+     */
+    public function hostPolicy(): HostPolicy
+    {
+        return $this->hostPolicy ??= new HostPolicy(
+            new SystemHostResolver(),
+            Env::get('SMTP_ALLOW_PRIVATE_HOSTS') === 'true',
+        );
+    }
+
+    /**
+     * Returns the MIME builder, over the wall clock (opens no connection).
+     *
+     * @return MimeBuilder
+     */
+    public function mimeBuilder(): MimeBuilder
+    {
+        return $this->mimeBuilder ??= new MimeBuilder($this->wallClock());
+    }
+
+    /**
+     * Returns the send flow, built over the host policy, the password cipher, the MIME
+     * builder, the SMTP transport and its settings, and the logger on the first call; opens
+     * no connection.
+     *
+     * @return SendFlow
+     *
+     * @throws RuntimeException When `SMTP_ENCRYPTION_KEY` is missing or a timeout is invalid.
+     */
+    public function sendFlow(): SendFlow
+    {
+        return $this->sendFlow ??= new SendFlow(
+            $this->hostPolicy(),
+            $this->passwordCipher(),
+            $this->mimeBuilder(),
+            $this->smtpTransport(),
+            $this->smtpSessionSettings(),
+            $this->logger(),
+        );
     }
 
     /**

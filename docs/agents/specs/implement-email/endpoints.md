@@ -191,8 +191,8 @@ Names not marked decided above are **proposals** (see the lifecycle rules in
    - [x] `0010_add_smtp_connections_active_unique.sql` (generated `active_organization_id`
      and its unique index `uq_smtp_connections_active_organization_id`) (#164);
    - [ ] `0011_create_smtp_test_limits.sql` (#166).
-4. **Host policy** — `Pidgey\Smtp\HostPolicy` in the send flow: resolve once, denied ranges,
-   connect to the checked IP ([transport.md](transport.md#building-block-send-flow)).
+4. [x] **Host policy** — `Pidgey\Smtp\HostPolicy` in the send flow: resolve once, denied ranges,
+   connect to the checked IP ([transport.md](transport.md#building-block-send-flow)) (#165).
 5. **Test-email limit** — `Pidgey\Repository\SmtpTestLimitRepository`: window, lease and
    `Retry-After`.
 6. **Logger** — `Pidgey\Infra\LoggerFactory` (Monolog, `ErrorLogHandler`, `LOG_LEVEL`) wired
@@ -205,3 +205,7 @@ Names not marked decided above are **proposals** (see the lifecycle rules in
    failure names
    ([architecture/configuration.md](../architecture/configuration.md#smtp-transport)); the
    development `.env` and the test / CI environment set `SMTP_ALLOW_PRIVATE_HOSTS=true`.
+   - [x] `SMTP_ALLOW_PRIVATE_HOSTS` is read by `Pidgey\Container::hostPolicy()` (`true` only
+     for the exact value `true`) and is never validated: it never refuses boot
+     ([configuration.md](../architecture/configuration.md#rules)) (#165);
+   - [ ] `SMTP_TEST_MAX_ATTEMPTS` and `SMTP_TEST_WINDOW` (#166).
