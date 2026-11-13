@@ -121,6 +121,24 @@ describe('SmtpConnectionTestController', () => {
       expect(state.fieldError).toBe('to must be an email');
     });
 
+    it('shows the too-many-requests message, without an SMTP reply or a field error', async () => {
+      client.test.and.rejectWith(loadApiError('smtpConnections/tooManyRequests'));
+
+      await controller.submit({ connection, to: '' });
+
+      expect(state).toEqual(jasmine.objectContaining({
+        sending: false, error: 'Too many test emails; try again later', smtp: null, fieldError: null,
+      }));
+    });
+
+    it('shows the send-time failure without an SMTP reply or a field error', async () => {
+      client.test.and.rejectWith(loadApiError('smtpConnections/sendTimeFailure'));
+
+      await controller.submit({ connection, to: '' });
+
+      expect(state).toEqual(jasmine.objectContaining({ smtp: null, fieldError: null }));
+    });
+
     it('shows any other error as a generic error', async () => {
       client.test.and.rejectWith(loadApiError('smtpConnections/notFound'));
 

@@ -1,16 +1,7 @@
 import Modal from 'react-bootstrap/cjs/Modal.js';
+import SmtpReply from './SmtpReply.jsx';
 
 const RECIPIENT_ID = 'smtp-connection-test-to';
-
-/**
- * Format an SMTP server reply as `code message`.
- *
- * @param {{code: number, message: string}} smtp - The SMTP server reply.
- * @returns {string} The formatted reply.
- */
-function formatSmtp(smtp) {
-  return `${smtp.code} ${smtp.message}`;
-}
 
 /**
  * Render the SMTP server reply of a failed test email, when present.
@@ -23,7 +14,7 @@ function renderErrorSmtp(smtp) {
     return null;
   }
 
-  return <div className="mt-1">SMTP reply: {formatSmtp(smtp)}</div>;
+  return <div className="mt-1">SMTP reply: <SmtpReply smtp={smtp} /></div>;
 }
 
 /**
@@ -37,7 +28,7 @@ function renderOutcome(state) {
   if (state.result) {
     return (
       <div className="alert alert-success">
-        Test email sent. SMTP reply: {formatSmtp(state.result)}
+        Test email sent. SMTP reply: <SmtpReply smtp={state.result} />
       </div>
     );
   }
@@ -73,7 +64,10 @@ function renderRecipientField(state, onRecipientChange) {
         onChange={onRecipientChange}
       />
       {state.fieldError && <div className="invalid-feedback">{state.fieldError}</div>}
-      <div className="form-text">Leave empty to send the test email to your own email address.</div>
+      <div className="form-text">
+        Leave empty to send the test email to your own email address. The recipient must be the
+        email of a user of the organization.
+      </div>
     </div>
   );
 }

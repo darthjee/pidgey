@@ -21,7 +21,9 @@ describe('SmtpConnectionTestForm', () => {
 
     expect(page.containsElement('label', 'Recipient')).withContext('label').toBeTrue();
     expect(page.containsAttribute('value', 'bob@example.com')).withContext('value').toBeTrue();
-    expect(page.contains('Leave empty to send the test email to your own email address.')).withContext('help').toBeTrue();
+    expect(page.contains(
+      'Leave empty to send the test email to your own email address. The recipient must be the email of a user of the organization.',
+    )).withContext('help').toBeTrue();
   });
 
   it('renders an enabled Send button when idle', () => {
@@ -42,7 +44,16 @@ describe('SmtpConnectionTestForm', () => {
     const page = render({ result: { code: 250, message: 'OK: queued' } });
 
     expect(page.contains('alert-success')).withContext('alert').toBeTrue();
-    expect(page.contains('Test email sent. SMTP reply: 250 OK: queued')).withContext('reply').toBeTrue();
+    expect(page.containsInOrder('Test email sent. SMTP reply: ', '<span class="text-break">250 OK: queued</span>'))
+      .withContext('reply').toBeTrue();
+  });
+
+  it('renders a long success reply in full, as literal text', () => {
+    const message = `<b>x</b>${'y'.repeat(600)}`;
+    const page = render({ result: { code: 250, message } });
+
+    expect(page.contains(`250 &lt;b&gt;x&lt;/b&gt;${'y'.repeat(600)}</span>`)).withContext('reply').toBeTrue();
+    expect(page.contains('<b>')).withContext('no tag').toBeFalse();
   });
 
   it('shows the error with the SMTP reply when present', () => {
@@ -50,7 +61,16 @@ describe('SmtpConnectionTestForm', () => {
 
     expect(page.contains('alert-danger')).withContext('alert').toBeTrue();
     expect(page.contains('SMTP authentication failed')).withContext('message').toBeTrue();
-    expect(page.contains('SMTP reply: 535 Auth failed')).withContext('reply').toBeTrue();
+    expect(page.containsInOrder('SMTP reply: ', '<span class="text-break">535 Auth failed</span>'))
+      .withContext('reply').toBeTrue();
+  });
+
+  it('renders a long error reply in full, as literal text', () => {
+    const message = `<b>x</b>${'y'.repeat(600)}`;
+    const page = render({ error: 'SMTP rejected', smtp: { code: 550, message } });
+
+    expect(page.contains(`550 &lt;b&gt;x&lt;/b&gt;${'y'.repeat(600)}</span>`)).withContext('reply').toBeTrue();
+    expect(page.contains('<b>')).withContext('no tag').toBeFalse();
   });
 
   it('shows the error without an SMTP reply when absent', () => {
