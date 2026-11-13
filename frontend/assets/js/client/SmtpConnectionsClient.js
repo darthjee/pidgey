@@ -7,7 +7,8 @@ const COLLECTION_PATH = '/smtp-connections.json';
  * Build the path of one SMTP connection, or of one of its actions.
  *
  * @param {number|string} id - The connection id.
- * @param {string} [action] - The action segment (`activate`, `test`); omitted for the item.
+ * @param {string} [action] - The action segment (`activate`, `deactivate`, `test`); omitted
+ *   for the item.
  * @returns {string} The request path.
  */
 function itemPath(id, action) {
@@ -100,6 +101,18 @@ const SmtpConnectionsClient = {
    */
   async activate(id) {
     return ApiClient.postJson(itemPath(id, 'activate'));
+  },
+
+  /**
+   * Deactivate one SMTP connection, leaving the organization without an active one. Sends no
+   * body.
+   *
+   * @param {number|string} id - The connection id.
+   * @returns {Promise<{smtpConnection: object}>} The deactivated connection; `undefined` when
+   *   the session turned out to be expired.
+   */
+  async deactivate(id) {
+    return ApiClient.postJson(itemPath(id, 'deactivate'));
   },
 
   /**

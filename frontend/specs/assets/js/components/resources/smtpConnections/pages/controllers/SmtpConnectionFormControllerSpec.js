@@ -1,7 +1,10 @@
 import SmtpConnectionFormController from '../../../../../../../../assets/js/components/resources/smtpConnections/pages/controllers/SmtpConnectionFormController.js';
-import SmtpConnectionFormRules from '../../../../../../../../assets/js/components/resources/smtpConnections/pages/controllers/SmtpConnectionFormRules.js';
+import SmtpConnectionFormRules, {
+  ENCRYPTION_REQUIRED_MESSAGE,
+} from '../../../../../../../../assets/js/components/resources/smtpConnections/pages/controllers/SmtpConnectionFormRules.js';
 import ApiError from '../../../../../../../../assets/js/client/ApiError.js';
 import { installFakeWindow, uninstallFakeWindow } from '../../../../../../../support/fakeWindow.js';
+import loadFixture, { loadApiError } from '../../../../../../../support/loadFixture.js';
 
 describe('SmtpConnectionFormController', () => {
   let setters;
@@ -9,15 +12,14 @@ describe('SmtpConnectionFormController', () => {
   let navigate;
   let controller;
 
-  const item = {
-    id: 5, name: 'Relay', host: 'smtp.example.com', port: 587, encryption: 'tls',
-    username: 'user', hasPassword: true, fromAddress: 'noreply@example.com', active: false,
-  };
+  const item = loadFixture('smtpConnections/list').smtpConnections[1];
   const itemFields = {
-    name: 'Relay', host: 'smtp.example.com', port: '587', encryption: 'tls',
-    username: 'user', password: '', fromAddress: 'noreply@example.com',
+    name: 'Office relay', host: 'smtp.example.com', port: '587', encryption: 'tls',
+    username: 'relay-user', password: '', fromAddress: 'noreply@example.com',
   };
-  const stored = { username: 'user', hasPassword: true };
+  const stored = {
+    username: 'relay-user', hasPassword: true, host: 'smtp.example.com', port: 587, encryption: 'tls',
+  };
 
   beforeEach(() => {
     setters = jasmine.createSpyObj('setters', [
@@ -30,18 +32,23 @@ describe('SmtpConnectionFormController', () => {
 
   describe('#load', () => {
     it('fills the form from the item, without the password, and the stored credentials', async () => {
-      client.get.and.resolveTo({ smtpConnection: { ...item, username: null, hasPassword: false } });
+      client.get.and.resolveTo(loadFixture('smtpConnections/item'));
 
-      await controller.load('5');
+      await controller.load('12');
 
-      expect(client.get).toHaveBeenCalledWith('5');
-      expect(setters.setFields).toHaveBeenCalledWith({ ...itemFields, username: '' });
-      expect(setters.setStored).toHaveBeenCalledWith({ username: null, hasPassword: false });
+      expect(client.get).toHaveBeenCalledWith('12');
+      expect(setters.setFields).toHaveBeenCalledWith({
+        name: 'Mailpit', host: 'mailpit', port: '1025', encryption: 'none',
+        username: '', password: '', fromAddress: 'noreply@example.com',
+      });
+      expect(setters.setStored).toHaveBeenCalledWith({
+        username: null, hasPassword: false, host: 'mailpit', port: 1025, encryption: 'none',
+      });
       expect(setters.setLoadState).toHaveBeenCalledWith({ loading: false, loadError: null, notFound: false });
     });
 
     it('marks an unknown connection as not found', async () => {
-      client.get.and.rejectWith(new ApiError(404, 'SMTP connection not found', 'NOT_FOUND'));
+      client.get.and.rejectWith(loadApiError('smtpConnections/notFound'));
 
       await controller.load('99');
 
@@ -103,7 +110,7 @@ describe('SmtpConnectionFormController', () => {
 
       expect(client.update).toHaveBeenCalledWith('5', SmtpConnectionFormRules.buildUpdatePayload(fields, stored));
       expect(setters.setFields).toHaveBeenCalledWith({ ...itemFields, port: '465', password: '' });
-      expect(setters.setStored).toHaveBeenCalledWith(stored);
+      expect(setters.setStored).toHaveBeenCalledWith({ ...stored, port: 465 });
       expect(setters.setSuccess).toHaveBeenCalledWith(true);
     });
 
@@ -125,6 +132,24 @@ describe('SmtpConnectionFormController', () => {
 
       expect(setters.setFieldErrors).toHaveBeenCalledWith({ host: 'host must be a hostname or an IP address' });
       expect(setters.setSubmitError).toHaveBeenCalledWith('something else');
+    });
+
+    it('stops on the credential rules, without calling the API', async () => {
+      await controller.handleSubmit(undefined, { ...itemFields, password: 's3cret', encryption: 'none' }, null);
+
+      expect(setters.setFieldErrors).toHaveBeenCalledWith({ password: ENCRYPTION_REQUIRED_MESSAGE });
+      expect(client.create).not.toHaveBeenCalled();
+    });
+
+    it('maps the server validation details, the credential ones to the password', async () => {
+      client.update.and.rejectWith(loadApiError('smtpConnections/validationFailed'));
+
+      await controller.handleSubmit('5', itemFields, stored);
+
+      expect(setters.setFieldErrors).toHaveBeenCalledWith({
+        port: 'port must be between 1 and 65535', password: ENCRYPTION_REQUIRED_MESSAGE,
+      });
+      expect(setters.setSubmitError).not.toHaveBeenCalledWith(jasmine.any(String));
     });
 
     it('sets no submit error when every detail matched a field', async () => {
@@ -160,12 +185,12 @@ describe('SmtpConnectionFormController', () => {
       await controller.handleRemoveCredentials('5');
 
       expect(client.update).toHaveBeenCalledWith('5', { username: '', password: '' });
-      expect(setters.setStored).toHaveBeenCalledWith({ username: null, hasPassword: false });
+      expect(setters.setStored).toHaveBeenCalledWith({ ...stored, username: null, hasPassword: false });
       expect(setters.setSuccess).toHaveBeenCalledWith(true);
     });
 
     it('shows a failure as a submit error', async () => {
-      client.update.and.rejectWith(new ApiError(404, 'SMTP connection not found', 'NOT_FOUND'));
+      client.update.and.rejectWith(loadApiError('smtpConnections/notFound'));
 
       await controller.handleRemoveCredentials('5');
 

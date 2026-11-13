@@ -18,13 +18,18 @@ Purpose: define the frontend test, coverage and lint setup, and how the checks r
 - SMTP connections: `frontend/specs/support/fixtures/smtpConnections/`, one file per
   response shape of
   [smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md):
-  - an SMTP connection item;
-  - the list;
-  - `400 VALIDATION_FAILED`;
-  - an `SMTP_*` failure with `error.smtp`;
-  - a `409` send-time failure;
-  - `429 TOO_MANY_REQUESTS`;
-  - `404 NOT_FOUND`.
+  - `item.json` — an SMTP connection item, wrapped as `{ "smtpConnection": … }`;
+  - `list.json` — the list (`{ "smtpConnections": [ … ] }`);
+  - `testSent.json` — the test-email success (`{ "status": "sent", "smtp": … }`);
+  - `validationFailed.json` — `400 VALIDATION_FAILED`, with `error.details`;
+  - `smtpFailure.json` — an `SMTP_*` failure with `error.smtp` (`502 SMTP_AUTH_FAILED`);
+  - `sendTimeFailure.json` — a `409` send-time failure (`SMTP_INSECURE_CREDENTIALS`);
+  - `tooManyRequests.json` — `429 TOO_MANY_REQUESTS`;
+  - `notFound.json` — `404 NOT_FOUND`.
+- **Loader:** `loadFixture(name)` in `frontend/specs/support/loadFixture.js` reads
+  `frontend/specs/support/fixtures/<name>.json` (e.g. `loadFixture('smtpConnections/list')`)
+  and returns a fresh parsed copy on every call, so a spec can change it freely. Specs that
+  need an `ApiError` build it from an error fixture's `statusCode` and `error` fields.
 - **Source:** the fixtures are **hand-maintained copies of the API spec's example
   responses**, matching them exactly. They are not captured from the backend: the backend
   endpoint tests already assert the same shapes, and capturing would couple the `source/`

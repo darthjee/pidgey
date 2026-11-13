@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "TOO_MANY_REQUESTS",
+    "message": "Too many test emails; try again later"
+  },
+  "statusCode": 429,
+  "timestamp": "2026-10-25T12:00:00.000Z"
+}

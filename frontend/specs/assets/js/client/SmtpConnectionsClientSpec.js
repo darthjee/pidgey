@@ -1,11 +1,9 @@
 import ApiClient from '../../../../assets/js/client/ApiClient.js';
 import SmtpConnectionsClient from '../../../../assets/js/client/SmtpConnectionsClient.js';
+import loadFixture from '../../../support/loadFixture.js';
 
 describe('SmtpConnectionsClient', () => {
-  const smtpConnection = {
-    id: 12, name: 'Mailpit', host: 'mailpit', port: 1025, encryption: 'none',
-    username: null, hasPassword: false, fromAddress: 'noreply@example.com', active: true,
-  };
+  const { smtpConnection } = loadFixture('smtpConnections/item');
   const attributes = {
     name: 'Relay', host: 'smtp.example.com', port: 587, encryption: 'tls',
     username: 'user', password: 's3cret', fromAddress: 'noreply@example.com',
@@ -13,12 +11,13 @@ describe('SmtpConnectionsClient', () => {
 
   describe('.list', () => {
     it('gets the collection endpoint', async () => {
-      spyOn(ApiClient, 'getJson').and.resolveTo({ smtpConnections: [smtpConnection] });
+      const list = loadFixture('smtpConnections/list');
+      spyOn(ApiClient, 'getJson').and.resolveTo(list);
 
       const response = await SmtpConnectionsClient.list();
 
       expect(ApiClient.getJson).toHaveBeenCalledWith('/smtp-connections.json');
-      expect(response).toEqual({ smtpConnections: [smtpConnection] });
+      expect(response).toEqual(list);
     });
 
     it('passes through an undefined result', async () => {
@@ -114,8 +113,27 @@ describe('SmtpConnectionsClient', () => {
     });
   });
 
+  describe('.deactivate', () => {
+    it('posts to the deactivate endpoint without a body', async () => {
+      const response = { smtpConnection: { ...smtpConnection, active: false } };
+      spyOn(ApiClient, 'postJson').and.resolveTo(response);
+
+      const result = await SmtpConnectionsClient.deactivate(12);
+
+      expect(ApiClient.postJson).toHaveBeenCalledWith('/smtp-connections/12/deactivate.json');
+      expect(ApiClient.postJson.calls.mostRecent().args.length).toBe(1);
+      expect(result).toEqual(response);
+    });
+
+    it('passes through an undefined result', async () => {
+      spyOn(ApiClient, 'postJson').and.resolveTo(undefined);
+
+      expect(await SmtpConnectionsClient.deactivate(12)).toBeUndefined();
+    });
+  });
+
   describe('.test', () => {
-    const result = { status: 'sent', smtp: { code: 250, message: 'OK' } };
+    const result = loadFixture('smtpConnections/testSent');
 
     it('posts the recipient when given', async () => {
       spyOn(ApiClient, 'postJson').and.resolveTo(result);

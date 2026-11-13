@@ -52,6 +52,15 @@ describe('SmtpConnections', () => {
     expect(SmtpConnectionsController.prototype.handleDelete).toHaveBeenCalledWith(connection);
   });
 
+  it('delegates deactivate to the controller', () => {
+    spyOn(SmtpConnectionsController.prototype, 'handleDeactivate').and.resolveTo();
+    const handlers = renderCapturingHandlers(SmtpConnections, SmtpConnectionsHelper);
+
+    handlers.onDeactivate(3)();
+
+    expect(SmtpConnectionsController.prototype.handleDeactivate).toHaveBeenCalledWith(3);
+  });
+
   it('delegates opening and closing the test modal to the test controller', () => {
     spyOn(SmtpConnectionTestController.prototype, 'open');
     spyOn(SmtpConnectionTestController.prototype, 'close');

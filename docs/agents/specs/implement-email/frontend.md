@@ -68,20 +68,22 @@ All settled by #154.
 
 Names are **proposals** (see the lifecycle rules in [implement-email.md](../implement-email.md)).
 
-1. **Client** — `SmtpConnectionsClient.deactivate(id)`: `POST
-   /smtp-connections/:id/deactivate.json`, no request body
-   ([layout.md](../frontend/layout.md)).
-2. **Deactivate action** — on the active row only, with confirmation, then a list refresh
-   ([SMTP connections list](../frontend/screens.md#smtp-connections-list)).
-3. **Form rules** — `SmtpConnectionFormRules` additions: credentials require `tls` / `ssl`
-   on the merged state, and credential redirection on edit
-   ([SMTP connection form](../frontend/screens.md#smtp-connection-form)).
-4. **Test-email modal** — `429` shown as `error.message`; `text-break` on `smtp.message` and
-   `error.smtp.message`; the recipient help text
-   ([Test-email modal](../frontend/screens.md#test-email-modal)).
-5. **Fixtures** — the shared JSON fixtures, and the specs moved onto them
-   ([API response fixtures](../frontend/testing.md#api-response-fixtures)).
-6. **Compatibility table** — clear M7–M9 and mark the SMTP rows ✅ once they match
-   ([api-compatibility.md](../frontend/api-compatibility.md#pidgey-admin)).
-7. **Manual check** — the end-to-end check against the development `mailpit`
-   ([definition of done](../frontend/testing.md#smtp-connections-definition-of-done)).
+- [x] 1. **Client** — `SmtpConnectionsClient.deactivate(id)`: `POST
+      /smtp-connections/:id/deactivate.json`, no request body
+      ([layout.md](../frontend/layout.md)).
+- [x] 2. **Deactivate action** — on the active row only, with confirmation, then a list refresh
+      ([SMTP connections list](../frontend/screens.md#smtp-connections-list)).
+- [x] 3. **Form rules** — `SmtpConnectionFormRules` additions: credentials require `tls` / `ssl`
+      on the merged state, and credential redirection on edit
+      ([SMTP connection form](../frontend/screens.md#smtp-connection-form)).
+- [x] 4. **Test-email modal** — `429` shown as `error.message`; `text-break` on `smtp.message` and
+      `error.smtp.message`; the recipient help text
+      ([Test-email modal](../frontend/screens.md#test-email-modal)).
+- [x] 5. **Fixtures** — the shared JSON fixtures, and the specs moved onto them
+      ([API response fixtures](../frontend/testing.md#api-response-fixtures)).
+- [x] 6. **Compatibility table** — clear M7–M9 and mark the SMTP rows ✅ once they match
+      ([api-compatibility.md](../frontend/api-compatibility.md#pidgey-admin)).
+- [ ] 7. **Manual check** — the end-to-end check against the development `mailpit`
+      ([definition of done](../frontend/testing.md#smtp-connections-definition-of-done)).
+      Not run by the agents: it is a pre-merge checklist in the PR description of #167, run
+      by the owner once #166 (test-email endpoint) is merged.
