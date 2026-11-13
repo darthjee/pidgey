@@ -1,12 +1,15 @@
 import SmtpConnectionFormRules, {
-  ENCRYPTIONS, MAX_FIELD_LENGTH, PAIRING_MESSAGE,
+  ENCRYPTIONS, ENCRYPTION_REQUIRED_MESSAGE, MAX_FIELD_LENGTH, PAIRING_MESSAGE, REDIRECTION_MESSAGE,
 } from '../../../../../../../../assets/js/components/resources/smtpConnections/pages/controllers/SmtpConnectionFormRules.js';
+import loadFixture from '../../../../../../../support/loadFixture.js';
 
 describe('SmtpConnectionFormRules', () => {
   const buildFields = (overrides = {}) => ({
     name: 'Relay', host: 'smtp.example.com', port: '587', encryption: 'tls',
     username: '', password: '', fromAddress: 'noreply@example.com', ...overrides,
   });
+
+  const settings = { host: 'smtp.example.com', port: 587, encryption: 'tls' };
 
   it('exposes the limits and the encryption modes', () => {
     expect(MAX_FIELD_LENGTH).toBe(255);
@@ -79,15 +82,103 @@ describe('SmtpConnectionFormRules', () => {
     });
 
     it('accepts a username alone on edit when a password is stored', () => {
-      expect(validate({ username: 'user' }, { username: 'old', hasPassword: true })).toEqual({});
+      expect(validate({ username: 'user' }, { ...settings, username: 'old', hasPassword: true })).toEqual({});
     });
 
     it('rejects a username alone on edit when no password is stored', () => {
-      expect(validate({ username: 'user' }, { username: null, hasPassword: false })).toEqual({ password: PAIRING_MESSAGE });
+      expect(validate({ username: 'user' }, { ...settings, username: null, hasPassword: false })).toEqual({ password: PAIRING_MESSAGE });
     });
 
     it('rejects a cleared username on edit while a password is stored', () => {
-      expect(validate({ username: '' }, { username: 'user', hasPassword: true })).toEqual({ password: PAIRING_MESSAGE });
+      expect(validate({ username: '' }, { ...settings, username: 'user', hasPassword: true })).toEqual({ password: PAIRING_MESSAGE });
+    });
+  });
+
+  describe('.validate credentials require encryption', () => {
+    const validate = (overrides, stored = null) => SmtpConnectionFormRules.validate(buildFields(overrides), stored);
+
+    it('rejects credentials without encryption on create', () => {
+      expect(validate({ username: 'user', password: 's3cret', encryption: 'none' }))
+        .toEqual({ password: ENCRYPTION_REQUIRED_MESSAGE });
+    });
+
+    it('accepts credentials with tls or ssl', () => {
+      expect(validate({ username: 'user', password: 's3cret', encryption: 'tls' })).withContext('tls').toEqual({});
+      expect(validate({ username: 'user', password: 's3cret', encryption: 'ssl' })).withContext('ssl').toEqual({});
+    });
+
+    it('accepts no credentials without encryption', () => {
+      expect(validate({ encryption: 'none' })).toEqual({});
+    });
+
+    it('rejects a stored password kept without encryption on edit', () => {
+      const stored = { ...settings, username: 'user', hasPassword: true };
+
+      expect(validate({ username: 'user', encryption: 'none' }, stored)).toEqual({ password: ENCRYPTION_REQUIRED_MESSAGE });
+    });
+
+    it('shows the pairing message first', () => {
+      expect(validate({ username: 'user', encryption: 'none' })).toEqual({ password: PAIRING_MESSAGE });
+    });
+
+    it('shows the max-length message first', () => {
+      expect(validate({ username: 'user', password: 'a'.repeat(256), encryption: 'none' }))
+        .toEqual({ password: 'Password must be at most 255 characters' });
+    });
+  });
+
+  describe('.validate credential redirection', () => {
+    const stored = { ...settings, username: 'user', hasPassword: true };
+    const validate = (overrides, storedValue = stored) => SmtpConnectionFormRules.validate(
+      buildFields({ username: 'user', ...overrides }), storedValue,
+    );
+
+    it('accepts unchanged settings', () => {
+      expect(validate({})).toEqual({});
+    });
+
+    it('rejects a host change keeping the stored password', () => {
+      expect(validate({ host: 'other.example.com' })).toEqual({ password: REDIRECTION_MESSAGE });
+    });
+
+    it('rejects a port change keeping the stored password', () => {
+      expect(validate({ port: '465' })).toEqual({ password: REDIRECTION_MESSAGE });
+    });
+
+    it('rejects an encryption change keeping the stored password', () => {
+      expect(validate({ encryption: 'ssl' })).toEqual({ password: REDIRECTION_MESSAGE });
+    });
+
+    it('counts a case-only host change as a change', () => {
+      expect(validate({ host: 'SMTP.example.com' })).toEqual({ password: REDIRECTION_MESSAGE });
+    });
+
+    it('ignores surrounding spaces in the host and port', () => {
+      expect(validate({ host: ' smtp.example.com ', port: ' 587 ' })).toEqual({});
+    });
+
+    it('accepts a host change with a typed password', () => {
+      expect(validate({ host: 'other.example.com', password: 'n3w' })).toEqual({});
+    });
+
+    it('accepts changes to the name, from address or username alone', () => {
+      expect(validate({ name: 'Other' })).withContext('name').toEqual({});
+      expect(validate({ fromAddress: 'other@example.com' })).withContext('fromAddress').toEqual({});
+      expect(validate({ username: 'other' })).withContext('username').toEqual({});
+    });
+
+    it('accepts a host change when no credentials are stored', () => {
+      const bare = { ...settings, username: null, hasPassword: false };
+
+      expect(validate({ username: '', host: 'other.example.com' }, bare)).toEqual({});
+    });
+
+    it('never applies on create', () => {
+      expect(validate({ host: 'other.example.com', password: 's3cret' }, null)).toEqual({});
+    });
+
+    it('shows the encryption message before the redirection one', () => {
+      expect(validate({ encryption: 'none' })).toEqual({ password: ENCRYPTION_REQUIRED_MESSAGE });
     });
   });
 
@@ -150,6 +241,20 @@ describe('SmtpConnectionFormRules', () => {
     it('puts the pairing message on the password field', () => {
       expect(SmtpConnectionFormRules.mapValidationDetails([PAIRING_MESSAGE]))
         .toEqual({ fieldErrors: { password: PAIRING_MESSAGE }, unmatched: [] });
+    });
+
+    it('puts the encryption-required and redirection messages on the password field', () => {
+      expect(SmtpConnectionFormRules.mapValidationDetails([ENCRYPTION_REQUIRED_MESSAGE, REDIRECTION_MESSAGE]))
+        .toEqual({ fieldErrors: { password: `${ENCRYPTION_REQUIRED_MESSAGE}; ${REDIRECTION_MESSAGE}` }, unmatched: [] });
+    });
+
+    it('maps the details of the server validation failure', () => {
+      const { error } = loadFixture('smtpConnections/validationFailed');
+
+      expect(SmtpConnectionFormRules.mapValidationDetails(error.details)).toEqual({
+        fieldErrors: { port: 'port must be between 1 and 65535', password: ENCRYPTION_REQUIRED_MESSAGE },
+        unmatched: [],
+      });
     });
 
     it('keeps the details matching no field', () => {

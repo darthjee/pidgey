@@ -25,6 +25,24 @@ function fieldsFrom(item) {
 }
 
 /**
+ * Extract from an SMTP connection item what the form rules compare against on edit: the
+ * stored credentials and the settings they are sent to.
+ *
+ * @param {object} item - The SMTP connection item.
+ * @returns {{username: (string|null), hasPassword: boolean, host: string, port: number,
+ *   encryption: string}} The stored credentials and settings.
+ */
+function storedFrom(item) {
+  return {
+    username: item.username,
+    hasPassword: item.hasPassword,
+    host: item.host,
+    port: item.port,
+    encryption: item.encryption,
+  };
+}
+
+/**
  * Controller for the SMTP connection create / edit form: loads the connection on edit,
  * validates, submits and removes the credentials. Every method that reaches
  * {@link SmtpConnectionsClient} treats an `undefined` result the same way: return without
@@ -36,8 +54,9 @@ export default class SmtpConnectionFormController {
    *
    * @param {object} options - Controller dependencies.
    * @param {Function} options.setFields - React state setter for the form fields.
-   * @param {Function} options.setStored - React state setter for the stored credentials,
-   *   `{ username: (string|null), hasPassword: boolean }`.
+   * @param {Function} options.setStored - React state setter for the stored credentials and
+   *   settings, `{ username: (string|null), hasPassword: boolean, host: string, port: number,
+   *   encryption: string }`.
    * @param {Function} options.setLoadState - React state setter for the load state,
    *   `{ loading: boolean, loadError: (string|null), notFound: boolean }`.
    * @param {Function} options.setFieldErrors - React state setter for per-field errors.
@@ -92,8 +111,9 @@ export default class SmtpConnectionFormController {
    *
    * @param {(number|string|undefined)} id - The connection id on edit; `undefined` on create.
    * @param {object} fields - Form field values.
-   * @param {({username: (string|null), hasPassword: boolean}|null)} stored - The stored
-   *   credentials on edit; `null` on create.
+   * @param {({username: (string|null), hasPassword: boolean, host: string, port: number,
+   *   encryption: string}|null)} stored - The stored credentials and settings on edit; `null`
+   *   on create.
    * @returns {Promise<void>} Resolves once submission handling finishes.
    */
   async handleSubmit(id, fields, stored) {
@@ -152,7 +172,7 @@ export default class SmtpConnectionFormController {
 
   #applyItem(item) {
     this.setFields(fieldsFrom(item));
-    this.setStored({ username: item.username, hasPassword: item.hasPassword });
+    this.setStored(storedFrom(item));
   }
 
   #resetOutcome(errors) {
