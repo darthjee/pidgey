@@ -38,7 +38,7 @@ In this order:
 
 | Header | Value |
 | --- | --- |
-| `Date` | RFC 5322 date from `Pidgey\Infra\Clock`, in UTC (`Sat, 07 Nov 2026 14:03:00 +0000`). |
+| `Date` | RFC 5322 date from `Pidgey\Infra\WallClock` (wall-clock time; the monotonic `Pidgey\Infra\Clock` only drives the session deadline), in UTC (`Sat, 07 Nov 2026 14:03:00 +0000`). |
 | `From` | `fromAddress`, bare address (no display name in v1). |
 | `To` | The recipient, bare address. |
 | `Subject` | Printable ASCII as-is; otherwise RFC 2047 encoded-words (`=?UTF-8?B?…?=`), each at most 75 characters, never splitting a UTF-8 character; folded at 78 characters. |

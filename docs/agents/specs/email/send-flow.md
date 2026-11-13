@@ -44,6 +44,10 @@ Protects against server-side request forgery and DNS rebinding (see
 
 - The `host` is **resolved once** (A and AAAA records). An IP literal is used as is, without
   resolution.
+- Resolver rule: A records come from the system resolver (so the hosts file is honored);
+  AAAA records come from a DNS query. An error in the AAAA lookup is treated as "no AAAA
+  records", never as a failure. The result is the A addresses followed by the AAAA
+  addresses; an empty result is a resolution failure.
 - A resolution failure (no address, DNS error) keeps today's outcome:
   `SMTP_CONNECTION_FAILED`.
 - When `SMTP_ALLOW_PRIVATE_HOSTS` is `false` (the default, see
@@ -267,11 +271,24 @@ by `SMTP_CONNECT_TIMEOUT`, `SMTP_COMMAND_TIMEOUT` and `SMTP_TOTAL_TIMEOUT` (see
 
 ## Attempt log
 
-One log line per attempt, via monolog: organization, connection id, token id (or the
-acting user for the test email), recipient, outcome (code, failing step, reply code,
-sanitized reply, and the OpenSSL reason for TLS failures). Never the body, the subject or
-credentials. There is **no protocol trace in v1**; a future debug trace must redact `AUTH`
-lines and `DATA` content.
+One log line per attempt, via monolog, with the message `smtp-send-attempt`: level `info`
+when the message was sent, `warning` when the attempt failed (send-time checks included).
+
+| Context field | Carries |
+| --- | --- |
+| `organizationId` | The connection's organization. |
+| `connectionId` | The connection used. |
+| `tokenId` / `userId` | The acting API token (`POST /v1/messages`) or the acting user (the test email); exactly one of them. |
+| `recipient` | The recipient address. |
+| `outcome` | `sent`, or the failure code (`SMTP_*`). |
+| `step` | The failing step; `send-time-check` for `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED` and `SMTP_PASSWORD_UNREADABLE`. |
+| `replyCode` | The SMTP reply code, when a reply was received. |
+| `reply` | The reply text, redacted and sanitized ([failures.md](failures.md#sanitization-and-length-cap)), when a reply was received. |
+| `tlsReason` | The OpenSSL reason of a TLS failure (log only, never in a response). |
+
+Absent fields are omitted. Never the body, the subject, the username or the password.
+There is **no protocol trace in v1**; a future debug trace must redact `AUTH` lines and
+`DATA` content.
 
 ## Secret hygiene
 
