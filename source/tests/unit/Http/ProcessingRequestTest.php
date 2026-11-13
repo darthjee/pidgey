@@ -8,6 +8,7 @@ use ArrayObject;
 use Countable;
 use DateTimeImmutable;
 use LogicException;
+use Monolog\Level;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -17,7 +18,9 @@ use Pidgey\Http\JsonResponse;
 use Pidgey\Http\ProcessingRequest;
 use Pidgey\Http\Request;
 use Pidgey\Http\Response;
+use Pidgey\Infra\LoggerFactory;
 use Pidgey\Infra\WallClock;
+use Pidgey\Tests\Support\CapturedLog;
 use SplObjectStorage;
 use stdClass;
 
@@ -25,6 +28,7 @@ use stdClass;
 #[UsesClass(ErrorFormatter::class)]
 #[UsesClass(ErrorResponse::class)]
 #[UsesClass(JsonResponse::class)]
+#[UsesClass(LoggerFactory::class)]
 #[UsesClass(Request::class)]
 #[UsesClass(Response::class)]
 final class ProcessingRequestTest extends TestCase
@@ -207,10 +211,8 @@ final class ProcessingRequestTest extends TestCase
                 return new DateTimeImmutable('2026-10-25T12:00:00.000Z');
             }
         };
-        $logged = [];
-        $formatter = new ErrorFormatter($clock, static function (string $line) use (&$logged): void {
-            $logged[] = $line;
-        });
+        $log = new CapturedLog();
+        $formatter = new ErrorFormatter($clock, $log->logger());
 
         try {
             $this->processing()->require(Countable::class);
@@ -225,7 +227,9 @@ final class ProcessingRequestTest extends TestCase
             . '"statusCode":500,"timestamp":"2026-10-25T12:00:00.000Z"}',
             $response->body(),
         );
-        $this->assertCount(1, $logged);
+        $this->assertCount(1, $log->records());
+        $this->assertSame(Level::Error, $log->records()[0]->level);
+        $this->assertStringStartsWith('Unhandled LogicException: ', $log->records()[0]->message);
     }
 
     private function processing(): ProcessingRequest

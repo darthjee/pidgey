@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Pidgey\Http;
 
-use Closure;
+use Pidgey\Infra\LoggerFactory;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\WallClock;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
@@ -51,21 +52,19 @@ final class ErrorFormatter
 
     private readonly WallClock $clock;
 
-    private readonly Closure $logger;
+    private readonly LoggerInterface $logger;
 
     /**
      * Builds the formatter.
      *
-     * @param WallClock|null $clock  Source of the envelope timestamp; defaults to SystemWallClock.
-     * @param callable|null  $logger Receives the log line of an unexpected error; defaults to error_log().
-     *                               Monolog replaces it once logging is wired.
+     * @param WallClock|null       $clock  Source of the envelope timestamp; defaults to SystemWallClock.
+     * @param LoggerInterface|null $logger Receives the `error` record of an unexpected error; defaults
+     *                                     to `LoggerFactory::create(LoggerFactory::DEFAULT_LEVEL)`.
      */
-    public function __construct(?WallClock $clock = null, ?callable $logger = null)
+    public function __construct(?WallClock $clock = null, ?LoggerInterface $logger = null)
     {
         $this->clock = $clock ?? new SystemWallClock();
-        $this->logger = $logger === null
-            ? static fn (string $line) => error_log($line)
-            : Closure::fromCallable($logger);
+        $this->logger = $logger ?? LoggerFactory::create(LoggerFactory::DEFAULT_LEVEL);
     }
 
     /**
@@ -85,7 +84,7 @@ final class ErrorFormatter
             return $this->formatHttpException($error);
         }
 
-        ($this->logger)(sprintf(
+        $this->logger->error(sprintf(
             'Unhandled %s: %s in %s:%d',
             $error::class,
             $error->getMessage(),

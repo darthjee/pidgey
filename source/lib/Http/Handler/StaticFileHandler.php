@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace Pidgey\Http\Handler;
 
-use Closure;
+use Pidgey\Container;
 use Pidgey\Http\NotFoundException;
 use Pidgey\Http\ProcessingRequest;
 use Pidgey\Http\RequestHandler;
 use Pidgey\Http\Response;
+use Pidgey\Infra\LoggerFactory;
+use Psr\Log\LoggerInterface;
 
 /**
  * Serves the built frontend: "/" gives index.html and "/assets/<rest>" gives the hashed bundles.
  *
  * Files come from a base folder fixed by the source tree (source/static/), never from the request.
  * Traversal, NUL bytes, backslashes, dotfiles, symlink escapes, missing files, directories and
- * extensions off the allow-list all give the router's JSON 404; the resolved path is logged
- * (control characters escaped), never sent.
+ * extensions off the allow-list all give the router's JSON 404; the resolved path is logged at
+ * `debug` (control characters escaped), never sent.
  */
 final class StaticFileHandler extends RequestHandler
 {
@@ -48,20 +50,31 @@ final class StaticFileHandler extends RequestHandler
 
     private readonly string $baseDir;
 
-    private readonly Closure $logger;
+    private readonly LoggerInterface $logger;
 
     /**
      * Builds the handler.
      *
-     * @param string|null   $baseDir Folder the files are served from; defaults to source/static.
-     * @param callable|null $logger  Receives the log line of each 404; defaults to error_log().
+     * @param string|null          $baseDir Folder the files are served from; defaults to source/static.
+     * @param LoggerInterface|null $logger  Receives the `debug` record of each 404; defaults to
+     *                                      `LoggerFactory::create(LoggerFactory::DEFAULT_LEVEL)`.
      */
-    public function __construct(?string $baseDir = null, ?callable $logger = null)
+    public function __construct(?string $baseDir = null, ?LoggerInterface $logger = null)
     {
         $this->baseDir = $baseDir ?? dirname(__DIR__, 3) . '/static';
-        $this->logger = $logger === null
-            ? static fn (string $line) => error_log($line)
-            : Closure::fromCallable($logger);
+        $this->logger = $logger ?? LoggerFactory::create(LoggerFactory::DEFAULT_LEVEL);
+    }
+
+    /**
+     * Builds the handler with the default base folder and the container's logger.
+     *
+     * @param Container $container The request's container.
+     *
+     * @return static
+     */
+    public static function build(Container $container): static
+    {
+        return new self(null, $container->logger());
     }
 
     /**
@@ -177,7 +190,7 @@ final class StaticFileHandler extends RequestHandler
     }
 
     /**
-     * Logs the candidate path, control characters escaped, and throws the router's JSON 404.
+     * Logs the candidate path at `debug`, control characters escaped, and throws the router's JSON 404.
      *
      * @param ProcessingRequest $request   The request being dispatched.
      * @param string            $candidate Base folder joined with the relative path.
@@ -188,7 +201,7 @@ final class StaticFileHandler extends RequestHandler
      */
     private function notFound(ProcessingRequest $request, string $candidate): never
     {
-        ($this->logger)('StaticFileHandler: not served: ' . addcslashes($candidate, "\0..\37\177"));
+        $this->logger->debug('StaticFileHandler: not served: ' . addcslashes($candidate, "\0..\37\177"));
 
         throw new NotFoundException('Cannot GET ' . $request->path());
     }

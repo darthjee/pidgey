@@ -142,6 +142,9 @@ both written through the Monolog logger built by `Pidgey\Infra\LoggerFactory` (s
 
 - Any other value refuses boot with `LOG_LEVEL: invalid level` (reported once, never with
   the value).
+  - The refusal itself is still logged: the boot logger falls back to the default level
+    (`info`) and writes the refusal at `error`, naming the failures only, never values
+    ([front-controller.md](../request-handler/front-controller.md#bootstrap)).
 
 ### Authentication
 

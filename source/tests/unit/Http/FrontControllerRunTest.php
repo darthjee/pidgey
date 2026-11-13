@@ -20,6 +20,17 @@ final class FrontControllerRunTest extends TestCase
     private const SECRET_KEY = 'test-secret-value-not-a-real-secret-front-controller';
     private const SMTP_KEY = 'test-smtp-encryption-value-not-a-real-key-front-controller';
 
+    private ?string $logFile = null;
+
+    protected function tearDown(): void
+    {
+        if ($this->logFile !== null && is_file($this->logFile)) {
+            unlink($this->logFile);
+        }
+
+        $this->logFile = null;
+    }
+
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
     public function testSendsTheHealthCheck(): void
@@ -54,7 +65,7 @@ final class FrontControllerRunTest extends TestCase
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_SERVER['REQUEST_URI'] = '/health.json';
-        ini_set('error_log', '/dev/null');
+        $this->redirectErrorLog();
 
         ob_start();
         FrontController::run(static fn (): array => ['SECRET_KEY: too short', 'DB_HOST: missing']);
@@ -65,6 +76,38 @@ final class FrontControllerRunTest extends TestCase
             $output,
         );
         $this->assertStringNotContainsString('SECRET_KEY', $output);
+        $this->assertStringContainsString(
+            'pidgey.ERROR: Unhandled RuntimeException: Invalid configuration: '
+            . 'SECRET_KEY: too short, DB_HOST: missing',
+            $this->loggedText(),
+        );
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testRefusesAnInvalidLogLevelAndStillLogsIt(): void
+    {
+        $this->setValidEnvironment();
+        putenv('LOG_LEVEL=verbose');
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI'] = '/health.json';
+        $this->redirectErrorLog();
+
+        ob_start();
+        FrontController::run();
+        $output = (string) ob_get_clean();
+
+        $this->assertMatchesRegularExpression(
+            '/^\{"error":\{"code":"INTERNAL_ERROR","message":"Internal server error"\},"statusCode":500,/',
+            $output,
+        );
+        $log = $this->loggedText();
+        $this->assertMatchesRegularExpression(
+            '/pidgey\.ERROR: Unhandled RuntimeException: Invalid configuration: (.*, )?LOG_LEVEL: invalid level/',
+            $log,
+        );
+        $this->assertStringNotContainsString('verbose', $log);
+        $this->assertStringNotContainsString('verbose', $output);
     }
 
     #[RunInSeparateProcess]
@@ -76,7 +119,7 @@ final class FrontControllerRunTest extends TestCase
         putenv('PHP_ENV=production');
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_SERVER['REQUEST_URI'] = '/health.json';
-        ini_set('error_log', '/dev/null');
+        $this->redirectErrorLog();
 
         ob_start();
         FrontController::run();
@@ -84,6 +127,9 @@ final class FrontControllerRunTest extends TestCase
 
         $this->assertMatchesRegularExpression('/^\{"error":\{"code":"INTERNAL_ERROR",/', $output);
         $this->assertStringNotContainsString(ConfigValidator::DEVELOPMENT_SECRET_KEY, $output);
+        $log = $this->loggedText();
+        $this->assertStringContainsString('pidgey.ERROR: Unhandled RuntimeException: Invalid configuration: ', $log);
+        $this->assertStringNotContainsString(ConfigValidator::DEVELOPMENT_SECRET_KEY, $log);
     }
 
     #[RunInSeparateProcess]
@@ -104,6 +150,17 @@ final class FrontControllerRunTest extends TestCase
         $this->assertStringNotContainsString('SMTP_ENCRYPTION_KEY', $output);
     }
 
+    private function redirectErrorLog(): void
+    {
+        $this->logFile = (string) tempnam(sys_get_temp_dir(), 'pidgey-run-log-');
+        ini_set('error_log', $this->logFile);
+    }
+
+    private function loggedText(): string
+    {
+        return (string) file_get_contents((string) $this->logFile);
+    }
+
     private function setValidEnvironment(): void
     {
         putenv('SECRET_KEY=' . self::SECRET_KEY);
@@ -113,5 +170,6 @@ final class FrontControllerRunTest extends TestCase
         putenv('DB_HOST=db.example');
         putenv('DB_NAME=pidgey');
         putenv('DB_USER=pidgey');
+        putenv('LOG_LEVEL');
     }
 }

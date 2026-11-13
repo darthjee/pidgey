@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pidgey\Tests\Unit\Http;
 
 use DateTimeImmutable;
+use Monolog\Level;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -33,9 +34,11 @@ use Pidgey\Http\Router;
 use Pidgey\Http\TrustedOrigins;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\Env;
+use Pidgey\Infra\LoggerFactory;
 use Pidgey\Infra\OriginParser;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\WallClock;
+use Pidgey\Tests\Support\CapturedLog;
 use Pidgey\Tests\Support\ContainerHandler;
 use Pidgey\Tests\Support\FirstTraceMiddleware;
 use Pidgey\Tests\Support\ParamsHandler;
@@ -55,6 +58,7 @@ use Pidgey\Tests\Support\ThrowingHandler;
 #[UsesClass(HealthHandler::class)]
 #[UsesClass(HttpException::class)]
 #[UsesClass(JsonResponse::class)]
+#[UsesClass(LoggerFactory::class)]
 #[UsesClass(NotFoundException::class)]
 #[UsesClass(OriginCheck::class)]
 #[UsesClass(OriginParser::class)]
@@ -79,8 +83,7 @@ final class FrontControllerTest extends TestCase
         'Access-Control-Allow-Credentials: true',
     ];
 
-    /** @var list<string> */
-    private array $logged = [];
+    private CapturedLog $log;
 
     private FrontController $controller;
 
@@ -101,9 +104,8 @@ final class FrontControllerTest extends TestCase
                 return new DateTimeImmutable(FrontControllerTest::TIMESTAMP);
             }
         };
-        $this->formatter = new ErrorFormatter($clock, function (string $line): void {
-            $this->logged[] = $line;
-        });
+        $this->log = new CapturedLog();
+        $this->formatter = new ErrorFormatter($clock, $this->log->logger());
 
         $this->cors = new Cors(new TrustedOrigins([self::TRUSTED]));
         $this->controller = new FrontController($router, $this->formatter, cors: $this->cors);
@@ -149,7 +151,7 @@ final class FrontControllerTest extends TestCase
             ],
             json_decode($response->body(), true),
         );
-        $this->assertSame([], $this->logged);
+        $this->assertSame([], $this->log->records());
     }
 
     /**
@@ -223,7 +225,7 @@ final class FrontControllerTest extends TestCase
             . '"statusCode":400,"timestamp":"' . self::TIMESTAMP . '"}',
             $response->body(),
         );
-        $this->assertSame([], $this->logged);
+        $this->assertSame([], $this->log->records());
     }
 
     public function testAnyOtherThrowableGives500WithoutLeaking(): void
@@ -236,8 +238,11 @@ final class FrontControllerTest extends TestCase
             . '"statusCode":500,"timestamp":"' . self::TIMESTAMP . '"}',
             $response->body(),
         );
-        $this->assertCount(1, $this->logged);
-        $this->assertStringContainsString(ThrowingHandler::SECRET, $this->logged[0]);
+        $records = $this->log->records();
+        $this->assertCount(1, $records);
+        $this->assertSame(Level::Error, $records[0]->level);
+        $this->assertStringStartsWith('Unhandled ', $records[0]->message);
+        $this->assertStringContainsString(ThrowingHandler::SECRET, $records[0]->message);
     }
 
     public function testOriginCheckRejectsACrossSitePost(): void
@@ -259,7 +264,7 @@ final class FrontControllerTest extends TestCase
         );
         $this->assertSame(200, $get->status());
         $this->assertSame('{"status":"ok"}', $get->body());
-        $this->assertSame([], $this->logged);
+        $this->assertSame([], $this->log->records());
     }
 
     public function testTheHealthCheckOpensNoDatabaseConnection(): void
@@ -335,7 +340,7 @@ final class FrontControllerTest extends TestCase
             $response->headers(),
         );
         $this->assertSame(0, $built);
-        $this->assertSame([], $this->logged);
+        $this->assertSame([], $this->log->records());
     }
 
     public function testAnswersAnUntrustedPreflightWithoutCorsHeaders(): void

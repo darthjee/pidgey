@@ -6,6 +6,7 @@ namespace Pidgey\Tests\Unit\Http;
 
 use DateTimeImmutable;
 use LogicException;
+use Monolog\Level;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -19,13 +20,16 @@ use Pidgey\Http\PayloadTooLargeException;
 use Pidgey\Http\Response;
 use Pidgey\Http\UnsupportedMediaTypeException;
 use Pidgey\Http\ValidationFailedException;
+use Pidgey\Infra\LoggerFactory;
 use Pidgey\Infra\SystemWallClock;
 use Pidgey\Infra\WallClock;
+use Pidgey\Tests\Support\CapturedLog;
 
 #[CoversClass(ErrorFormatter::class)]
 #[UsesClass(ErrorResponse::class)]
 #[UsesClass(HttpException::class)]
 #[UsesClass(JsonResponse::class)]
+#[UsesClass(LoggerFactory::class)]
 #[UsesClass(NotFoundException::class)]
 #[UsesClass(PayloadTooLargeException::class)]
 #[UsesClass(Response::class)]
@@ -34,8 +38,7 @@ use Pidgey\Infra\WallClock;
 #[UsesClass(ValidationFailedException::class)]
 final class ErrorFormatterTest extends TestCase
 {
-    /** @var list<string> */
-    private array $logged = [];
+    private CapturedLog $log;
 
     private ErrorFormatter $formatter;
 
@@ -48,9 +51,8 @@ final class ErrorFormatterTest extends TestCase
             }
         };
 
-        $this->formatter = new ErrorFormatter($clock, function (string $line): void {
-            $this->logged[] = $line;
-        });
+        $this->log = new CapturedLog();
+        $this->formatter = new ErrorFormatter($clock, $this->log->logger());
     }
 
     public function testFormatsNotFound(): void
@@ -63,7 +65,7 @@ final class ErrorFormatterTest extends TestCase
             . '"statusCode":404,"timestamp":"2026-10-25T12:00:00.000Z"}',
             $response->body(),
         );
-        $this->assertSame([], $this->logged);
+        $this->assertSame([], $this->log->records());
     }
 
     public function testUsesTheGivenFields(): void
@@ -154,7 +156,8 @@ final class ErrorFormatterTest extends TestCase
 
     public function testAnyOtherThrowableIsAnInternalErrorAndIsLogged(): void
     {
-        $response = $this->formatter->format(new LogicException('secret detail'));
+        $error = new LogicException('secret detail');
+        $response = $this->formatter->format($error);
 
         $this->assertSame(500, $response->status());
         $this->assertSame(
@@ -163,9 +166,14 @@ final class ErrorFormatterTest extends TestCase
             $response->body(),
         );
         $this->assertStringNotContainsString('secret', $response->body());
-        $this->assertCount(1, $this->logged);
-        $this->assertStringContainsString('LogicException', $this->logged[0]);
-        $this->assertStringContainsString('secret detail', $this->logged[0]);
+        $records = $this->log->records();
+        $this->assertCount(1, $records);
+        $this->assertSame(Level::Error, $records[0]->level);
+        $this->assertSame(
+            sprintf('Unhandled LogicException: secret detail in %s:%d', $error->getFile(), $error->getLine()),
+            $records[0]->message,
+        );
+        $this->assertSame([], $records[0]->context);
     }
 
     public function testDefaultsToTheSystemClock(): void
