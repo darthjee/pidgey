@@ -76,6 +76,16 @@ Protects against server-side request forgery and DNS rebinding (see
   [TLS policy](smtp-connections.md#tls-policy) and its IP-literal rules are unchanged).
 - Ports are not restricted.
 
+**Pending decision — host check gaps** (security follow-ups, not decided):
+
+- IPv6 forms that embed an IPv4 address are not checked as their IPv4 address: NAT64
+  `64:ff9b::/96` and `64:ff9b:1::/48` (medium risk on DNS64/NAT64 networks, where a name
+  can reach an internal IPv4 address through the translator), IPv4-compatible `::/96` and
+  6to4 `2002::/16`.
+- Some reserved IPv4 ranges are not denied: `192.0.0.0/24` (IETF protocol assignments),
+  `198.18.0.0/15` (benchmarking) and the TEST-NETs (`192.0.2.0/24`, `198.51.100.0/24`,
+  `203.0.113.0/24`).
+
 ## SMTP session
 
 One command, then its reply, then the next command (no `PIPELINING`). Every reply is read
@@ -281,10 +291,27 @@ when the message was sent, `warning` when the attempt failed (send-time checks i
 | `tokenId` / `userId` | The acting API token (`POST /v1/messages`) or the acting user (the test email); exactly one of them. |
 | `recipient` | The recipient address. |
 | `outcome` | `sent`, or the failure code (`SMTP_*`). |
-| `step` | The failing step; `send-time-check` for `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED` and `SMTP_PASSWORD_UNREADABLE`. |
+| `step` | The failing step, one of the [step values](#step-values). |
 | `replyCode` | The SMTP reply code, when a reply was received. |
 | `reply` | The reply text, redacted and sanitized ([failures.md](failures.md#sanitization-and-length-cap)), when a reply was received. |
 | `tlsReason` | The OpenSSL reason of a TLS failure (log only, never in a response). |
+
+### Step values
+
+The `step` field is a contract; its values are:
+
+| Value | Failing step |
+| --- | --- |
+| `connect` | TCP connect (including resolution failures). |
+| `greeting` | The server's `220` greeting. |
+| `ehlo` | `EHLO` (before or after `STARTTLS`). |
+| `starttls` | `STARTTLS` and the TLS handshake. |
+| `auth` | `AUTH` and its `334` steps, including "no supported mechanism" (credentials never sent, no reply). |
+| `mail-from` | `MAIL FROM` (including `530` without credentials). |
+| `rcpt-to` | `RCPT TO`. |
+| `data` | `DATA` (the `354` intermediate reply). |
+| `end-of-data` | The reply after the message content (`.`). |
+| `send-time-check` | `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED` and `SMTP_PASSWORD_UNREADABLE`; the server is never contacted. |
 
 Absent fields are omitted. Never the body, the subject, the username or the password.
 There is **no protocol trace in v1**; a future debug trace must redact `AUTH` lines and

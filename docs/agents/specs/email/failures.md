@@ -56,6 +56,10 @@ asserted exactly by tests.
 | Credentials set; the final `EHLO` advertises no `AUTH`, or neither `PLAIN` nor `LOGIN` | `The SMTP server offers no supported authentication mechanism` | absent |
 | No credentials; `MAIL FROM` answered `530` | `The SMTP server requires authentication` | the reply |
 
+The "no supported mechanism" variant is reported at step `auth` (see
+[send-flow.md#step-values](send-flow.md#step-values)), not at `ehlo`: the `EHLO` reply itself
+succeeded, the credentials are never sent and there is no reply.
+
 ### `SMTP_REJECTED` by step
 
 | Failing step | `error.message` |

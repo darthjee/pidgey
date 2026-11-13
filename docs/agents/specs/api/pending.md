@@ -18,7 +18,13 @@ Purpose: track API concerns that are explicitly not decided yet.
   [deployment/known-gaps.md](../../deployment/known-gaps.md#no-proxy-rate-limiting), so production keeps
   `USER_APPROVAL_REQUIRED=true`.
 - **Pending decision — size limits:** maximum request body size and maximum
-  `subject`/`text`/`html` length.
+  `subject`/`text`/`html` length. Subject-specific concerns from the
+  [MIME rules](../email/message-scope.md#headers):
+  - a printable ASCII subject is sent as-is and folded only at whitespace, so an
+    unbreakable run of more than ~989 characters would exceed RFC 5322's 998-character line
+    limit; either a subject cap or an encoded-word fallback for such subjects is needed;
+  - a printable subject containing `=?` could be misread by receivers as an encoded-word;
+    optionally, such subjects could be routed through encoding.
 - **Pending decision — idempotency:** whether `POST /v1/messages` accepts an
   `Idempotency-Key` header to avoid duplicate sends on client retries (relevant since
   sending is synchronous and not persisted).

@@ -41,7 +41,7 @@ In this order:
 | `Date` | RFC 5322 date from `Pidgey\Infra\WallClock` (wall-clock time; the monotonic `Pidgey\Infra\Clock` only drives the session deadline), in UTC (`Sat, 07 Nov 2026 14:03:00 +0000`). |
 | `From` | `fromAddress`, bare address (no display name in v1). |
 | `To` | The recipient, bare address. |
-| `Subject` | Printable ASCII as-is; otherwise RFC 2047 encoded-words (`=?UTF-8?B?…?=`), each at most 75 characters, never splitting a UTF-8 character; folded at 78 characters. |
+| `Subject` | Printable ASCII as-is; otherwise RFC 2047 encoded-words (`=?UTF-8?B?…?=`), each at most 75 characters, never splitting a UTF-8 character. A plain ASCII subject is folded at 78 characters (RFC 5322 §2.1.1); a line carrying encoded-words is at most 76 characters (RFC 2047 §2). |
 | `Message-ID` | `<` 32 hex characters (`random_bytes(16)`) `@` the `fromAddress` domain `>`. |
 | `MIME-Version` | `1.0`. |
 | `Content-Type` / `Content-Transfer-Encoding` | See [Body](#body). |
