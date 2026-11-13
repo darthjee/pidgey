@@ -45,7 +45,9 @@ use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
 use Pidgey\Repository\UserRepository;
+use Pidgey\Smtp\ReplyParser;
 use Pidgey\Smtp\SessionSettings;
+use Pidgey\Smtp\SmtpTransport;
 use Psr\Log\NullLogger;
 use RuntimeException;
 
@@ -80,6 +82,8 @@ use RuntimeException;
 #[UsesClass(SmtpConnectionRepository::class)]
 #[UsesClass(AppPath::class)]
 #[UsesClass(SessionSettings::class)]
+#[UsesClass(SmtpTransport::class)]
+#[UsesClass(ReplyParser::class)]
 final class ContainerTest extends TestCase
 {
     private const VARIABLES = [
@@ -350,6 +354,16 @@ final class ContainerTest extends TestCase
         $clock = $this->createStub(Clock::class);
 
         $this->assertSame($clock, (new Container($this->unusedConnections(), clock: $clock))->clock());
+    }
+
+    public function testSmtpTransportIsMemoizedAndOpensNoConnection(): void
+    {
+        $container = new Container($this->unusedConnections());
+
+        $transport = $container->smtpTransport();
+
+        $this->assertInstanceOf(SmtpTransport::class, $transport);
+        $this->assertSame($transport, $container->smtpTransport());
     }
 
     public function testLoggerIsMemoizedAndOpensNoConnection(): void
