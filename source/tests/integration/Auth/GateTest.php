@@ -35,6 +35,7 @@ use Pidgey\Http\UnauthorizedException;
 use Pidgey\Infra\ConnectionFactory;
 use Pidgey\Infra\DatabaseConfig;
 use Pidgey\Infra\Env;
+use Pidgey\Infra\LoggerFactory;
 use Pidgey\Infra\PdoFactory;
 use Pidgey\Infra\WallClock;
 use Pidgey\Model\Row;
@@ -42,6 +43,7 @@ use Pidgey\Model\User;
 use Pidgey\Model\UserStatus;
 use Pidgey\Repository\Sql;
 use Pidgey\Repository\UserRepository;
+use Pidgey\Tests\Support\CapturedLog;
 use Pidgey\Tests\Support\RepositoryTestCase;
 use Pidgey\Tests\Support\StubHandler;
 use Throwable;
@@ -61,6 +63,7 @@ use Throwable;
 #[UsesClass(ForbiddenException::class)]
 #[UsesClass(HttpException::class)]
 #[UsesClass(JsonResponse::class)]
+#[UsesClass(LoggerFactory::class)]
 #[UsesClass(PdoFactory::class)]
 #[UsesClass(ProcessingRequest::class)]
 #[UsesClass(Request::class)]
@@ -96,13 +99,13 @@ final class GateTest extends RepositoryTestCase
 
     private Gate $gate;
 
-    /** @var list<string> */
-    private array $logged = [];
+    private CapturedLog $log;
 
     protected function setUp(): void
     {
         parent::setUp();
 
+        $this->log = new CapturedLog();
         $this->now = time();
         $this->clock = self::clockAt($this->now);
         $this->gate = new Gate($this->issuer(self::KEY), new UserRepository($this->pdo), $this->clock);
@@ -195,7 +198,7 @@ final class GateTest extends RepositoryTestCase
         $this->assertSame(['Content-Type: application/json'], $response->headers());
         $this->assertSame(self::UNIFORM_401, $response->body());
         $this->assertNull($request->attached(AuthenticatedUser::class));
-        $this->assertSame([], $this->logged);
+        $this->assertSame([], $this->log->records());
     }
 
     public function testFailuresThrowTheSameException(): void
@@ -430,9 +433,7 @@ final class GateTest extends RepositoryTestCase
             }
         };
 
-        return new ErrorFormatter($clock, function (string $line): void {
-            $this->logged[] = $line;
-        });
+        return new ErrorFormatter($clock, $this->log->logger());
     }
 
     private static function clockAt(int $timestamp): WallClock
