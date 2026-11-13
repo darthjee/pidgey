@@ -79,7 +79,11 @@ final class SendFlowTest extends TestCase
 
     private CapturedLog $log;
 
-    /** @var list<array{target: Target, credentials: ?Credentials, envelope: Envelope, message: string}> */
+    /**
+     * @var list<array{
+     *     target: Target, settings: SessionSettings, credentials: ?Credentials, envelope: Envelope, message: string
+     * }>
+     */
     private array $calls = [];
 
     protected function setUp(): void
@@ -121,6 +125,7 @@ final class SendFlowTest extends TestCase
         $this->assertStringContainsString("From: sender@example.com\r\nTo: " . self::RECIPIENT, $call['message']);
         $this->assertStringContainsString('Subject: ' . self::SUBJECT, $call['message']);
         $this->assertSame(self::USERNAME, $call['credentials']?->username());
+        $this->assertSame('pidgey.test', $call['settings']->ehloName);
     }
 
     /**
@@ -529,6 +534,7 @@ final class SendFlowTest extends TestCase
             ): SmtpResult {
                 $this->calls[] = [
                     'target' => $target,
+                    'settings' => $settings,
                     'credentials' => $credentials,
                     'envelope' => $envelope,
                     'message' => $message,
