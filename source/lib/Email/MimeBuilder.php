@@ -15,8 +15,8 @@ use Pidgey\Infra\WallClock;
  * - Headers, in order: `Date` (UTC), `From`, `To`, `Subject`, `Message-ID`, `MIME-Version`,
  *   `Content-Type` and, for a single part, `Content-Transfer-Encoding`.
  * - The subject is kept as is when it is printable ASCII, else encoded as RFC 2047
- *   `=?UTF-8?B?...?=` words of at most 75 characters that never split a UTF-8 character;
- *   header lines are folded at 78 characters.
+ *   `=?UTF-8?B?...?=` words of at most 75 characters that never split a UTF-8 character,
+ *   on lines of at most 76 characters; a printable ASCII subject is folded at 78 characters.
  * - Every body is normalized to CRLF, then quoted-printable with lines of at most 76
  *   characters; text and HTML together become `multipart/alternative`, text first.
  * - CRLF throughout; no dot-stuffing and no final `.` (the transport's job).
@@ -30,6 +30,7 @@ final class MimeBuilder
     private const RANDOM_BYTES = 16;
     private const DATE_FORMAT = 'D, d M Y H:i:s +0000';
     private const FOLD_LIMIT = 78;
+    private const ENCODED_LINE_LIMIT = 76;
     private const QP_LIMIT = 76;
     private const SUBJECT = 'Subject:';
     private const WORD_PREFIX = '=?UTF-8?B?';
@@ -242,7 +243,8 @@ final class MimeBuilder
 
     /**
      * Splits the subject into encoded-words of at most 75 characters, at UTF-8 character
-     * boundaries; the first word also fits after `Subject: ` within 78 characters.
+     * boundaries; the first word also fits after `Subject: ` within 76 characters, the limit
+     * of a line holding encoded-words (RFC 2047 section 2).
      *
      * @param string $subject The subject, valid UTF-8.
      *
@@ -252,7 +254,7 @@ final class MimeBuilder
     {
         $words = [];
         $chunk = '';
-        $limit = self::payloadBytes(self::FOLD_LIMIT - strlen(self::SUBJECT . ' '));
+        $limit = self::payloadBytes(self::ENCODED_LINE_LIMIT - strlen(self::SUBJECT . ' '));
 
         foreach (preg_split('//u', $subject, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $character) {
             if ($chunk !== '' && strlen($chunk . $character) > $limit) {

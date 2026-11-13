@@ -140,14 +140,14 @@ final class MimeBuilderTest extends TestCase
 
     public function testNeverSplitsAUtf8CharacterAcrossEncodedWords(): void
     {
-        // 41 ASCII bytes, then a 4-byte emoji that would cross the 42-byte first word.
-        $subject = str_repeat('a', 41) . "\u{1F600}" . str_repeat('é', 40) . "\u{1F600}";
+        // 38 ASCII bytes, then a 4-byte emoji that would cross the 39-byte first word.
+        $subject = str_repeat('a', 38) . "\u{1F600}" . str_repeat('é', 40) . "\u{1F600}";
 
         $lines = self::subjectLines($this->build(new Message(self::TO, $subject, 'x', null)));
         $decoded = '';
 
         foreach ($lines as $index => $line) {
-            $this->assertLessThanOrEqual(78, strlen($line));
+            $this->assertLessThanOrEqual(76, strlen($line), 'RFC 2047: encoded-word lines are at most 76');
             $word = $index === 0 ? substr($line, strlen('Subject: ')) : substr($line, 1);
 
             $this->assertLessThanOrEqual(75, strlen($word));
@@ -159,7 +159,7 @@ final class MimeBuilderTest extends TestCase
             $decoded .= $chunk;
         }
 
-        $this->assertSame(str_repeat('a', 41), base64_decode(substr($lines[0], strlen('Subject: =?UTF-8?B?'), -2)));
+        $this->assertSame(str_repeat('a', 38), base64_decode(substr($lines[0], strlen('Subject: =?UTF-8?B?'), -2)));
         $this->assertSame($subject, $decoded);
     }
 
