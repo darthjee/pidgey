@@ -59,7 +59,9 @@ Rejected:
 On every request, in this order:
 
 1. **Composer autoload** (PSR-4 `Pidgey\` → `source/lib/`).
-2. **Logger** (Monolog), first, so boot failures can be logged.
+2. **Logger** (Monolog), first, so boot failures can be logged. **One logger per request**:
+   - built from `LOG_LEVEL` ([architecture/configuration.md](../architecture/configuration.md#logging)); when that value is invalid, it falls back to the default level (`info`), so the refusal of step 3 is still logged;
+   - handed to the [`ErrorFormatter`](request-response/errors.md#errorformatter) and to the request's `Container` (step 5), so `Container::logger()` returns this same logger and never builds another ([handlers.md](handlers.md#pidgeycontainer)).
 3. **Configuration** from the environment ([architecture/configuration.md](../architecture/configuration.md)), **validated eagerly on every request**. Invalid configuration is a [failure outside the wrapper](#failures-outside-the-wrapper).
 4. **`Router`** built from `source/config/routes.php` ([routing.md](routing.md#route-files)), with the [global middleware list](#global-middlewares).
 5. **One `Container` per request** ([handlers.md](handlers.md#pidgeycontainer)). Its services are lazy: PDO is opened only when a getter asks for it, so `/health.json` never touches the database ([api/endpoints/operational.md](../api/endpoints/operational.md#get-healthjson)).
