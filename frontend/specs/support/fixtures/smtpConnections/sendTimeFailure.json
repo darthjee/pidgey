@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "SMTP_INSECURE_CREDENTIALS",
+    "message": "The SMTP connection has credentials but no encryption; set encryption to tls or ssl"
+  },
+  "statusCode": 409,
+  "timestamp": "2026-10-25T12:00:00.000Z"
+}

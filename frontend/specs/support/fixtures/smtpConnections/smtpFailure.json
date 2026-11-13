@@ -1,0 +1,12 @@
+{
+  "error": {
+    "code": "SMTP_AUTH_FAILED",
+    "message": "The SMTP server rejected the credentials",
+    "smtp": {
+      "code": 535,
+      "message": "5.7.8 Authentication credentials invalid"
+    }
+  },
+  "statusCode": 502,
+  "timestamp": "2026-10-25T12:00:00.000Z"
+}

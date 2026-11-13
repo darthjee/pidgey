@@ -1,0 +1,12 @@
+{
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "port must be between 1 and 65535; username and password require encryption tls or ssl",
+    "details": [
+      "port must be between 1 and 65535",
+      "username and password require encryption tls or ssl"
+    ]
+  },
+  "statusCode": 400,
+  "timestamp": "2026-10-25T12:00:00.000Z"
+}

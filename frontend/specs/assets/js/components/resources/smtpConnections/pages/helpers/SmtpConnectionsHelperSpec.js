@@ -1,16 +1,11 @@
 import SmtpConnectionsHelper from '../../../../../../../../assets/js/components/resources/smtpConnections/pages/helpers/SmtpConnectionsHelper.jsx';
 import { CLOSED_TEST_STATE } from '../../../../../../../../assets/js/components/resources/smtpConnections/pages/controllers/SmtpConnectionTestController.js';
 import { renderedOutput } from '../../../../../../../support/renderedOutput.js';
+import loadFixture from '../../../../../../../support/loadFixture.js';
 
 describe('SmtpConnectionsHelper', () => {
-  const active = {
-    id: 1, name: 'Mailpit', host: 'mailpit', port: 1025, encryption: 'none',
-    username: null, hasPassword: false, fromAddress: 'noreply@example.com', active: true,
-  };
-  const inactive = {
-    id: 2, name: 'Relay', host: 'smtp.example.com', port: 587, encryption: 'tls',
-    username: 'relay-user', hasPassword: true, fromAddress: 'relay@example.com', active: false,
-  };
+  const [active, listed] = loadFixture('smtpConnections/list').smtpConnections;
+  const inactive = { ...listed, fromAddress: 'relay@example.com' };
 
   const buildHandlers = () => ({
     onActivate: jasmine.createSpy('onActivate').and.returnValue(jasmine.createSpy('handler')),
@@ -74,8 +69,8 @@ describe('SmtpConnectionsHelper', () => {
     it('renders a row per connection with its settings', () => {
       const page = renderPage(buildState({ connections: [active, inactive] }));
 
-      expect(page.containsAttribute('href', '#/smtp-connections/2/edit')).withContext('edit link').toBeTrue();
-      expect(page.containsElement('a', 'Relay')).withContext('name').toBeTrue();
+      expect(page.containsAttribute('href', '#/smtp-connections/13/edit')).withContext('edit link').toBeTrue();
+      expect(page.containsElement('a', 'Office relay')).withContext('name').toBeTrue();
       expect(page.containsElement('td', 'smtp.example.com:587')).withContext('server').toBeTrue();
       expect(page.containsElement('td', 'tls')).withContext('encryption').toBeTrue();
       expect(page.containsElement('td', 'relay@example.com')).withContext('from').toBeTrue();
@@ -105,7 +100,7 @@ describe('SmtpConnectionsHelper', () => {
 
       expect(page.containsElement('button', 'Delete')).withContext('delete').toBeTrue();
       expect(page.contains('Send test email')).withContext('test').toBeTrue();
-      expect(handlers.onActivate).toHaveBeenCalledWith(2);
+      expect(handlers.onActivate).toHaveBeenCalledWith(13);
       expect(handlers.onDelete).toHaveBeenCalledWith(inactive);
       expect(handlers.onOpenTest).toHaveBeenCalledWith(inactive);
     });

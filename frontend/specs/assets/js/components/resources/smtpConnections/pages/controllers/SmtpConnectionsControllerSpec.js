@@ -3,6 +3,7 @@ import SmtpConnectionsController, {
 } from '../../../../../../../../assets/js/components/resources/smtpConnections/pages/controllers/SmtpConnectionsController.js';
 import ApiError from '../../../../../../../../assets/js/client/ApiError.js';
 import { installFakeWindow, uninstallFakeWindow } from '../../../../../../../support/fakeWindow.js';
+import loadFixture, { loadApiError } from '../../../../../../../support/loadFixture.js';
 
 describe('SmtpConnectionsController', () => {
   let setConnections;
@@ -12,8 +13,8 @@ describe('SmtpConnectionsController', () => {
   let confirm;
   let controller;
 
-  const first = { id: 1, name: 'Mailpit', active: true };
-  const second = { id: 2, name: 'Relay', active: false };
+  const listResponse = loadFixture('smtpConnections/list');
+  const [first, second] = listResponse.smtpConnections;
 
   const applyUpdater = (current) => setConnections.calls.mostRecent().args[0](current);
 
@@ -30,7 +31,7 @@ describe('SmtpConnectionsController', () => {
 
   describe('#load', () => {
     it('stores the listed connections and ends loading', async () => {
-      client.list.and.resolveTo({ smtpConnections: [first, second] });
+      client.list.and.resolveTo(listResponse);
 
       await controller.load();
 
@@ -62,17 +63,17 @@ describe('SmtpConnectionsController', () => {
       const activated = { ...second, active: true };
       client.activate.and.resolveTo({ smtpConnection: activated });
 
-      await controller.handleActivate(2);
+      await controller.handleActivate(13);
 
-      expect(client.activate).toHaveBeenCalledWith(2);
+      expect(client.activate).toHaveBeenCalledWith(13);
       expect(setListError).toHaveBeenCalledWith(null);
       expect(applyUpdater([first, second])).toEqual([{ ...first, active: false }, activated]);
     });
 
     it('shows the error as a list error on failure', async () => {
-      client.activate.and.rejectWith(new ApiError(404, 'SMTP connection not found', 'NOT_FOUND'));
+      client.activate.and.rejectWith(loadApiError('smtpConnections/notFound'));
 
-      await controller.handleActivate(2);
+      await controller.handleActivate(13);
 
       expect(setConnections).not.toHaveBeenCalled();
       expect(setListError).toHaveBeenCalledWith('SMTP connection not found');
@@ -81,7 +82,7 @@ describe('SmtpConnectionsController', () => {
     it('changes nothing when the session ended', async () => {
       client.activate.and.resolveTo(undefined);
 
-      await controller.handleActivate(2);
+      await controller.handleActivate(13);
 
       expect(setConnections).not.toHaveBeenCalled();
     });
@@ -119,7 +120,7 @@ describe('SmtpConnectionsController', () => {
 
       await controller.handleDelete(second);
 
-      expect(client.remove).toHaveBeenCalledWith(2);
+      expect(client.remove).toHaveBeenCalledWith(13);
       expect(applyUpdater([first, second])).toEqual([first]);
     });
 

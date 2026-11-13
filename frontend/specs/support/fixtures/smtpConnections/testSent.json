@@ -1,0 +1,7 @@
+{
+  "status": "sent",
+  "smtp": {
+    "code": 250,
+    "message": "OK: queued as 1a2b3c"
+  }
+}

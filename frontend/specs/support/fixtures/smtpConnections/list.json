@@ -1,0 +1,30 @@
+{
+  "smtpConnections": [
+    {
+      "id": 12,
+      "name": "Mailpit",
+      "host": "mailpit",
+      "port": 1025,
+      "encryption": "none",
+      "username": null,
+      "hasPassword": false,
+      "fromAddress": "noreply@example.com",
+      "active": true,
+      "createdAt": "2026-10-17T12:00:00.000Z",
+      "updatedAt": "2026-10-20T09:30:00.000Z"
+    },
+    {
+      "id": 13,
+      "name": "Office relay",
+      "host": "smtp.example.com",
+      "port": 587,
+      "encryption": "tls",
+      "username": "relay-user",
+      "hasPassword": true,
+      "fromAddress": "noreply@example.com",
+      "active": false,
+      "createdAt": "2026-10-18T08:15:00.000Z",
+      "updatedAt": "2026-10-18T08:15:00.000Z"
+    }
+  ]
+}

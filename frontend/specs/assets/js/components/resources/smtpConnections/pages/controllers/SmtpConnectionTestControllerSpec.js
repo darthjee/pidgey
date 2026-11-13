@@ -2,6 +2,7 @@ import SmtpConnectionTestController, {
   CLOSED_TEST_STATE, buildRecipientUpdate,
 } from '../../../../../../../../assets/js/components/resources/smtpConnections/pages/controllers/SmtpConnectionTestController.js';
 import ApiError from '../../../../../../../../assets/js/client/ApiError.js';
+import loadFixture, { loadApiError } from '../../../../../../../support/loadFixture.js';
 
 describe('SmtpConnectionTestController', () => {
   let setTestState;
@@ -9,7 +10,8 @@ describe('SmtpConnectionTestController', () => {
   let controller;
   let state;
 
-  const connection = { id: 7, name: 'Relay' };
+  const { smtpConnection: connection } = loadFixture('smtpConnections/item');
+  const sent = loadFixture('smtpConnections/testSent');
 
   beforeEach(() => {
     state = { ...CLOSED_TEST_STATE, connection };
@@ -40,19 +42,19 @@ describe('SmtpConnectionTestController', () => {
 
   describe('#submit', () => {
     it('sends the trimmed recipient', async () => {
-      client.test.and.resolveTo({ status: 'sent', smtp: { code: 250, message: 'OK' } });
+      client.test.and.resolveTo(sent);
 
       await controller.submit({ connection, to: '  bob@example.com ' });
 
-      expect(client.test).toHaveBeenCalledWith(7, { to: 'bob@example.com' });
+      expect(client.test).toHaveBeenCalledWith(12, { to: 'bob@example.com' });
     });
 
     it('omits the recipient when blank', async () => {
-      client.test.and.resolveTo({ status: 'sent', smtp: { code: 250, message: 'OK' } });
+      client.test.and.resolveTo(sent);
 
       await controller.submit({ connection, to: '   ' });
 
-      expect(client.test).toHaveBeenCalledWith(7, { to: undefined });
+      expect(client.test).toHaveBeenCalledWith(12, { to: undefined });
     });
 
     it('is busy while the request runs and clears the previous outcome', async () => {
@@ -60,7 +62,7 @@ describe('SmtpConnectionTestController', () => {
       let busyState;
       client.test.and.callFake(() => {
         busyState = state;
-        return Promise.resolve({ status: 'sent', smtp: { code: 250, message: 'OK' } });
+        return Promise.resolve(sent);
       });
 
       await controller.submit({ connection, to: '' });
@@ -72,31 +74,35 @@ describe('SmtpConnectionTestController', () => {
     });
 
     it('stores the SMTP reply on success', async () => {
-      client.test.and.resolveTo({ status: 'sent', smtp: { code: 250, message: 'OK: queued' } });
+      client.test.and.resolveTo(sent);
 
       await controller.submit({ connection, to: '' });
 
-      expect(state.result).toEqual({ code: 250, message: 'OK: queued' });
+      expect(state.result).toEqual({ code: 250, message: 'OK: queued as 1a2b3c' });
       expect(state.error).toBeNull();
     });
 
     it('shows the SMTP failure with the server reply', async () => {
-      const smtp = { code: 535, message: 'Authentication failed' };
-      client.test.and.rejectWith(new ApiError(502, 'SMTP authentication failed', 'SMTP_AUTH_FAILED', undefined, smtp));
+      client.test.and.rejectWith(loadApiError('smtpConnections/smtpFailure'));
 
       await controller.submit({ connection, to: '' });
 
       expect(state).toEqual(jasmine.objectContaining({
-        sending: false, result: null, error: 'SMTP authentication failed', smtp,
+        sending: false,
+        result: null,
+        error: 'The SMTP server rejected the credentials',
+        smtp: { code: 535, message: '5.7.8 Authentication credentials invalid' },
       }));
     });
 
     it('shows the SMTP failure without a server reply when none was given', async () => {
-      client.test.and.rejectWith(new ApiError(504, 'SMTP timeout', 'SMTP_TIMEOUT'));
+      client.test.and.rejectWith(loadApiError('smtpConnections/sendTimeFailure'));
 
       await controller.submit({ connection, to: '' });
 
-      expect(state).toEqual(jasmine.objectContaining({ error: 'SMTP timeout', smtp: null }));
+      expect(state).toEqual(jasmine.objectContaining({
+        error: 'The SMTP connection has credentials but no encryption; set encryption to tls or ssl', smtp: null,
+      }));
     });
 
     it('puts validation details on the recipient field', async () => {
@@ -116,7 +122,7 @@ describe('SmtpConnectionTestController', () => {
     });
 
     it('shows any other error as a generic error', async () => {
-      client.test.and.rejectWith(new ApiError(404, 'SMTP connection not found', 'NOT_FOUND'));
+      client.test.and.rejectWith(loadApiError('smtpConnections/notFound'));
 
       await controller.submit({ connection, to: '' });
 
