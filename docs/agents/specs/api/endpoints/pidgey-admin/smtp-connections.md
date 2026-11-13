@@ -10,6 +10,11 @@ Shared rules (access, guards, `:id` handling, field rules, operator log) are in
 [organizations/data-model/smtp-connections.md](../../../organizations/data-model/smtp-connections.md).
 Errors use [conventions/errors.md](../../conventions/errors.md).
 
+The example responses below are the source of the frontend fixtures under
+`frontend/specs/support/fixtures/smtpConnections/`, which copy them byte for byte (see
+[frontend/testing.md](../../../frontend/testing.md#api-response-fixtures)); a change to an
+example updates its fixture in the same PR.
+
 | Method & path | Success |
 | --- | --- |
 | `GET /smtp-connections.json` | `200` |
@@ -26,6 +31,8 @@ An unknown id, an id out of range, or another organization's connection answers
 [`:id` path parameter](../pidgey-admin.md#id-path-parameter)).
 
 ## SMTP connection item
+
+Example (fixture `item.json` wraps it as `{ "smtpConnection": <item> }`, the read answer):
 
 ```json
 {
@@ -111,12 +118,65 @@ Used by create and update. Strings are trimmed before validation, except `passwo
   The cross-field rules above (credential pairing, credentials require encryption,
   credential redirection) and the test-email `to` rule have their own fixed messages.
 
+Example `400` (fixture `validationFailed.json`), one entry per failed rule:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "port must be between 1 and 65535; username and password require encryption tls or ssl",
+    "details": [
+      "port must be between 1 and 65535",
+      "username and password require encryption tls or ssl"
+    ]
+  },
+  "statusCode": 400,
+  "timestamp": "2026-10-25T12:00:00.000Z"
+}
+```
+
 ## `GET /smtp-connections.json`
 
 Lists the organization's connections, ordered by `id` ascending, not paginated.
 
 Success: **`200`**, `{ "smtpConnections": [<SMTP connection item>, …] }` (an empty array when
 there is none).
+
+Example (fixture `list.json`), with the active connection `12` and an inactive one with
+credentials:
+
+```json
+{
+  "smtpConnections": [
+    {
+      "id": 12,
+      "name": "Mailpit",
+      "host": "mailpit",
+      "port": 1025,
+      "encryption": "none",
+      "username": null,
+      "hasPassword": false,
+      "fromAddress": "noreply@example.com",
+      "active": true,
+      "createdAt": "2026-10-17T12:00:00.000Z",
+      "updatedAt": "2026-10-20T09:30:00.000Z"
+    },
+    {
+      "id": 13,
+      "name": "Office relay",
+      "host": "smtp.example.com",
+      "port": 587,
+      "encryption": "tls",
+      "username": "relay-user",
+      "hasPassword": true,
+      "fromAddress": "noreply@example.com",
+      "active": false,
+      "createdAt": "2026-10-18T08:15:00.000Z",
+      "updatedAt": "2026-10-18T08:15:00.000Z"
+    }
+  ]
+}
+```
 
 ## `POST /smtp-connections.json`
 
@@ -325,6 +385,20 @@ The production host has no proxy-level rate limiting, so the test email limits i
 - A refused attempt (`429`) does not count and does not change the row.
 - `Retry-After` is a whole number of seconds, rounded up, at least `1`.
 
+Example `429` (fixture `tooManyRequests.json`). `Retry-After` is an HTTP response header, not
+part of the body:
+
+```json
+{
+  "error": {
+    "code": "TOO_MANY_REQUESTS",
+    "message": "Too many test emails; try again later"
+  },
+  "statusCode": 429,
+  "timestamp": "2026-10-25T12:00:00.000Z"
+}
+```
+
 Behavior:
 
 - **Synchronous**, through the same send flow as `POST /v1/messages`
@@ -360,7 +434,8 @@ Behavior:
   [email/password-encryption.md](../../../email/password-encryption.md#read-path)). Recovery:
   `PATCH` a new `password`, or clear both credentials.
 
-Success: **`201`**, the same shape as the `POST /v1/messages` success body:
+Success: **`201`**, the same shape as the `POST /v1/messages` success body (fixture
+`testSent.json`):
 
 ```json
 { "status": "sent", "smtp": { "code": 250, "message": "OK: queued as 1a2b3c" } }
@@ -371,6 +446,37 @@ Failure: the `SMTP_*` codes, statuses and `error.smtp` rules of
 is authenticated (see
 [conventions/errors.md](../../conventions/errors.md#smtp-send-failures)).
 `NO_SMTP_CONNECTION` **never** applies: the connection is the one in the path.
+
+Example SMTP failure (fixture `smtpFailure.json`), with the server reply in `error.smtp`:
+
+```json
+{
+  "error": {
+    "code": "SMTP_AUTH_FAILED",
+    "message": "The SMTP server rejected the credentials",
+    "smtp": {
+      "code": 535,
+      "message": "5.7.8 Authentication credentials invalid"
+    }
+  },
+  "statusCode": 502,
+  "timestamp": "2026-10-25T12:00:00.000Z"
+}
+```
+
+Example send-time check failure (fixture `sendTimeFailure.json`), answered before the SMTP
+server is contacted, so without `error.smtp`:
+
+```json
+{
+  "error": {
+    "code": "SMTP_INSECURE_CREDENTIALS",
+    "message": "The SMTP connection has credentials but no encryption; set encryption to tls or ssl"
+  },
+  "statusCode": 409,
+  "timestamp": "2026-10-25T12:00:00.000Z"
+}
+```
 
 One operator log line per attempt that reached the send (`smtp-connection-test`, the id and
 the outcome: `sent` or the `SMTP_*` code), never the password and never the recipient's
@@ -403,6 +509,19 @@ address beyond what the send flow already logs.
 | Host resolves to a denied address (test email only) | `409 SMTP_HOST_NOT_ALLOWED`, see [email/failures.md](../../../email/failures.md) |
 | Stored password cannot be decrypted (test email only) | `409 SMTP_PASSWORD_UNREADABLE`, see [email/failures.md](../../../email/failures.md) |
 | SMTP failure (test email only) | `502` / `503` / `504`, see [email/failures.md](../../../email/failures.md) |
+
+Example `404` (fixture `notFound.json`):
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "SMTP connection not found"
+  },
+  "statusCode": 404,
+  "timestamp": "2026-10-25T12:00:00.000Z"
+}
+```
 
 ## Known limitations
 
