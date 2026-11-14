@@ -201,7 +201,8 @@ final class SmtpConnectionTestTest extends SmtpConnectionEndpointTestCase
 
         $this->assertError($response, 429, 'TOO_MANY_REQUESTS', 'Too many test emails; try again later');
         $retry = $this->retryAfter($response);
-        $this->assertGreaterThanOrEqual(3599, $retry);
+        // Slack for the time the sends took: the window started at the first send.
+        $this->assertGreaterThanOrEqual(3500, $retry);
         $this->assertLessThanOrEqual(3600, $retry);
         $this->assertSame(self::MAX_ATTEMPTS, (int) $this->limitRow($user)['attempts']);
         $this->assertCount(self::MAX_ATTEMPTS, $this->mailpit->messages());
