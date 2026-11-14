@@ -30,7 +30,7 @@ throwaway, so root carries no risk.
 
 ### Email test instances
 
-Rules: [implement-email/testing.md](../specs/implement-email/testing.md).
+Rules: [email/testing.md](../specs/email/testing.md#reaching-the-instances) (instances, ports, `TEST_MAILPIT_*`, TLS fixtures); [docker/compose.md](../specs/docker/compose.md).
 
 `backend_tests` runs the three test Mailpit instances as **background run steps** on
 `localhost`, not as service containers. The `mailpit` binary (`v1.32.0`, the same tag as
