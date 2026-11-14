@@ -1,7 +1,7 @@
 {
   "name": "pidgey-frontend",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.4.0",
   "description": "pidgey frontend",
   "main": "index.js",
   "scripts": {
