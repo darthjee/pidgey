@@ -48,6 +48,7 @@ final class RoutesSecurityTest extends TestCase
                 'DELETE /smtp-connections/:id.json' => [Gate::class],
                 'POST /smtp-connections/:id/activate.json' => [Gate::class],
                 'POST /smtp-connections/:id/deactivate.json' => [Gate::class],
+                'POST /smtp-connections/:id/test.json' => [Gate::class],
             ],
             $routes,
         );

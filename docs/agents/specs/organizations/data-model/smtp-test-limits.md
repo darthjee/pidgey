@@ -39,7 +39,10 @@ Indexes: unique `organization_id` (`uq_smtp_test_limits_organization_id`).
   `busy_until` is set back to `NULL`.
 - A worker that dies during the send leaves `busy_until` set; the lease expires on its own
   once `busy_until` is in the past.
-- Times come from `Pidgey\Infra\Clock`, so tests can drive the window and the lease.
+- The first attempt upserts the row (`INSERT … ON DUPLICATE KEY UPDATE`) before
+  `SELECT … FOR UPDATE` in the same transaction.
+- The lease is cleared by a compare-and-clear on the `busy_until` value the request set.
+- Times come from `Pidgey\Infra\WallClock`, so tests can drive the window and the lease.
 
 ## Migrations
 

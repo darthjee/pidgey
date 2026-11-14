@@ -44,6 +44,12 @@ final class ConfigValidator
     /** Default `SMTP_TOTAL_TIMEOUT`, in seconds. */
     public const DEFAULT_SMTP_TOTAL_TIMEOUT = 25;
 
+    /** Default `SMTP_TEST_MAX_ATTEMPTS`: test emails per organization and window. */
+    public const DEFAULT_SMTP_TEST_MAX_ATTEMPTS = 10;
+
+    /** Default `SMTP_TEST_WINDOW`, in seconds. */
+    public const DEFAULT_SMTP_TEST_WINDOW = 3600;
+
     /** Settings that must be set and non-empty. */
     private const REQUIRED = ['DB_HOST', 'DB_NAME', 'DB_USER'];
 
@@ -66,6 +72,8 @@ final class ConfigValidator
         'SMTP_CONNECT_TIMEOUT',
         'SMTP_COMMAND_TIMEOUT',
         'SMTP_TOTAL_TIMEOUT',
+        'SMTP_TEST_MAX_ATTEMPTS',
+        'SMTP_TEST_WINDOW',
     ];
 
     /** SMTP timeouts that must not exceed `SMTP_TOTAL_TIMEOUT`, with their defaults. */

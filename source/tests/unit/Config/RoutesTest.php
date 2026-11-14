@@ -14,6 +14,7 @@ use Pidgey\Http\Handler\RegisterHandler;
 use Pidgey\Http\Handler\SmtpConnectionActivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionDeactivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionHandler;
+use Pidgey\Http\Handler\SmtpConnectionTestHandler;
 use Pidgey\Http\Handler\SmtpConnectionsHandler;
 use Pidgey\Http\Handler\StaticFileHandler;
 use Pidgey\Http\OriginCheck;
@@ -97,6 +98,12 @@ final class RoutesTest extends TestCase
                 SmtpConnectionDeactivateHandler::class,
                 '/smtp-connections/:id/deactivate.json',
             ],
+            'POST /smtp-connections/12/test.json' => [
+                'POST',
+                '/smtp-connections/12/test.json',
+                SmtpConnectionTestHandler::class,
+                '/smtp-connections/:id/test.json',
+            ],
         ];
     }
 
@@ -166,7 +173,7 @@ final class RoutesTest extends TestCase
             'DELETE on the list' => ['DELETE', '/smtp-connections.json'],
             'POST on a connection' => ['POST', '/smtp-connections/12.json'],
             'GET on activate' => ['GET', '/smtp-connections/12/activate.json'],
-            'POST on test (not yet routed)' => ['POST', '/smtp-connections/12/test.json'],
+            'GET on test' => ['GET', '/smtp-connections/12/test.json'],
         ];
     }
 

@@ -15,6 +15,7 @@ use Pidgey\Auth\Gate;
 use Pidgey\Http\Handler\SmtpConnectionActivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionDeactivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionHandler;
+use Pidgey\Http\Handler\SmtpConnectionTestHandler;
 use Pidgey\Http\Handler\SmtpConnectionsHandler;
 use Pidgey\Http\Router;
 
@@ -26,3 +27,4 @@ $router->patch('/smtp-connections/:id.json', SmtpConnectionHandler::class, [Gate
 $router->delete('/smtp-connections/:id.json', SmtpConnectionHandler::class, [Gate::class]);
 $router->post('/smtp-connections/:id/activate.json', SmtpConnectionActivateHandler::class, [Gate::class]);
 $router->post('/smtp-connections/:id/deactivate.json', SmtpConnectionDeactivateHandler::class, [Gate::class]);
+$router->post('/smtp-connections/:id/test.json', SmtpConnectionTestHandler::class, [Gate::class]);

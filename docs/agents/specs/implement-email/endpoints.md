@@ -181,25 +181,25 @@ Names not marked decided above are **proposals** (see the lifecycle rules in
 1. **Handlers and routes** — registered in `source/config/routes/organization.php`
    ([request-handler/routing.md](../request-handler/routing.md#route-files)):
    - [x] list / create / read / update / delete, activate and deactivate (#164);
-   - [ ] the test email handler (#166).
+   - [x] the test email handler (#166).
 2. **Validation**:
    - [x] the shared message templates (integer, range, one of a set, hostname or IP literal,
      no control characters, no line breaks) and the credential-redirection rule on `PATCH`
      (#164);
-   - [ ] the organization-user rule of the test email `to` (#166).
+   - [x] the organization-user rule of the test email `to` (#166).
 3. **Migrations**:
    - [x] `0010_add_smtp_connections_active_unique.sql` (generated `active_organization_id`
      and its unique index `uq_smtp_connections_active_organization_id`) (#164);
-   - [ ] `0011_create_smtp_test_limits.sql` (#166).
+   - [x] `0011_create_smtp_test_limits.sql` (#166).
 4. [x] **Host policy** — `Pidgey\Smtp\HostPolicy` in the send flow: resolve once, denied ranges,
    connect to the checked IP ([transport.md](transport.md#building-block-send-flow)) (#165).
-5. **Test-email limit** — `Pidgey\Repository\SmtpTestLimitRepository`: window, lease and
-   `Retry-After`.
+5. [x] **Test-email limit** — `Pidgey\Repository\SmtpTestLimitRepository`: window, lease and
+   `Retry-After` (#166).
 6. **Logger** — `Pidgey\Infra\LoggerFactory` (Monolog, `ErrorLogHandler`, `LOG_LEVEL`) wired
    in `Pidgey\Container` (landed in #162); the operator log lines:
    - [x] `smtp-connection-create`, `-update`, `-delete`, `-activate`, `-deactivate` through
      `Pidgey\Http\OperatorLog` (#164);
-   - [ ] `smtp-connection-test` (#166).
+   - [x] `smtp-connection-test` (#166).
 7. **Configuration** — `ConfigValidator` / `bin/check-config`: `SMTP_ALLOW_PRIVATE_HOSTS`,
    `SMTP_TEST_MAX_ATTEMPTS`, `SMTP_TEST_WINDOW`, `LOG_LEVEL` (landed in #162) and their
    failure names

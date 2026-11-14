@@ -18,6 +18,7 @@ use Pidgey\Http\JsonResponse;
 use Pidgey\Http\NotFoundException;
 use Pidgey\Http\PayloadTooLargeException;
 use Pidgey\Http\Response;
+use Pidgey\Http\TooManyRequestsException;
 use Pidgey\Http\UnsupportedMediaTypeException;
 use Pidgey\Http\ValidationFailedException;
 use Pidgey\Infra\LoggerFactory;
@@ -33,6 +34,7 @@ use Pidgey\Tests\Support\CapturedLog;
 #[UsesClass(NotFoundException::class)]
 #[UsesClass(PayloadTooLargeException::class)]
 #[UsesClass(Response::class)]
+#[UsesClass(TooManyRequestsException::class)]
 #[UsesClass(SystemWallClock::class)]
 #[UsesClass(UnsupportedMediaTypeException::class)]
 #[UsesClass(ValidationFailedException::class)]
@@ -66,6 +68,17 @@ final class ErrorFormatterTest extends TestCase
             $response->body(),
         );
         $this->assertSame([], $this->log->records());
+    }
+
+    public function testATooManyRequestsErrorCarriesRetryAfter(): void
+    {
+        $response = $this->formatter->format(new TooManyRequestsException('Slow down', 7));
+
+        $this->assertSame(429, $response->status());
+        $this->assertContains('Retry-After: 7', $response->headers());
+        $body = json_decode($response->body(), true);
+        $this->assertSame('TOO_MANY_REQUESTS', $body['error']['code']);
+        $this->assertSame('Slow down', $body['error']['message']);
     }
 
     public function testUsesTheGivenFields(): void
