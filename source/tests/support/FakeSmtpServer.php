@@ -109,7 +109,7 @@ final class FakeSmtpServer
             return $this->exitCode;
         }
 
-        $code = $this->awaitExit($this->isHanging() ? 0.0 : self::EXIT_TIMEOUT_SECONDS);
+        $code = $this->awaitExit(self::EXIT_TIMEOUT_SECONDS, true);
 
         if ($code === null) {
             proc_terminate($this->process);
@@ -193,8 +193,12 @@ final class FakeSmtpServer
 
     /**
      * Waits for the process to exit on its own; returns its exit code, or null on timeout.
+     *
+     * With `$untilHanging` it also gives up as soon as the server reports `HANG`, which it prints
+     * right after its last reply: checking only once would race with that line still being in
+     * flight and wait out the whole timeout on a slow machine.
      */
-    private function awaitExit(float $seconds): ?int
+    private function awaitExit(float $seconds, bool $untilHanging = false): ?int
     {
         $deadline = microtime(true) + $seconds;
 
@@ -203,6 +207,10 @@ final class FakeSmtpServer
 
             if (!$status['running']) {
                 return $status['signaled'] ? -1 : $status['exitcode'];
+            }
+
+            if ($untilHanging && $this->isHanging()) {
+                return null;
             }
 
             $this->drain();
