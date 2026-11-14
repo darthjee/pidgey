@@ -230,6 +230,30 @@ final class Container
     }
 
     /**
+     * Returns the effective `SMTP_TEST_MAX_ATTEMPTS` (default applied).
+     *
+     * @return integer
+     *
+     * @throws RuntimeException When the value is not a non-negative integer.
+     */
+    public function smtpTestMaxAttempts(): int
+    {
+        return Env::integer('SMTP_TEST_MAX_ATTEMPTS', ConfigValidator::DEFAULT_SMTP_TEST_MAX_ATTEMPTS);
+    }
+
+    /**
+     * Returns the effective `SMTP_TEST_WINDOW`, in seconds (default applied).
+     *
+     * @return integer
+     *
+     * @throws RuntimeException When the value is not a non-negative integer.
+     */
+    public function smtpTestWindow(): int
+    {
+        return Env::integer('SMTP_TEST_WINDOW', ConfigValidator::DEFAULT_SMTP_TEST_WINDOW);
+    }
+
+    /**
      * Returns the SMTP transport settings, read from `SMTP_CONNECT_TIMEOUT`,
      * `SMTP_COMMAND_TIMEOUT`, `SMTP_TOTAL_TIMEOUT`, `SMTP_CA_FILE` (resolved against the app
      * root) and `SMTP_EHLO_NAME` on the first call.

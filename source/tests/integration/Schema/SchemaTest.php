@@ -28,6 +28,7 @@ final class SchemaTest extends IntegrationTestCase
         'refresh_tokens',
         'schema_migrations',
         'smtp_connections',
+        'smtp_test_limits',
         'users',
     ];
 
@@ -513,6 +514,48 @@ final class SchemaTest extends IntegrationTestCase
     public function testSmtpConnectionsCollation(): void
     {
         $this->assertSame(self::COLLATION, $this->collation('smtp_connections'));
+    }
+
+    public function testSmtpTestLimitsColumns(): void
+    {
+        $this->assertSame(
+            [
+                'id' => self::ID,
+                'organization_id' => self::BIGINT,
+                'window_started_at' => self::DATETIME,
+                'attempts' => self::COUNTER,
+                'busy_until' => self::NULLABLE_DATETIME,
+                'created_at' => self::CREATED_AT,
+                'updated_at' => self::UPDATED_AT,
+            ],
+            $this->columns('smtp_test_limits'),
+        );
+    }
+
+    public function testSmtpTestLimitsUniqueKeys(): void
+    {
+        $this->assertSame(
+            ['uq_smtp_test_limits_organization_id' => ['organization_id']],
+            $this->uniqueKeys('smtp_test_limits'),
+        );
+    }
+
+    public function testSmtpTestLimitsIndexes(): void
+    {
+        $this->assertSame([], $this->indexes('smtp_test_limits'));
+    }
+
+    public function testSmtpTestLimitsForeignKeys(): void
+    {
+        $this->assertSame(
+            ['fk_smtp_test_limits_organization_id' => self::ORGANIZATION_FK],
+            $this->foreignKeys('smtp_test_limits'),
+        );
+    }
+
+    public function testSmtpTestLimitsCollation(): void
+    {
+        $this->assertSame(self::COLLATION, $this->collation('smtp_test_limits'));
     }
 
     /**

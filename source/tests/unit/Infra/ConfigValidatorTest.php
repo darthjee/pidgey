@@ -62,6 +62,8 @@ final class ConfigValidatorTest extends TestCase
         'SMTP_CONNECT_TIMEOUT',
         'SMTP_COMMAND_TIMEOUT',
         'SMTP_TOTAL_TIMEOUT',
+        'SMTP_TEST_MAX_ATTEMPTS',
+        'SMTP_TEST_WINDOW',
         'SMTP_CA_FILE',
         'SMTP_EHLO_NAME',
     ];
@@ -215,6 +217,8 @@ final class ConfigValidatorTest extends TestCase
             'PASSWORD_RESET_COOLDOWN',
             'ACCOUNT_EDIT_MAX_ATTEMPTS',
             'ACCOUNT_EDIT_LOCK_TTL',
+            'SMTP_TEST_MAX_ATTEMPTS',
+            'SMTP_TEST_WINDOW',
         ];
 
         foreach ($positive as $name) {
@@ -748,6 +752,18 @@ final class ConfigValidatorTest extends TestCase
         $this->assertSame(10, ConfigValidator::DEFAULT_SMTP_CONNECT_TIMEOUT);
         $this->assertSame(10, ConfigValidator::DEFAULT_SMTP_COMMAND_TIMEOUT);
         $this->assertSame(25, ConfigValidator::DEFAULT_SMTP_TOTAL_TIMEOUT);
+        $this->assertSame([], (new ConfigValidator())->validate());
+    }
+
+    public function testSmtpTestSettingsDefaultsAndValidValuesPass(): void
+    {
+        $this->assertSame(10, ConfigValidator::DEFAULT_SMTP_TEST_MAX_ATTEMPTS);
+        $this->assertSame(3600, ConfigValidator::DEFAULT_SMTP_TEST_WINDOW);
+        $this->assertSame([], (new ConfigValidator())->validate());
+
+        putenv('SMTP_TEST_MAX_ATTEMPTS=3');
+        putenv('SMTP_TEST_WINDOW=60');
+
         $this->assertSame([], (new ConfigValidator())->validate());
     }
 
