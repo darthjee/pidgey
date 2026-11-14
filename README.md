@@ -6,6 +6,10 @@
 
 ![pidgey](https://raw.githubusercontent.com/darthjee/pidgey/master/pidgey.png)
 
+**Current Version:** [0.3.0](https://github.com/darthjee/pidgey/releases/tag/0.3.0)
+
+**Next Release:** [0.3.1](https://github.com/darthjee/pidgey/compare/0.3.0...main)
+
 Pidgey is an email-delivery service written in plain PHP. It sends transactional
 email through SMTP connections configured per organization, exposes a JSON API
 (authenticated by scoped API tokens) for sending messages, and ships a React
