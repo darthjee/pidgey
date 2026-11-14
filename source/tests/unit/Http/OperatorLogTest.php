@@ -51,6 +51,20 @@ final class OperatorLogTest extends TestCase
         $this->assertStringContainsString('"fields":["host","password"]', $log->lines()[0]);
     }
 
+    public function testTestLineCarriesTheOutcome(): void
+    {
+        $log = new CapturedLog();
+
+        (new OperatorLog($log->logger()))->record(OperatorLog::SMTP_CONNECTION_TEST, 3, 5, 7, null, 'sent');
+
+        $records = $log->records();
+        $this->assertSame('smtp-connection-test', $records[0]->message);
+        $this->assertSame(
+            ['userId' => 3, 'organizationId' => 5, 'connectionId' => 7, 'outcome' => 'sent'],
+            $records[0]->context,
+        );
+    }
+
     public function testActionNames(): void
     {
         $this->assertSame('smtp-connection-create', OperatorLog::SMTP_CONNECTION_CREATE);
@@ -58,5 +72,6 @@ final class OperatorLogTest extends TestCase
         $this->assertSame('smtp-connection-delete', OperatorLog::SMTP_CONNECTION_DELETE);
         $this->assertSame('smtp-connection-activate', OperatorLog::SMTP_CONNECTION_ACTIVATE);
         $this->assertSame('smtp-connection-deactivate', OperatorLog::SMTP_CONNECTION_DEACTIVATE);
+        $this->assertSame('smtp-connection-test', OperatorLog::SMTP_CONNECTION_TEST);
     }
 }

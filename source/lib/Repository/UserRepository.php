@@ -266,6 +266,36 @@ final class UserRepository
     }
 
     /**
+     * Finds the stored email of an `approved` user of the organization whose email matches.
+     *
+     * The match uses the column collation (case and accent insensitive); the stored value is
+     * returned, never the given one. `pending` and `denied` users, and users of other
+     * organizations, do not match.
+     *
+     * @param integer $organizationId The caller's organization.
+     * @param string  $email          The candidate address.
+     *
+     * @return string|null The stored `users.email`, or null when no approved user matches.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function findApprovedEmailInOrganization(int $organizationId, string $email): ?string
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT email FROM users WHERE organization_id = :organization_id AND email = :email '
+            . 'AND status = :status LIMIT 1',
+        );
+        $statement->execute([
+            'organization_id' => $organizationId,
+            'email' => $email,
+            'status' => UserStatus::Approved->value,
+        ]);
+        $stored = $statement->fetchColumn();
+
+        return is_string($stored) ? $stored : null;
+    }
+
+    /**
      * Finds the approved user behind a live session, in one query (the gate's lookup).
      *
      * Joins `users` to `refresh_tokens`: the session must have an unrevoked, unexpired row

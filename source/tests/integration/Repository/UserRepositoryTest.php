@@ -503,6 +503,29 @@ final class UserRepositoryTest extends RepositoryTestCase
         $this->repository->updateAccount($user->id, 'Carol', 'bob@example.com', Fixtures::PASSWORD_DIGEST);
     }
 
+    public function testFindApprovedEmailReturnsTheStoredValueForADifferentCase(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $this->fixtures->user(organizationId: $organizationId, email: 'Alice@Example.com');
+
+        $this->assertSame(
+            'Alice@Example.com',
+            $this->repository->findApprovedEmailInOrganization($organizationId, 'alice@example.COM'),
+        );
+    }
+
+    public function testFindApprovedEmailIgnoresPendingDeniedAndOtherOrganizations(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $this->fixtures->user(organizationId: $organizationId, email: 'pending@example.com', status: 'pending');
+        $this->fixtures->user(organizationId: $organizationId, email: 'denied@example.com', status: 'denied');
+        $this->fixtures->user(email: 'other@example.com');
+
+        foreach (['pending@example.com', 'denied@example.com', 'other@example.com', 'nobody@example.com'] as $email) {
+            $this->assertNull($this->repository->findApprovedEmailInOrganization($organizationId, $email));
+        }
+    }
+
     private function now(): DateTimeImmutable
     {
         return new DateTimeImmutable('now', new DateTimeZone('UTC'));

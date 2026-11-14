@@ -213,11 +213,10 @@ final class TestEmailLimitTest extends IntegrationTestCase
             {
             }
 
-            /**
-             * @SuppressWarnings(PHPMD.UnusedFormalParameter)
-             */
             public function prepare(string $query, array $options = []): never
             {
+                unset($query, $options);
+
                 throw new PDOException('boom');
             }
         };

@@ -26,6 +26,8 @@ final class OperatorLog
 
     public const SMTP_CONNECTION_DEACTIVATE = 'smtp-connection-deactivate';
 
+    public const SMTP_CONNECTION_TEST = 'smtp-connection-test';
+
     /**
      * Builds the log on the application logger.
      *
@@ -43,6 +45,7 @@ final class OperatorLog
      * @param integer           $organizationId The organization's id.
      * @param integer           $connectionId   The SMTP connection id.
      * @param list<string>|null $fields         Changed field names (updates only), never values.
+     * @param string|null       $outcome        Result code (test emails only), e.g. `sent` or `SMTP_AUTH_FAILED`.
      *
      * @return void
      */
@@ -52,11 +55,16 @@ final class OperatorLog
         int $organizationId,
         int $connectionId,
         ?array $fields = null,
+        ?string $outcome = null,
     ): void {
         $context = ['userId' => $userId, 'organizationId' => $organizationId, 'connectionId' => $connectionId];
 
         if ($fields !== null) {
             $context['fields'] = $fields;
+        }
+
+        if ($outcome !== null) {
+            $context['outcome'] = $outcome;
         }
 
         $this->logger->info($action, $context);
