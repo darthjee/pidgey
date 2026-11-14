@@ -262,8 +262,14 @@ final class SmtpConnectionTestTest extends SmtpConnectionEndpointTestCase
     {
         $user = $this->member('caller@example.com');
         $organizationId = $user->organizationId;
-        $insecure = $this->connectionWithCredentials($organizationId, host: 'mailpit-plain', encryption: 'none');
-        $unreadable = $this->connectionWithCredentials($organizationId, host: 'mailpit-plain');
+        $plain = Mailpit::plain();
+        $starttls = Mailpit::starttls();
+        $insecure = $this->connectionWithCredentials($organizationId, host: $plain->host(), encryption: 'none');
+        $unreadable = $this->connectionWithCredentials($organizationId, host: $starttls->host());
+        $this->pdo->prepare('UPDATE smtp_connections SET port = :port WHERE id = :id')
+            ->execute(['port' => $plain->smtpPort(), 'id' => $insecure]);
+        $this->pdo->prepare('UPDATE smtp_connections SET port = :port WHERE id = :id')
+            ->execute(['port' => $starttls->smtpPort(), 'id' => $unreadable]);
         $this->setStoredPassword($unreadable, 'not-a-valid-ciphertext');
 
         $first = $this->send($user, 'POST', self::path($insecure));
