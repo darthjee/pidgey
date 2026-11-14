@@ -333,7 +333,7 @@ Request:
 
 | Field | Rules |
 | --- | --- |
-| `to` | optional; valid email address (after trimming), at most 255 characters, no CR or LF; must be the `users.email` of a user of the caller's organization, otherwise `400 VALIDATION_FAILED` — `to must be the email of a user of the organization`. Absent, `null` → the caller's own `users.email` |
+| `to` | optional; valid email address (after trimming), at most 255 characters, no CR or LF; must be the `users.email` of a user of the caller's organization, otherwise `400 VALIDATION_FAILED` — `to must be the email of a user of the organization`. Trimmed; `""` or whitespace only answers `400 VALIDATION_FAILED` — `to should not be empty` (no fallback to the caller's email). Only absent or `null` → the caller's own `users.email`. The organization-user rule matches `approved` users only, case-insensitively; `pending` and `denied` users get the same message. The email is sent to the stored `users.email`, never to the typed value |
 
 The recipient restriction keeps the test email from being used to send mail to arbitrary
 addresses.
