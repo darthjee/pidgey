@@ -82,4 +82,14 @@ class HttpException extends RuntimeException
     {
         return $this->smtp;
     }
+
+    /**
+     * Returns extra response header lines (e.g. `Retry-After`); none by default.
+     *
+     * @return list<string>
+     */
+    public function headers(): array
+    {
+        return [];
+    }
 }

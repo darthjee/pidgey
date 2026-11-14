@@ -106,7 +106,7 @@ final class ErrorFormatter
     {
         $status = $error->status();
 
-        return new ErrorResponse(
+        $response = new ErrorResponse(
             $status,
             $error->errorCode() ?? self::CATEGORY_CODES[$status] ?? 'HTTP_' . $status,
             $error->errorMessage() ?? self::REASON_PHRASES[$status] ?? 'HTTP ' . $status,
@@ -114,5 +114,11 @@ final class ErrorFormatter
             $error->smtp(),
             $this->clock->now(),
         );
+
+        foreach ($error->headers() as $line) {
+            $response->addHeader($line);
+        }
+
+        return $response;
     }
 }

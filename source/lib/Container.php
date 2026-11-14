@@ -18,6 +18,7 @@ use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
 use Pidgey\Email\MimeBuilder;
 use Pidgey\Email\SendFlow;
+use Pidgey\Email\TestEmailLimit;
 use Pidgey\Http\OperatorLog;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
@@ -39,6 +40,7 @@ use Pidgey\Repository\OrganizationRepository;
 use Pidgey\Repository\PasswordResetTokenRepository;
 use Pidgey\Repository\RefreshTokenRepository;
 use Pidgey\Repository\SmtpConnectionRepository;
+use Pidgey\Repository\SmtpTestLimitRepository;
 use Pidgey\Repository\UserRepository;
 use Pidgey\Smtp\HostPolicy;
 use Pidgey\Smtp\SessionSettings;
@@ -75,6 +77,10 @@ final class Container
     private ?ApiTokenRepository $apiTokenRepository = null;
 
     private ?SmtpConnectionRepository $smtpConnectionRepository = null;
+
+    private ?SmtpTestLimitRepository $smtpTestLimitRepository = null;
+
+    private ?TestEmailLimit $testEmailLimit = null;
 
     private ?AccessToken $accessToken = null;
 
@@ -559,6 +565,39 @@ final class Container
     public function smtpConnectionRepository(): SmtpConnectionRepository
     {
         return $this->smtpConnectionRepository ??= new SmtpConnectionRepository($this->pdo());
+    }
+
+    /**
+     * Returns the `smtp_test_limits` repository, bound to the request's connection.
+     *
+     * @return SmtpTestLimitRepository
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function smtpTestLimitRepository(): SmtpTestLimitRepository
+    {
+        return $this->smtpTestLimitRepository ??= new SmtpTestLimitRepository($this->pdo());
+    }
+
+    /**
+     * Returns the test-email limit (window and lease), built from `SMTP_TEST_MAX_ATTEMPTS`,
+     * `SMTP_TEST_WINDOW` and `SMTP_TOTAL_TIMEOUT + 5` on the first call.
+     *
+     * @return TestEmailLimit
+     *
+     * @throws RuntimeException When a required DB_* variable or a setting is invalid.
+     */
+    public function testEmailLimit(): TestEmailLimit
+    {
+        return $this->testEmailLimit ??= new TestEmailLimit(
+            $this->smtpTestLimitRepository(),
+            $this->transaction(),
+            $this->wallClock(),
+            $this->logger(),
+            $this->smtpTestMaxAttempts(),
+            $this->smtpTestWindow(),
+            (int) ceil($this->smtpSessionSettings()->totalTimeout) + 5,
+        );
     }
 
     /**
