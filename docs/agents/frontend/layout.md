@@ -1,7 +1,5 @@
 # Frontend Layout
 
-Purpose: define the folder structure of `frontend/` and the API client layer.
-
 ```
 frontend/
   index.html

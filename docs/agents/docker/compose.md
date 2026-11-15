@@ -1,7 +1,5 @@
 # docker-compose
 
-Purpose: define the services of `docker-compose.yml`.
-
 The file uses **YAML anchors** (e.g. `x-base: &base`, `x-app: &app`) to share image,
 volumes, env files and `depends_on` between services, following the tent repository.
 

@@ -1,7 +1,5 @@
 # Volumes
 
-Purpose: define what is mounted into containers and where persistent data lives.
-
 | Host path | Container path | Purpose |
 | --- | --- | --- |
 | `./source` | `/home/app/app` (app root) | Backend source, live-edited. |

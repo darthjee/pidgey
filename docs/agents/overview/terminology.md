@@ -1,7 +1,5 @@
 # Terminology
 
-Purpose: define the domain terms used consistently across all specs and code.
-
 | Term | Definition |
 | --- | --- |
 | **Organization** | The tenant. Owns users, SMTP connections and API tokens. Created at registration together with its first user; never deleted in v1. See [organizations/entities.md](../organizations/entities.md). |

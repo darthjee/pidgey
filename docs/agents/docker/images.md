@@ -1,7 +1,5 @@
 # Docker Images
 
-Purpose: define the Docker image layers used for development, CI and deploys.
-
 Both backend and frontend are developed and tested inside Docker. Layering follows
 https://github.com/darthjee/tent `dockerfiles/`.
 

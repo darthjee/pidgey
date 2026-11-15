@@ -1,7 +1,5 @@
 # Message Scope
 
-Purpose: define which message features are supported in v1 and which are deferred.
-
 ## v1
 
 | Field | Required | Notes |

@@ -1,7 +1,5 @@
 # Goals and Non-goals
 
-Purpose: define what Pidgey is, what it is not, and the scope it commits to.
-
 ## What Pidgey is
 
 - A self-hostable email-delivery service written in plain PHP (no application framework).

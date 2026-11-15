@@ -1,7 +1,5 @@
 # Failure Handling
 
-Purpose: define how send failures are detected, categorized and reported.
-
 Every failure is mapped to a stable, upper-case error code returned in the shared API error
 envelope (see [api/conventions/errors.md](../api/conventions/errors.md)); the public sending
 API uses the same envelope as every other endpoint.

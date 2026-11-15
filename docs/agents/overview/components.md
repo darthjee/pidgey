@@ -1,7 +1,5 @@
 # Component Map
 
-Purpose: describe the high-level components of Pidgey and how they interact.
-
 ```
  API clients ──(HTTPS, Bearer token)──┐
                                       ▼

@@ -1,8 +1,5 @@
 # Frontend / API Compatibility
 
-Purpose: record which API endpoints the admin UI calls, through which client method, and
-whether the call matches the API spec.
-
 ## How it was checked
 
 - **Frontend side:** the clients in `frontend/assets/js/client/` (`ApiClient`,

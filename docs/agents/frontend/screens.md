@@ -1,7 +1,5 @@
 # Authentication, Routing and Screens
 
-Purpose: define how the admin UI authenticates, routes and which screens it has.
-
 The UI was copied from Citadel and speaks the Citadel auth contract
 ([api/authentication.md](../api/authentication.md)). Every endpoint it calls, and whether the
 call matches the spec, is listed in [api-compatibility.md](api-compatibility.md).

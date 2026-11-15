@@ -1,7 +1,5 @@
 # SMTP Connections
 
-Purpose: define the generic SMTP connection settings an organization configures.
-
 Pidgey speaks **generic SMTP** only; there are no provider-specific integrations.
 Connections are organization-scoped and managed in the admin UI, through the endpoints of
 [api/endpoints/pidgey-admin/smtp-connections.md](../api/endpoints/pidgey-admin/smtp-connections.md)

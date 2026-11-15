@@ -1,7 +1,5 @@
 # Docker
 
-Purpose: index of the specs describing Docker images, compose services, volumes and Makefile targets.
-
 | File | Content |
 | --- | --- |
 | [images.md](docker/images.md) | Image layering: base → dev → prod, the frontend (Vite) images, plus the CI image. |

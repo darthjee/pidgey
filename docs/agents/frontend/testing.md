@@ -1,7 +1,5 @@
 # Frontend Testing and Linting
 
-Purpose: define the frontend test, coverage and lint setup, and how the checks run.
-
 ## Specs
 
 - Jasmine specs live in `frontend/specs/assets/js/`, mirroring `assets/js/` (one spec per source

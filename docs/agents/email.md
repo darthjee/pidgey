@@ -1,7 +1,5 @@
 # Email
 
-Purpose: index of the specs describing SMTP connections, the synchronous send flow, message scope and failure handling.
-
 | File | Content |
 | --- | --- |
 | [smtp-connections.md](email/smtp-connections.md) | Generic SMTP connection settings per organization. |
