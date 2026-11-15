@@ -15,7 +15,7 @@ You are the security reviewer for the Pidgey project — a plain-PHP email-deliv
 - **Secrets:** SMTP credentials at rest, secret key handling, nothing sensitive in logs (never message bodies or credentials), no secrets committed.
 - **Frontend:** XSS, unsafe HTML rendering, token/credential exposure in the browser.
 - **Transport:** TLS verification on SMTP connections; no silent downgrade from `tls`/`ssl`.
-- **Dependencies:** known vulnerabilities in Composer and Yarn packages; flag any new runtime dependency (the policy in `docs/agents/specs/architecture/dependencies.md` restricts them).
+- **Dependencies:** known vulnerabilities in Composer and Yarn packages; flag any new runtime dependency (the policy in `docs/agents/architecture/dependencies.md` restricts them).
 
 ## Commands
 

@@ -24,13 +24,13 @@ These run on **every branch and every tag** (`tags: only: /.*/`).
 `DB_NAME=pidgey_test`, `DB_USER=root`, `DB_PASSWORD=root` and `PHP_ENV=test`.
 
 Why: CircleCI service containers cannot run the `initdb.d` grant script used locally (see
-[docker/compose.md](../specs/docker/compose.md)), and the tests create both `pidgey_test` and
+[docker/compose.md](../docker/compose.md)), and the tests create both `pidgey_test` and
 `pidgey_runner_*_test` databases, which a restricted user could not do. The CI database is
 throwaway, so root carries no risk.
 
 ### Email test instances
 
-Rules: [email/testing.md](../specs/email/testing.md#reaching-the-instances) (instances, ports, `TEST_MAILPIT_*`, TLS fixtures); [docker/compose.md](../specs/docker/compose.md).
+Rules: [email/testing.md](../email/testing.md#reaching-the-instances) (instances, ports, `TEST_MAILPIT_*`, TLS fixtures); [docker/compose.md](../docker/compose.md).
 
 `backend_tests` runs the three test Mailpit instances as **background run steps** on
 `localhost`, not as service containers. The `mailpit` binary (`v1.32.0`, the same tag as
@@ -118,7 +118,7 @@ jobs, on all three check jobs.
 No production image is built: a release is identified by its git semver tag, and the host runs
 the uploaded files. The deploy chain builds the UI and uploads it into `static/`
 (the frontend delivery decision in
-[frontend/build.md](../specs/frontend/build.md#production-delivery)).
+[frontend/build.md](../frontend/build.md#production-delivery)).
 
 ## Build jobs and context jobs
 
@@ -242,7 +242,7 @@ list, so anything forgotten reaches the host by default.
 ## Logs
 
 - `bin/check-config` reports which check failed, never a value (see
-  [architecture/configuration.md](../specs/architecture/configuration.md#bincheck-config)).
+  [architecture/configuration.md](../architecture/configuration.md#bincheck-config)).
 - The deploy never prints the shared `.env` or any secret: the key files are written by
   `generate_key_file`, and the `.env` is linked on the host, never read by CI.
 

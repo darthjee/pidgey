@@ -22,7 +22,7 @@ decision, update the spec first, in the same change set.
 
 ## Definition of Done for PRs
 
-A PR is considered complete when (see also [specs/testing/definition-of-done.md](specs/testing/definition-of-done.md)):
+A PR is considered complete when (see also [testing/definition-of-done.md](testing/definition-of-done.md)):
 
 - The stated objective has been achieved.
 - Relevant specs were read, and updated first if the change alters a decision.

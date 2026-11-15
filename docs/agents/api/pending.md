@@ -15,7 +15,7 @@ Purpose: track API concerns that are explicitly not decided yet.
   [endpoints/pidgey-admin/smtp-connections.md](endpoints/pidgey-admin/smtp-connections.md#test-email-limit)). A per-username
   login lockout is rejected (it lets anyone lock a victim out and reveals that the username
   exists). Until then, proxy-level rate limiting is recommended; the current production host cannot apply it, a known gap recorded in
-  [deployment/known-gaps.md](../../deployment/known-gaps.md#no-proxy-rate-limiting), so production keeps
+  [deployment/known-gaps.md](../deployment/known-gaps.md#no-proxy-rate-limiting), so production keeps
   `USER_APPROVAL_REQUIRED=true`.
 - **Pending decision — size limits:** maximum request body size and maximum
   `subject`/`text`/`html` length. Subject-specific concerns from the

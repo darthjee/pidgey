@@ -33,10 +33,10 @@ make dev-up   # or: docker compose up app
 ```
 
 After `make dev-up`, the admin UI (Vite dev server) is at `http://localhost:8030/`. See the
-[First run](docs/agents/specs/frontend/development.md#first-run) section of the frontend
+[First run](docs/agents/frontend/development.md#first-run) section of the frontend
 development spec for details (Vite proxy, ports, dependencies).
 
-See [`docs/agents/specs/docker/makefile.md`](docs/agents/specs/docker/makefile.md) for
+See [`docs/agents/docker/makefile.md`](docs/agents/docker/makefile.md) for
 the full list of `make` targets and platform notes (e.g. Apple Silicon).
 
 ## Database

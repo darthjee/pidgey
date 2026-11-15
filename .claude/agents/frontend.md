@@ -27,7 +27,7 @@ Do NOT touch `source/` (`backend`), Docker/CI files (`infra`), `docs/agents/spec
 
 ## Current state
 
-The `client/` layer, together with the auth UI built on it, is still citadel's (JWT refresh, `/auth/*`, `/users*`). It will be adapted to pidgey's `/v1` session API (see `docs/agents/specs/api.md`) in follow-up issues. Don't build new screens against the citadel endpoints.
+The `client/` layer, together with the auth UI built on it, is still citadel's (JWT refresh, `/auth/*`, `/users*`). It will be adapted to pidgey's `/v1` session API (see `docs/agents/api.md`) in follow-up issues. Don't build new screens against the citadel endpoints.
 
 ## Commands
 
@@ -150,7 +150,7 @@ Never stop after step 2 without doing step 3. Never consider the task done while
 
 ## Conventions
 
-- Read the relevant specs before coding — `docs/agents/specs/frontend.md` (index) and the relevant `docs/agents/specs/frontend/*.md` files, plus `docs/agents/specs/api.md`. Never implement a **Pending decision** by guessing.
+- Read the relevant specs before coding — `docs/agents/frontend.md` (index) and the relevant `docs/agents/frontend/*.md` files, plus `docs/agents/api.md`. Never implement a **Pending decision** by guessing.
 - Components never call `fetch` directly — always go through the clients in `client/`. `ApiClient` uses `credentials: 'same-origin'` and normalizes errors to the API error shape.
 - Write Jasmine specs for every new module, mirroring the source path.
 - Keep JSDoc complete and accurate on all public exports.
