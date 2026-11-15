@@ -6,31 +6,31 @@
   `AccountsClient`, `AdminClient`, `OrganizationClient`, `SmtpConnectionsClient`, `AuthStatus`) and the routes in
   `frontend/assets/js/utils/routing/HashRouteResolver.js`. Components never call `fetch`
   directly (see [layout.md](layout.md#client-layer)), so the clients are the full list of calls.
-- **API side:** the endpoint specs in [api/endpoints](../api/endpoints.md) and the shared rules
+- **API side:** the endpoint docs in [api/endpoints](../api/endpoints.md) and the shared rules
   they link to (conventions, authentication).
 - Each row compares the path, the method, the request and response field names, and the status
   handling.
 - **Success codes:** the frontend only checks for a 2xx answer (`response.ok`), so `200`, `201`
   and `204` are interchangeable for it. The `Success` column still records the exact code from
-  the spec, so a backend change can be checked against it.
-- Status: ✅ when the call matches the spec; otherwise the mismatch id (M1–M6, as in the issue
+  the API docs, so a backend change can be checked against it.
+- Status: ✅ when the call matches the API docs; otherwise the mismatch id (M1–M6, as in the issue
   that introduced this file; M7–M9 from #154, closed by #167, see
-  [Pidgey admin](#pidgey-admin)) and its follow-up issue. When the frontend is wrong, the spec
-  stays and a frontend follow-up is opened; no API spec was found wrong in this check.
+  [Pidgey admin](#pidgey-admin)) and its follow-up issue. When the frontend is wrong, the API doc
+  stays and a frontend follow-up is opened; no API doc was found wrong in this check.
 
 ## Auth and session
 
-| Method & path | Client method | Spec | Success | Status |
+| Method & path | Client method | Doc | Success | Status |
 | --- | --- | --- | --- | --- |
-| `POST /auth/register.json` | `AccountsClient.register` | [session.md](../api/endpoints/auth/session.md#post-authregisterjson) | `201` | **M1**: `organizationName` is required but not sent, so every registration answers `400 VALIDATION_FAILED` (#40). `password_confirmation` is sent and dropped as an unknown field. |
+| `POST /auth/register.json` | `AccountsClient.register` | [session.md](../api/endpoints/auth/session.md#post-authregisterjson) | `201` | ✅ (`organizationName` sent; M1, closed by #40). `password_confirmation` is sent and dropped as an unknown field. |
 | `POST /auth/login.json` | `AccountsClient.login` | [session.md](../api/endpoints/auth/session.md#post-authloginjson) | `201` | ✅ |
-| `POST /auth/refresh.json` | `ApiClient` refresh path (`handleUnauthorized`) and `AccountsClient.refresh` | [session.md](../api/endpoints/auth/session.md#post-authrefreshjson) | `201` | ✅ for the shape (`refreshToken` in, `user` + `refreshToken` out). **M2**: no single flight, so parallel `401`s re-present a rotated token and trigger replay revocation (#41) |
+| `POST /auth/refresh.json` | `ApiClient` refresh path (`handleUnauthorized`) and `AccountsClient.refresh` | [session.md](../api/endpoints/auth/session.md#post-authrefreshjson) | `201` | ✅ for the shape (`refreshToken` in, `user` + `refreshToken` out). Single flight is in place (M2, closed by #41). |
 | `DELETE /auth/logoff.json` | `AccountsClient.logout` | [session.md](../api/endpoints/auth/session.md#delete-authlogoffjson) | `204` | ✅ (empty body parsed as `{}`; the stored token is cleared even when the call fails) |
 | `POST /auth/status.json` | `AccountsClient.status`, through `AuthStatus.refresh` | [session.md](../api/endpoints/auth/session.md#post-authstatusjson) | `201` | ✅ (`loggedIn`, `isAdmin`, `status: "pending"` handled) |
 
 ## Account and recovery
 
-| Method & path | Client method | Spec | Success | Status |
+| Method & path | Client method | Doc | Success | Status |
 | --- | --- | --- | --- | --- |
 | `POST /auth/recover.json` | `AccountsClient.recover` | [recovery.md](../api/endpoints/auth/recovery.md#post-authrecoverjson) | `200` | ✅ |
 | `POST /auth/reset-password.json` | `AccountsClient.resetPassword` | [recovery.md](../api/endpoints/auth/recovery.md#post-authreset-passwordjson) | `200` | ✅ (`password_confirmation` is sent and dropped as an unknown field; the confirmation check is client-side) |
@@ -38,7 +38,7 @@
 
 ## Device authorization
 
-| Method & path | Client method | Spec | Success | Status |
+| Method & path | Client method | Doc | Success | Status |
 | --- | --- | --- | --- | --- |
 | `POST /auth/authorization-requests.json` | `AccountsClient.createAuthorizationRequest` | [requester.md](../api/endpoints/auth/device-authorization/requester.md#post-authauthorization-requestsjson) | `201` | ✅ |
 | `POST /auth/authorization-requests/:uuid/poll.json` | `AccountsClient.pollAuthorizationRequest` | [requester.md](../api/endpoints/auth/device-authorization/requester.md#post-authauthorization-requestsuuidpolljson) | `201` | ✅ (`open`, `approved`, `denied`, `expired`, `logged`; the token is stored on `approved`) |
@@ -52,7 +52,7 @@ The Admin Users list shows the `organizationName` field of the
 [admin user item](../api/endpoints/admin-users.md#admin-user-item) in an Organization column,
 right after Email. The `organizationId` field is ignored.
 
-| Method & path | Client method | Spec | Success | Status |
+| Method & path | Client method | Doc | Success | Status |
 | --- | --- | --- | --- | --- |
 | `POST /admin/users/search.json` | `AdminClient.searchUsers` | [review.md](../api/endpoints/admin-users/review.md#post-adminuserssearchjson) | `201` | ✅ (`q`, `status` only when defined; `users`, `currentUserId` read) |
 | `POST /admin/users/:id/edit.json` | `AdminClient.editUser` | [edit.md](../api/endpoints/admin-users/edit.md#post-adminusersideditjson) | `201` | ✅ |
@@ -69,15 +69,15 @@ screens (#43), and the API token endpoints by `ApiTokensClient` from the API tok
 (#44, see [screens.md](screens.md#api-tokens-screens)); `GET` requests go through
 `ApiClient.getJson`.
 
-**SMTP connection rows:** they match the spec since #167, which closed the mismatches
+**SMTP connection rows:** they match the API docs since #167, which closed the mismatches
 M7–M9 (deactivate, the two client-side form rules, `429` and wrapping in the test-email
 modal). Their Jasmine specs run on the [shared fixtures](testing.md#api-response-fixtures)
-copied from the API spec's example responses. The run against a real backend is the manual
+copied from the API docs' example responses. The run against a real backend is the manual
 end-to-end check of the
 [definition of done](testing.md#smtp-connections-definition-of-done), a pre-merge checklist
 run by the owner once #166 (test-email endpoint) is merged.
 
-| Method & path | Client method | Spec | Success | Status |
+| Method & path | Client method | Doc | Success | Status |
 | --- | --- | --- | --- | --- |
 | `GET /organization.json` | `OrganizationClient.get` | [organization.md](../api/endpoints/pidgey-admin/organization.md#get-organizationjson) | `200` | ✅ (`GET` with no body, through `ApiClient.getJson`; `organization.name` read) |
 | `PATCH /organization.json` | `OrganizationClient.update` | [organization.md](../api/endpoints/pidgey-admin/organization.md#patch-organizationjson) | `200` | ✅ (only `name` sent; `VALIDATION_FAILED` details shown on the name field) |
@@ -95,14 +95,14 @@ run by the owner once #166 (test-email endpoint) is merged.
 
 ## Operational
 
-| Method & path | Client method | Spec | Success | Status |
+| Method & path | Client method | Doc | Success | Status |
 | --- | --- | --- | --- | --- |
 | `GET /health.json` | not called by the frontend | [operational.md](../api/endpoints/operational.md#get-healthjson) | `200` | n/a (probe for infrastructure) |
 | `GET /ready.json` | not called by the frontend | [operational.md](../api/endpoints/operational.md#get-readyjson) | `200` / `503` | n/a (probe for infrastructure) |
 
 ## Sending
 
-| Method & path | Client method | Spec | Success | Status |
+| Method & path | Client method | Doc | Success | Status |
 | --- | --- | --- | --- | --- |
 | `POST /v1/messages` | not called by the frontend | [sending.md](../api/endpoints/sending.md#post-v1messages) | `200` | n/a (public API for integrations, Bearer token; the test email goes through `POST /smtp-connections/:id/test.json`) |
 
@@ -111,7 +111,7 @@ run by the owner once #166 (test-email endpoint) is merged.
 | Behaviour | Status |
 | --- | --- |
 | `401` → refresh once (`POST /auth/refresh.json` with the stored token), retry the original request once; a `401` on the retry, a failed refresh or no stored token ends the session (token cleared, login modal opened) | ✅ |
-| Single-flight refresh, within a tab and across tabs (rule in [screens.md](screens.md#refresh-single-flight)) | **M2**, #41 |
+| Single-flight refresh, within a tab and across tabs (rule in [screens.md](screens.md#refresh-single-flight)) | ✅ (M2, closed by #41) |
 | `403` on admin screens → redirect home | ✅ |
 | Error body parsing: `error.code`, `error.message`, `error.details` and, on `SMTP_*` failures, `error.smtp` (`{ code, message }`) into `ApiError` (see [api/conventions/errors.md](../api/conventions/errors.md)); falls back to `statusText`, then a generic message | ✅ |
 | `204` and empty or non-JSON bodies parsed as `{}` | ✅ |

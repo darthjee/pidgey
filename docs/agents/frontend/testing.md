@@ -28,11 +28,11 @@
   `frontend/specs/support/fixtures/<name>.json` (e.g. `loadFixture('smtpConnections/list')`)
   and returns a fresh parsed copy on every call, so a spec can change it freely. Specs that
   need an `ApiError` build it from an error fixture's `statusCode` and `error` fields.
-- **Source:** the fixtures are **hand-maintained copies of the API spec's example
+- **Source:** the fixtures are **hand-maintained copies of the API docs' example
   responses**, matching them exactly. They are not captured from the backend: the backend
   endpoint tests already assert the same shapes, and capturing would couple the `source/`
   tests to `frontend/`.
-- **Sync rule:** a PR that changes an example response in the API spec updates the matching
+- **Sync rule:** a PR that changes an example response in the API docs updates the matching
   fixture in the same PR.
 - The check against the real backend is the manual end-to-end check below.
 
@@ -43,7 +43,7 @@ screens ([screens.md](screens.md#smtp-connections-screens)) are done when:
 
 - their Jasmine specs use the [shared fixtures](#api-response-fixtures);
 - [api-compatibility.md](api-compatibility.md#pidgey-admin) is accurate: the deactivate row,
-  `429` noted, and ✅ only where the call matches the spec;
+  `429` noted, and ✅ only where the call matches the API docs;
 - a **manual end-to-end check** in `make dev-up`, against the development `mailpit`, passes:
   create, edit, activate, deactivate, send a test email (delivered and seen in the Mailpit
   UI), a `400` path, a `502` path (a bad host), and delete.

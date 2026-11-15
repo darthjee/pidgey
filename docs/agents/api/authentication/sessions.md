@@ -87,8 +87,7 @@ their original reason.
 
   This strict rule is kept on purpose; the frontend must run a single refresh at a time,
   within a tab and across tabs (see the single-flight rule in
-  [frontend/screens.md](../../frontend/screens.md#refresh-single-flight); the frontend change
-  is follow-up #41).
+  [frontend/screens.md](../../frontend/screens.md#refresh-single-flight); done in #41).
 
 ## Clock
 

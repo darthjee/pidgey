@@ -1,6 +1,6 @@
 # Frontend Development Environment
 
-Image, service, volume and Makefile-target definitions live in the docker specs; this file
+Image, service, volume and Makefile-target definitions live in the docker docs; this file
 describes the workflow and links to them.
 
 ## Images

@@ -29,7 +29,7 @@ The layout follows citadel's conventions (the code was copied from citadel's `fr
 
 The clients in `assets/js/client/` came from Citadel and speak its contract: the `/auth/*`
 and `/admin/users/*` routes are the API contract, not something to replace. Every call they
-make, and its status against the API spec, is in [api-compatibility.md](api-compatibility.md).
+make, and its status against the API docs, is in [api-compatibility.md](api-compatibility.md).
 
 - Components never call `fetch` directly; they use the clients (usually through a page
   controller).
