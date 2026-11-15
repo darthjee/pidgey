@@ -1,7 +1,5 @@
 # API Tokens Table
 
-Purpose: define the `api_tokens` table holding organization API tokens.
-
 Token format, scopes and revocation rules are defined in
 [api/authentication.md](../../api/authentication.md). Conventions are in
 [conventions.md](conventions.md).

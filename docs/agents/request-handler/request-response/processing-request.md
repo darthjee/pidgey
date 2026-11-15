@@ -1,7 +1,5 @@
 # Processing Request
 
-Purpose: define the processing request: the per-dispatch wrapper around the `Request` that carries route params, class-keyed attached data and the early response.
-
 Part of [request-response.md](../request-response.md). One processing request is built for each dispatch and wraps the [`Request`](request.md). It exposes the request's read methods unchanged. Apart from attachments and the early response, it can't be changed.
 
 ## Route params
@@ -32,7 +30,7 @@ Organization scope needs an organization id from either the user or the token. R
 
 ## Early response
 
-This spec owns the contract; [middlewares.md](../middlewares.md) (#61) uses it. Pidgey follows Tent (`RequestHandler::handleRequest`).
+This doc owns the contract; [middlewares.md](../middlewares.md) (#61) uses it. Pidgey follows Tent (`RequestHandler::handleRequest`).
 
 ### Methods
 

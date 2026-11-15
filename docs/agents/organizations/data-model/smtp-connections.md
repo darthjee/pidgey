@@ -1,7 +1,5 @@
 # SMTP Connections Table
 
-Purpose: define the `smtp_connections` table holding organization SMTP settings.
-
 Field meanings and security rules are defined in
 [email/smtp-connections.md](../../email/smtp-connections.md). Conventions are in
 [conventions.md](conventions.md).

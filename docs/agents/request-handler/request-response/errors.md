@@ -1,7 +1,5 @@
 # Error Responses
 
-Purpose: define how errors become responses: the `ErrorResponse`, the `HttpException` family, the single `ErrorFormatter`, and the `WallClock` it uses for timestamps.
-
 Part of [request-response.md](../request-response.md). The envelope fields, the category codes and the specific codes are defined in [api/conventions/errors.md](../../api/conventions/errors.md); this file does not copy them.
 
 ## `ErrorResponse extends JsonResponse`

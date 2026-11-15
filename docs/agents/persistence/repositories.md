@@ -1,7 +1,5 @@
 # Repositories
 
-Purpose: define the `Pidgey\Repository\` classes, the only code that writes SQL for the application tables.
-
 ## Shape
 
 - One repository per table, named `<Entity>Repository` (`UserRepository`,
@@ -59,8 +57,8 @@ Purpose: define the `Pidgey\Repository\` classes, the only code that writes SQL 
 - Every method on an organization-scoped table (`users`, `api_tokens`, `smtp_connections`)
   takes `int $organizationId` and puts it in the `WHERE` clause
   ([organizations/scope.md](../organizations/scope.md)).
-- The only unscoped methods are those the specs require to cross organizations, and their
-  doc comment names the spec that needs them:
+- The only unscoped methods are those the docs require to cross organizations, and their
+  doc comment names the doc that needs them:
   - lookups by a secret digest (`ApiTokenRepository::findByTokenHash()`), the token itself
     identifying the organization;
   - lookups by `username` / `email` / `id` on `users` for login, recovery and sessions;
@@ -70,7 +68,7 @@ Purpose: define the `Pidgey\Repository\` classes, the only code that writes SQL 
 
 - `lock…()` methods add `FOR UPDATE` and must be called inside a transaction; their doc comment
   says so. They do not check it themselves.
-- Which rows are locked, and in which order, is decided by the endpoint specs (e.g. the
+- Which rows are locked, and in which order, is decided by the endpoint docs (e.g. the
   organization row before activating an SMTP connection).
 
 ## Time
@@ -100,9 +98,7 @@ Purpose: define the `Pidgey\Repository\` classes, the only code that writes SQL 
 - Repositories receive and store digests and ciphertext, never plain text: hashing a token
   and encrypting the SMTP password happen before the repository call, in the service.
 - `SmtpConnectionRepository` reads and writes the `password` column as opaque bytes. The
-  encryption mechanism is a pending decision of
-  [email/smtp-connections.md](../email/smtp-connections.md); it blocks the service that
-  encrypts, not the table or the repository.
+  encryption mechanism is defined in [email/password-encryption.md](../email/password-encryption.md).
 - SQL errors are logged by the caller without bound values, so a digest or ciphertext never
   lands in a log line.
 
@@ -140,8 +136,8 @@ final class SmtpConnectionRepository
 
 Each table's implementation delivers its repository with `create()`, `findById()` (or
 `findInOrganization()` for organization-scoped tables) and the lookups by unique key that its
-table spec defines. Other methods are added by the endpoint issues that need them, following
-this spec.
+table doc defines. Other methods are added by the endpoint issues that need them, following
+this doc.
 
 ## Pending decisions
 

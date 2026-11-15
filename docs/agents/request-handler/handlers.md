@@ -1,7 +1,5 @@
 # Request Handlers
 
-Purpose: define the request handler base class (`RequestHandler`), the `HandlerFactory`, the shape of the `Pidgey\Container`, the handler lifecycle, the integer-id helper, where body validation runs, and how handlers report errors.
-
 Part of the request flow indexed in [request-handler.md](../request-handler.md). The handler runs after routing ([routing.md](routing.md)) and the request hooks ([middlewares.md](middlewares.md)), and before the response hooks.
 
 This file is structural only. What each endpoint does stays in [api/endpoints/](../api/endpoints/). The middleware interface is specified in [middlewares.md](middlewares.md#pidgeyhttpmiddleware), and the front controller in [front-controller.md](front-controller.md). The processing request, the responses and the exceptions are used here, not redefined ([request-response.md](request-response.md)).
@@ -82,7 +80,7 @@ The "small container/factory class" of [architecture/backend.md](../architecture
 - **Namespace:** the root namespace (`Pidgey\Container`), as the composition root. It builds the HTTP, services and infra layers, so it belongs to none of them. Putting it in `Pidgey\Infra\` would invert "dependencies flow downward".
 - **Explicit typed getters**, lazy and memoized, e.g. `pdo(): PDO`, `logger(): LoggerInterface`, `wallClock(): WallClock`, `clock(): Clock`. Each service is built on its first call and reused for the rest of the request.
 - **One `Container` per request**, created by the front controller at boot ([front-controller.md](front-controller.md#bootstrap), see [Lifecycle](#lifecycle)).
-- **Out of scope:** the list of getters. The front controller creates the container, and each service's implementation issue adds its getter.
+- **Out of scope:** the list of getters. The front controller creates the container, and each service adds its getter when it is introduced.
 
 ### `Pidgey\Http\HandlerFactory`
 
@@ -125,7 +123,7 @@ The dispatcher ([front-controller.md](front-controller.md#dispatch-pipeline)):
 - **Container scope:** one `Container` per request, created by the front controller ([front-controller.md](front-controller.md#bootstrap)).
   - Memoized services are shared within that request (e.g. one PDO connection for the gate's session lookup and the handler's queries).
   - Nothing survives into the next request.
-- **No teardown hook:** resources (PDO, SMTP sockets) close at the end of the request. The SMTP transport's own cleanup stays with the email specs ([email.md](../email.md)).
+- **No teardown hook:** resources (PDO, SMTP sockets) close at the end of the request. The SMTP transport's own cleanup stays with the email docs ([email.md](../email.md)).
 - **Worker runtimes** (FrankenPHP worker mode, RoadRunner, Swoole) are out of scope. The per-instance and no-static rules would already hold there; only the container scope would need revisiting.
 
 ## Route params and `intParam()`
@@ -153,7 +151,7 @@ Integer ids are read with a **protected method on `RequestHandler`**:
 - Body validation runs **inside `process()`**, through a `Validator` the handler calls. It is **not a middleware**, so the guards (the request hooks) always run first: step 4 of the [guard order](../api/conventions/format.md#guard-order).
 - It collects every field error and throws `ValidationFailedException(list<string> $details)` ([request-response/errors.md](request-response/errors.md#exceptions)).
 - Unknown fields are dropped, and messages follow [api/conventions/validation.md](../api/conventions/validation.md).
-- There is no separate spec: [api/conventions/validation.md](../api/conventions/validation.md#field-evaluation) fixes the observable behaviour (one message for a missing, `null`, empty or wrong-type field; every failed rule otherwise; email and length semantics).
+- There is no separate doc: [api/conventions/validation.md](../api/conventions/validation.md#field-evaluation) fixes the observable behaviour (one message for a missing, `null`, empty or wrong-type field; every failed rule otherwise; email and length semantics).
 
 ### `Validator` API
 

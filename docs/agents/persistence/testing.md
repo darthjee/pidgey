@@ -1,7 +1,5 @@
 # Persistence Testing
 
-Purpose: define how the schema, entities and repositories are tested.
-
 Suites, the `_test` database guard and `db:prepare` are in
 [contributing/testing.md](../contributing/testing.md#backend-testing).
 
@@ -30,7 +28,7 @@ with the real migrations applied.
   - the code under test must not open its own transaction (repositories never do, see
     [connection.md](connection.md#transactions)).
 - `FOR UPDATE` methods are tested for their result inside the test transaction. Lock
-  contention (a second connection blocking) is tested only where an endpoint spec relies on
+  contention (a second connection blocking) is tested only where an endpoint doc relies on
   it, with a second PDO and `innodb_lock_wait_timeout` lowered for that session.
 
 ## Code that owns transactions
@@ -55,9 +53,9 @@ re-enables them. `Transaction` itself is tested this way.
 ## Schema test
 
 `source/tests/integration/Schema/SchemaTest.php` checks that the migrated `pidgey_test`
-matches the table specs, through `information_schema`:
+matches the table docs, through `information_schema`:
 
-- the set of tables (the spec'd tables plus `schema_migrations`, nothing else);
+- the set of tables (the documented tables plus `schema_migrations`, nothing else);
 - per table: column names, types, nullability and defaults;
 - unique keys and foreign keys (columns, referenced table, `ON DELETE RESTRICT`);
 - table collation `utf8mb4_0900_ai_ci`.
@@ -71,7 +69,7 @@ no isolation.
 - Entity: `fromRow()` unit test.
 - Repository: every method, including not-found (`null` / `false`), organization scoping (a
   row of another organization is not found, updated or deleted), unique-key violations
-  surfacing as `PDOException`, and case-insensitive lookups where the table spec requires them
+  surfacing as `PDOException`, and case-insensitive lookups where the table doc requires them
   (`users.username`, `users.email`).
 
 ## Pending decisions

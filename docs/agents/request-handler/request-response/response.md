@@ -1,7 +1,5 @@
 # Response
 
-Purpose: define the response classes, the `SetCookie` value object, and how the `ResponseSender` sends a response.
-
 Part of [request-response.md](../request-response.md). Error responses are covered in [errors.md](errors.md).
 
 ## Response classes

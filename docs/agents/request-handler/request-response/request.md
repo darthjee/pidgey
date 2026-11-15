@@ -1,7 +1,5 @@
 # Request
 
-Purpose: define the `Request` model: how method, path, query, headers, cookies and body are read from the PHP globals, and how tests override them.
-
 Part of [request-response.md](../request-response.md). The `Request` wraps the PHP globals for one HTTP request. It can't be changed: there is no Tent-style `setRequestPath()` or `setHeader()`, because Pidgey has no rewrite rules. Per-dispatch state (route params, attached data, early response) lives on the processing request ([processing-request.md](processing-request.md)).
 
 ## Test overrides

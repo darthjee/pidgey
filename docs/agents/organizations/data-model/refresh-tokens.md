@@ -1,7 +1,5 @@
 # Refresh Tokens Table
 
-Purpose: define the `refresh_tokens` table backing admin UI sessions.
-
 Each row is one refresh token of a session; rotation creates a new row in the same session.
 Rotation, replay detection and revocation rules are defined in
 [api/authentication/sessions.md](../../api/authentication/sessions.md) and the session

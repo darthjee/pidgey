@@ -1,7 +1,5 @@
 # Registration and Bootstrap
 
-Purpose: define how organizations and users are created by registration and how the first admin comes to exist.
-
 ## Registration flow
 
 1. A person submits a username, an email, a password and an organization name.
@@ -13,7 +11,7 @@ Purpose: define how organizations and users are created by registration and how 
    [api/authentication.md](../api/authentication.md)).
 
 Request payload field names (including the required `organizationName`), validation and error
-codes are defined by the registration endpoint spec,
+codes are defined by the registration endpoint doc,
 [api/endpoints/auth/session.md](../api/endpoints/auth/session.md#post-authregisterjson).
 
 Rules:

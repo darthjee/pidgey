@@ -1,8 +1,5 @@
 # SMTP Test Limits Table
 
-Purpose: define the `smtp_test_limits` table that rate-limits the SMTP connection test email
-per organization.
-
 The test email opens an outbound SMTP connection and holds a worker for up to
 `SMTP_TOTAL_TIMEOUT`, and the production host has no proxy-level rate limiting, so each
 organization gets a fixed attempt window and a single in-flight lease. The rules are defined

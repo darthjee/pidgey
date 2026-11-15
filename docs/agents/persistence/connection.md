@@ -1,7 +1,5 @@
 # Connection
 
-Purpose: define how application code obtains its database connection and who owns transactions.
-
 The access rules (raw PDO, prepared statements, no multi-statements, environment-only
 settings) are in [architecture/database.md](../architecture/database.md#access).
 
