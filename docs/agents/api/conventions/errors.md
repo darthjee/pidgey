@@ -1,8 +1,5 @@
 # Errors
 
-Purpose: define the single error envelope, the error codes and the HTTP statuses used by
-every API endpoint, including the public sending API.
-
 ## Envelope
 
 Every error, whatever produced it and on whichever endpoint (admin, auth, operational or
@@ -96,7 +93,7 @@ code** derived from the status.
 
 ### Specific codes
 
-This table is the registry of specific codes; endpoint specs that add a code must add it
+This table is the registry of specific codes; endpoint docs that add a code must add it
 here.
 
 | Code | Status | Message | Where |
@@ -158,14 +155,14 @@ with the category code and one of two messages:
 The admin frontend's API client reacts to **`401` only** by refreshing the session and
 retrying once. A `401` must therefore mean "your credentials are missing, invalid or expired"
 and nothing else. Every business rejection uses `400`, `403`, `409`, `422` or `423` as listed
-in the endpoint specs, **never `401`**.
+in the endpoint docs, **never `401`**.
 
 ## Enumeration safety
 
 Error responses must not reveal whether an account, user or resource exists when the caller
 is not entitled to know it: unknown and unauthorized cases answer the same status, code and
 message (e.g. resources of other organizations answer `404`, as if they did not exist). The
-concrete rules (login, password recovery, device authorization…) live in the endpoint specs.
+concrete rules (login, password recovery, device authorization…) live in the endpoint docs.
 **Register is the documented exception:** its `USERNAME_TAKEN` / `EMAIL_TAKEN` answers reveal
 that a username or email exists (see
 [endpoints/auth/session.md](../endpoints/auth/session.md#known-limitation-enumeration)).

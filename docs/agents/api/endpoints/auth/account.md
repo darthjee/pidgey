@@ -1,8 +1,5 @@
 # Account Endpoint
 
-Purpose: define `PATCH /auth/account.json`, the caller's own account edit, and its
-failed-attempt lockout.
-
 Shared rules (guards, trimming, identifiers, password hashing) are in [auth.md](../auth.md).
 The lockout is stored in `account_edit_lockouts`
 ([organizations/data-model/account-edit-lockouts.md](../../../organizations/data-model/account-edit-lockouts.md));

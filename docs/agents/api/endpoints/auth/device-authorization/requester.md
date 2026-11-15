@@ -1,8 +1,5 @@
 # Device Authorization: Requester Endpoints
 
-Purpose: define the endpoints called by the device that is not logged in: create a request,
-then poll it until a session is claimed.
-
 Shared rules (state machine, guards, `201` success codes, input rules, error answers, expiry
 boundary, clock, known limitations) are in [device-authorization.md](../device-authorization.md).
 The table is `authorization_requests`

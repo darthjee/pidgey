@@ -1,8 +1,5 @@
 # Organization Endpoints
 
-Purpose: define `GET /organization.json` and `PATCH /organization.json`, the read and update
-of the caller's organization.
-
 Shared rules (access, guards, field rules, operator log) are in
 [pidgey-admin.md](../pidgey-admin.md). The `organizations` table is defined in
 [organizations/data-model/organizations-and-users.md](../../../organizations/data-model/organizations-and-users.md#organizations).

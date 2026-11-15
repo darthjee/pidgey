@@ -1,8 +1,5 @@
 # Device Authorization
 
-Purpose: index of the device-authorization endpoints, with the state machine and the rules
-they all share (guards, trimming, expiry, clock, error answers, known limitations).
-
 Device authorization is a second way to log in. A device that is **not** logged in (the
 *requester*) asks to log in as `username`. A device where that user **is** logged in (the
 *approver*) sees the request, confirms it with its own password, and approves it. The

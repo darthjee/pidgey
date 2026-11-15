@@ -1,8 +1,5 @@
 # Auth Endpoints
 
-Purpose: index of the `/auth/*.json` endpoint specs and the rules they all share (guards,
-trimming, identifiers, password hashing).
-
 The auth endpoints follow the Citadel contract ([conventions.md](../conventions.md)) and the
 authentication model ([authentication.md](../authentication.md)). Settings are defined in
 [architecture/configuration.md](../../architecture/configuration.md).

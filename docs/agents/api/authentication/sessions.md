@@ -1,8 +1,5 @@
 # Refresh Tokens and Sessions
 
-Purpose: define refresh tokens, sessions, atomic rotation, revocation reasons and replay
-detection for the admin UI.
-
 The refresh token is the long-lived credential of a session. It is stored in the
 `refresh_tokens` table ([organizations/data-model/refresh-tokens.md](../../organizations/data-model/refresh-tokens.md)).
 `REFRESH_TOKEN_TTL` is defined in

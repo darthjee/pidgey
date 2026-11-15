@@ -1,7 +1,5 @@
 # Sending Endpoints
 
-Purpose: define the public sending API (`POST /v1/messages`) and its contract.
-
 ## Relation to the conventions
 
 The public sending API keeps its **own `/v1` contract**. These are documented exceptions to

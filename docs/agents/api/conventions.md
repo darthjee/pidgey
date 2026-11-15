@@ -1,8 +1,5 @@
 # Conventions
 
-Purpose: index of the shared rules that every API endpoint follows (the Citadel contract,
-adapted to Pidgey).
-
 The admin frontend was copied from Citadel and calls the Citadel API contract, so every
 endpoint follows these rules. The public sending API (`POST /v1/messages`) follows them too,
 except for its `/v1` path prefix and its Bearer-token authentication.
