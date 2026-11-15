@@ -1,7 +1,5 @@
 # Request Handler
 
-Purpose: index of the specs describing how an HTTP request flows through the backend, from the Apache rewrite to the response.
-
 ```
 HTTP request
   → Apache + .htaccess                 (rewrite.md)

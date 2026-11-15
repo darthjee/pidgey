@@ -1,7 +1,5 @@
 # Front Controller
 
-Purpose: define what `source/public/index.php` does: bootstrap, dispatch, and error handling around the whole dispatch.
-
 ## Overview
 
 Part of the request flow indexed in [request-handler.md](../request-handler.md). Apache hands every non-static request to `source/public/index.php` ([rewrite.md](rewrite.md)); the front controller turns it into a [`Request`](request-response/request.md), dispatches it and sends the final [`Response`](request-response/response.md).
@@ -13,9 +11,9 @@ Request → CORS preflight → routing → request hooks → handler → respons
 
 It ties together [request-response.md](request-response.md), [routing.md](routing.md), [handlers.md](handlers.md) and [middlewares.md](middlewares.md), and uses their classes without redefining them.
 
-It **replaces the placeholder** `source/public/index.php`, which answers a static `{"status":"ok"}` on every path (see [Backward compatibility](#backward-compatibility)).
+`source/public/index.php` only boots it; see [Backward compatibility](#backward-compatibility) for the `/` and `/health.json` behaviour.
 
-This file is structural only. What each endpoint does stays in [api/endpoints/](../api/endpoints/); what each guard checks stays in the api specs.
+This file is structural only. What each endpoint does stays in [api/endpoints/](../api/endpoints/); what each guard checks stays in the api docs.
 
 ## `index.php` and `Pidgey\Http\FrontController`
 
@@ -157,7 +155,7 @@ Request logging is a front-controller step, not a middleware ([middlewares.md](m
 
 ## Testing
 
-For the implementation issues; no web server is needed.
+Required tests; no web server is needed.
 
 - **Unit tests for `FrontController::handle()`** with `new Request([...])` and a fake router and factory, covering:
   - routing `404`;
@@ -177,7 +175,6 @@ For the implementation issues; no web server is needed.
 
 ## Backward compatibility
 
-- Replaces the placeholder `index.php` (static `{"status":"ok"}` on every path).
 - `/health.json` keeps the same body through a real route ([api/endpoints/operational.md](../api/endpoints/operational.md#get-healthjson)).
 - `/` changes to `404`, as already noted in [rewrite.md](rewrite.md#transition).
 

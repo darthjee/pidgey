@@ -1,7 +1,5 @@
 # Static Files
 
-Purpose: define how the built frontend is served at `/` by the PHP static-file handler (`StaticFileHandler`): the frontend routes, path mapping and rejection, the extension allow-list, the response headers and the hash-route redirect.
-
 Part of the request flow indexed in [request-handler.md](../request-handler.md). The handler is a [`RequestHandler`](handlers.md#requesthandler) like any other: Apache hands the request to the front controller ([rewrite.md](rewrite.md)), the router matches a frontend route ([routing.md](routing.md)), and the handler returns a [`Response`](request-response/response.md). How the frontend is built and released is in [frontend/build.md](../frontend/build.md).
 
 ## Base folder
@@ -53,7 +51,7 @@ Only files whose extension is on the allow-list are served, each with an explici
 | `woff2` | `font/woff2` |
 
 - Any other extension, or no extension, is a 404. Matching ignores case.
-- The list covers what the current build emits (the bundles, Bootstrap's CSS and the Bootstrap Icons fonts). When a dependency adds a file type, the list is **re-checked against `frontend/dist/`** and extended in this spec first.
+- The list covers what the current build emits (the bundles, Bootstrap's CSS and the Bootstrap Icons fonts). When a dependency adds a file type, the list is **re-checked against `frontend/dist/`** and extended in this doc first.
 - **No source maps in production:** `map` is not on the list, and the release build does not emit them ([frontend/build.md](../frontend/build.md#build)).
 
 ## Response headers
@@ -98,7 +96,7 @@ The GET fallback ([routing.md](routing.md#get-fallback)) turns a deep link into 
 - **Fresh clone** (no `source/static/index.html`): `GET /` gets the JSON 404, and the debug log names the resolved path.
 - **Missing asset or directory under `/assets/`:** JSON 404, never a redirect.
 - **Traversal:** `..`, `\`, dotfile segments, `%2e%2e` and symlinks resolving outside `source/static/` are rejected with a 404.
-- **Root-level files in Vite's `public/` folder** (a future favicon or `robots.txt`) are built into `source/static/` but are **unreachable**: only `/` and `/assets/*` are served. Such files go under `/assets/` and are linked from `index.html` (`<link rel="icon" href="/assets/…">`), or get an explicit route added in this spec.
+- **Root-level files in Vite's `public/` folder** (a future favicon or `robots.txt`) are built into `source/static/` but are **unreachable**: only `/` and `/assets/*` are served. Such files go under `/assets/` and are linked from `index.html` (`<link rel="icon" href="/assets/…">`), or get an explicit route added in this doc.
 - **Dev source paths** (`/assets/js/main.jsx`) exist only on the Vite dev server ([frontend/development.md](../frontend/development.md)). In production they are 404: the built `index.html` references the hashed bundles.
 - **Redirect cases** are listed under [Redirect](#redirect).
 

@@ -1,7 +1,5 @@
 # Data Model Conventions
 
-Purpose: define the column, key and constraint conventions every Pidgey table follows.
-
 ## Keys
 
 - Every table has a `BIGINT AUTO_INCREMENT` primary key `id`.

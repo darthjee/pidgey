@@ -1,7 +1,5 @@
 # Organization Scope
 
-Purpose: list what belongs to an organization and how isolation is enforced.
-
 Organization-scoped resources:
 - Users
 - SMTP connections (see [email/smtp-connections.md](../email/smtp-connections.md); endpoints

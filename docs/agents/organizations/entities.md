@@ -1,7 +1,5 @@
 # Entities and Relationships
 
-Purpose: define organizations, users and admins, how they relate, and the user status lifecycle.
-
 ## Organization
 
 - Has many Users, many SMTP Connections and many API Tokens.
@@ -72,7 +70,7 @@ Purpose: define organizations, users and admins, how they relate, and the user s
 - `pending` users can log in (they get a real session) but are blocked from every protected
   route until an admin approves them.
 - `denied` users look like unknown users everywhere, except a login with the **correct**
-  password, which is answered with a dedicated error (code defined by the endpoint specs).
+  password, which is answered with a dedicated error (code defined by the endpoint docs).
 - An admin moves users between statuses: approve (`pending` → `approved` only) and deny (any
   status → `denied`), see
   [api/endpoints/admin-users/review.md](../api/endpoints/admin-users/review.md). `denied` is

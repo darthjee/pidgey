@@ -1,7 +1,5 @@
 # Schema Migrations
 
-Purpose: define the initial migration files that create Pidgey's tables.
-
 File format, runner rules and validation are in
 [architecture/database.md](../architecture/database.md#migrations); column definitions in
 [organizations/data-model.md](../organizations/data-model.md).
@@ -15,8 +13,8 @@ File format, runner rules and validation are in
 - A table is created after every table it references, so foreign keys resolve.
 - Every `CREATE TABLE` states `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`
   explicitly, so the schema does not depend on server defaults.
-- Columns, types, nullability, defaults and indexes match the table spec exactly. When they
-  must differ, the table spec is updated first, in the same change.
+- Columns, types, nullability, defaults and indexes match the table doc exactly. When they
+  must differ, the table doc is updated first, in the same change.
 - Index and constraint names are explicit, so later migrations can refer to them:
   - unique: `uq_<table>_<column>[_<column>]`;
   - plain index: `ix_<table>_<column>[_<column>]`;

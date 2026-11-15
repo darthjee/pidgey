@@ -1,7 +1,5 @@
 # Account Edit Lockouts Table
 
-Purpose: define the `account_edit_lockouts` table that limits failed account-edit attempts.
-
 Editing one's own account requires the current password; repeated failures lock further
 attempts for a while. The lockout rules are defined in
 [api/endpoints/auth/account.md](../../api/endpoints/auth/account.md#lockout); the thresholds

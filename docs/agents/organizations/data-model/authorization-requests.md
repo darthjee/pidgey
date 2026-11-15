@@ -1,7 +1,5 @@
 # Authorization Requests Table
 
-Purpose: define the `authorization_requests` table backing device authorization.
-
 A device authorization request lets a user log in on one device by approving the request from
 another, already logged-in session. The flow, state machine, lifetimes, rate limits and the
 authorize lockout are defined in

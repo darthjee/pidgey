@@ -1,7 +1,5 @@
 # Organizations and Users Tables
 
-Purpose: define the `organizations` and `users` tables.
-
 Conventions (keys, foreign keys, timestamps) are in [conventions.md](conventions.md); the
 domain rules are in [entities.md](../entities.md).
 

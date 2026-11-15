@@ -1,7 +1,5 @@
 # Apache Rewrite
 
-Purpose: define how Apache rewrites requests to the front controller: the `.htaccess` rules, which paths bypass PHP, and the Apache requirements.
-
 Part of the request flow indexed in [request-handler.md](../request-handler.md). This is the first link: Apache decides whether a request is served as a static file, rejected, or handed to `source/public/index.php` ([front-controller.md](front-controller.md)).
 
 ## `.htaccess`
@@ -128,15 +126,13 @@ Note only:
 
 ## Transition
 
-- Today there is no `.htaccess`. Only `/` and `/index.php` reach the placeholder `index.php`, which answers `{"status":"ok"}`. Every other dynamic path gets an Apache HTML 404.
-- Nothing consumes the placeholder: no Docker `healthcheck`, CircleCI step or Makefile target calls it. No compatibility shim is needed.
-- `/` stops being the health check. `GET /health.json` ([api/endpoints/operational.md](../api/endpoints/operational.md)) takes that role, with the same payload, once the front controller ([front-controller.md](front-controller.md)) lands. `/` is the document-root directory, so the rule does not rewrite it; it reaches `index.php` through `DirectoryIndex`, and the router decides what it returns.
-- If the `.htaccess` ships before the real front controller, every non-file path answers 200 `{"status":"ok"}`. This only happens in dev, so the implementation issues may ship them together or in either order.
-- The Vite dev proxy's `*.json` requests start reaching PHP instead of Apache's 404. That is the intended change.
+- `/` is not the health check. It is the document-root directory, so the rule does not rewrite it; it reaches `index.php` through `DirectoryIndex`, and the router decides what it returns (`404`).
+- `GET /health.json` ([api/endpoints/operational.md](../api/endpoints/operational.md)) is the health check, with the `{"status":"ok"}` payload, served by the front controller ([front-controller.md](front-controller.md)).
+- The Vite dev proxy's `*.json` requests reach PHP.
 
 ## Verification
 
-Checks for the implementation issue:
+Required checks:
 
 - A non-file path reaches `index.php`.
 - `/.env` (with a file present) returns 404, and a directory without an index returns 403.

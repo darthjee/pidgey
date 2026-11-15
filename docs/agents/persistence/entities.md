@@ -1,7 +1,5 @@
 # Entities
 
-Purpose: define the `Pidgey\Model\` classes that represent a table row in PHP.
-
 ## Shape
 
 - One entity per table, named after the singular of the table:

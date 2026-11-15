@@ -1,7 +1,5 @@
 # Routing
 
-Purpose: define how a request is mapped to a handler class: route registration, where the route files live, `:param` matching and capture, prefix routes, the GET fallback, and the 404 fallback.
-
 Part of the request flow indexed in [request-handler.md](../request-handler.md). Routing runs after the [`Request`](request-response/request.md) is built and before the hooks ([middlewares.md](middlewares.md)) and the handler ([handlers.md](handlers.md)).
 
 This file is structural only. What each endpoint does stays in [api/endpoints/](../api/endpoints/). API paths follow [api/conventions/format.md](../api/conventions/format.md#paths): root-relative, ending in `.json`, with the single `/v1` exception `POST /v1/messages`. The frontend routes (`GET /`, `GET /assets/*` and the GET fallback) are the other non-`.json` paths; what they serve is in [static-files.md](static-files.md).
@@ -100,7 +98,7 @@ The **GET fallback** is a final route, tried after every other route, that sends
 - Captured values are read by the handler through `param()` on the processing request ([request-response/processing-request.md](request-response/processing-request.md#route-params)). Handlers never re-parse the path.
 - The router only checks `[^/]+`. It does not check the value's shape.
 - Handlers read integer ids with [`intParam()`](handlers.md#route-params-and-intparam), a protected method on `RequestHandler`:
-  - a malformed value (not matching `^[1-9][0-9]*$`) gets `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` (`BadRequestException`, see [request-response/errors.md](request-response/errors.md#exceptions)). For example, `GET /smtp-connections/abc.json` gets a 400 from the handler, as in the endpoint specs ([api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#id-path-parameter));
+  - a malformed value (not matching `^[1-9][0-9]*$`) gets `400 BAD_REQUEST` — `Validation failed (numeric string is expected)` (`BadRequestException`, see [request-response/errors.md](request-response/errors.md#exceptions)). For example, `GET /smtp-connections/abc.json` gets a 400 from the handler, as in the endpoint docs ([api/endpoints/pidgey-admin.md](../api/endpoints/pidgey-admin.md#id-path-parameter));
   - a well-formed value larger than `PHP_INT_MAX` gets the handler's `404` (`NotFoundException` with the resource's not-found message).
 - Rejected: **per-param constraints** such as `:id(\d+)`. They add syntax, and the handler must still check that the record exists.
 

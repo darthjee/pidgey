@@ -1,7 +1,5 @@
 # Data Model
 
-Purpose: index of the database table specs; the authoritative schema is the SQL migrations (see [architecture/database.md](../architecture/database.md)).
-
 | File | Content |
 | --- | --- |
 | [conventions.md](data-model/conventions.md) | Keys, foreign keys, timestamps, token hashes, charset. |

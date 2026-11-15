@@ -1,7 +1,5 @@
 # Password Reset Tokens Table
 
-Purpose: define the `password_reset_tokens` table used for account recovery.
-
 Each row is one recovery token (from a recovery link or email). The recovery flow is
 defined in [api/endpoints/auth/recovery.md](../../api/endpoints/auth/recovery.md); the token
 lifetime (`PASSWORD_RESET_TOKEN_TTL`) and the recover cooldown (`PASSWORD_RESET_COOLDOWN`) in

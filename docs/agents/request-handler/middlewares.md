@@ -1,10 +1,8 @@
 # Middlewares
 
-Purpose: define the middleware contract (request and response hooks), how middlewares are attached globally and per route, their order, and the concrete v1 middlewares by name and order only.
-
 Part of the request flow indexed in [request-handler.md](../request-handler.md). Middlewares run after routing ([routing.md](routing.md)): their request hooks run before the handler ([handlers.md](handlers.md)), their response hooks after it.
 
-This file is structural only. What each guard checks and answers stays in the api specs ([api/conventions/origin-check.md](../api/conventions/origin-check.md), [api/authentication/gate.md](../api/authentication/gate.md), [api/authentication/api-tokens.md](../api/authentication/api-tokens.md)). The processing request, the responses and the exceptions are used here, not redefined ([request-response.md](request-response.md)). Classes are hand-written: no middleware library and no new runtime dependency ([architecture/dependencies.md](../architecture/dependencies.md)).
+This file is structural only. What each guard checks and answers stays in the api docs ([api/conventions/origin-check.md](../api/conventions/origin-check.md), [api/authentication/gate.md](../api/authentication/gate.md), [api/authentication/api-tokens.md](../api/authentication/api-tokens.md)). The processing request, the responses and the exceptions are used here, not redefined ([request-response.md](request-response.md)). Classes are hand-written: no middleware library and no new runtime dependency ([architecture/dependencies.md](../architecture/dependencies.md)).
 
 ## `Pidgey\Http\Middleware`
 
@@ -121,7 +119,7 @@ The list passed to `handle()` is the global middlewares first, then the route's 
 
 ## Concrete middlewares (name and order only)
 
-Behaviour, statuses and messages are defined by the linked specs; this table only fixes names, attachment and order.
+Behaviour, statuses and messages are defined by the linked docs; this table only fixes names, attachment and order.
 
 | Order | Middleware | Attached | On failure | Defined in |
 | --- | --- | --- | --- | --- |
@@ -189,7 +187,7 @@ Global first, then the route's list in declared order. Route lists follow the gu
 
 ## Testing
 
-For the implementation issues:
+Required tests:
 
 - **Unit tests per middleware** with a real `ProcessingRequest` built from `Request` overrides ([request-response/request.md](request-response/request.md#test-overrides)), plus fakes for the middleware's dependencies.
 - **Deny-by-default integration test** over `config/routes.php`:

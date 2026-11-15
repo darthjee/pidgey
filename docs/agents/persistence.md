@@ -1,10 +1,8 @@
 # Persistence
 
-Purpose: index of the specs describing how the application code reaches the database: the runtime connection, the initial schema migrations, the entity classes, the repositories and how they are tested.
-
 Database access rules, the database scripts and the migrations runner are specified in
 [architecture/database.md](architecture/database.md); the tables themselves in
-[organizations/data-model.md](organizations/data-model.md). This spec builds on both and
+[organizations/data-model.md](organizations/data-model.md). This doc builds on both and
 does not repeat them.
 
 ```

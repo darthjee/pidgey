@@ -1,7 +1,5 @@
 # Request and Response
 
-Purpose: index of the specs defining the request and response models, the processing request (route params, attached data, early response), the error responses, and how a response is sent.
-
 Part of the request flow indexed in [request-handler.md](../request-handler.md). The front controller ([front-controller.md](front-controller.md)) builds a `Request` from the PHP globals, wraps it in a processing request for one dispatch, and sends the resulting `Response` through the `ResponseSender`.
 
 All classes live in `Pidgey\Http\` (except the wall clock, in `Pidgey\Infra\`). They are hand-written: no HTTP library and no new runtime dependency ([architecture/dependencies.md](../architecture/dependencies.md)).
