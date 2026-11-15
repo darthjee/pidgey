@@ -109,7 +109,7 @@ Rules:
 ## Fake SMTP server
 
 Two fakes cover what Mailpit cannot produce. Both are test-only support classes (see
-[testing/backend.md](../testing/backend.md#email-test-support)).
+[contributing/testing.md](../contributing/testing.md#email-test-support)).
 
 ### `Pidgey\Tests\Support\FakeSmtpStream`
 
@@ -229,4 +229,4 @@ covered by automated tests.
   [Testable rules](../api/endpoints/pidgey-admin/smtp-connections.md#testable-rules) of the
   SMTP connection endpoints.
 
-See [testing](../testing.md).
+See [testing](../contributing/testing.md).

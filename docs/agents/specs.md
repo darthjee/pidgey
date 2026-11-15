@@ -24,7 +24,7 @@ plans (see [contributing.md](contributing.md#deployment-changes)).
 | [email](email.md) | SMTP connections, synchronous send flow, message scope, failure handling. |
 | [api](api.md) | JSON API v1 surface, token authentication and scopes, conventions. |
 | [frontend](frontend.md) | React admin UI stack, layout, client layer, screens, build. |
-| [testing](testing.md) | Backend and frontend testing, linting, definition of done. |
+| [testing](contributing/testing.md) | Backend| Backend and frontend testing, linting, definition of done. |
 
 ## Spec granularity rule
 

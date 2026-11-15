@@ -7,7 +7,7 @@ Purpose: define how the plain PHP backend is structured.
 - Plain PHP 8.4, **no application framework**.
 - PSR-4 autoloading via Composer: namespace `Pidgey\` maps to `source/lib/`.
 - `declare(strict_types=1);` in every file; code follows phpcs + slevomat rules
-  (see [testing/backend.md](../testing/backend.md)).
+  (see [contributing/testing.md](../contributing/testing.md#backend-testing)).
 - Logging through `monolog/monolog`.
 
 ## Entry point

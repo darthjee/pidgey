@@ -75,4 +75,4 @@ Notes:
   (`DB_NAME=pidgey_test`); to migrate the development database from there, run
   `DB_NAME=pidgey_development composer db:migrate`.
 
-`make tests` green is part of the definition of done (see [testing](../testing.md)).
+`make tests` green is part of the definition of done (see [testing](../contributing/testing.md)).

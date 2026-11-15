@@ -23,7 +23,7 @@ Thin PHP CLI entry points in `source/bin/` (argument parsing and exit codes only
 lives in `Pidgey\Infra`), all PDO-based (no shell, no `mysql` client). They live under
 `source/` because only `source/` is mounted in the containers and shipped in the image. Each
 exits `0` on success and non-zero on any failure, with the error on stderr. They are exposed
-as composer scripts (see [testing/backend.md](../testing/backend.md)):
+as composer scripts (see [contributing/testing.md](../contributing/testing.md#backend-testing)):
 
 | Script | Composer | Action |
 | --- | --- | --- |

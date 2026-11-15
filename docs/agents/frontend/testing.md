@@ -40,7 +40,7 @@ Purpose: define the frontend test, coverage and lint setup, and how the checks r
 
 ## SMTP connections definition of done
 
-On top of the [definition of done](../testing/definition-of-done.md), the SMTP connection
+On top of the [definition of done](../contributing.md#definition-of-done-for-prs), the SMTP connection
 screens ([screens.md](screens.md#smtp-connections-screens)) are done when:
 
 - their Jasmine specs use the [shared fixtures](#api-response-fixtures);
@@ -73,4 +73,4 @@ jasmine; it lints `assets` and `specs`.
 - CI: the `frontend_checks` job runs lint and coverage
   (see [deployment/pipeline.md](../deployment/pipeline.md#check-jobs)).
 
-See [testing](../testing.md).
+See [testing](../contributing/testing.md).
