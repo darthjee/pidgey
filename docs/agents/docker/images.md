@@ -22,7 +22,7 @@ Apache serves PHP directly (`apache2-foreground`); there is no Tent or reverse p
 Registry: Docker Hub `darthjee/`.
 
 There is **no production image**. Production runs from files uploaded by the deploy workflow
-to an SSH/rsync host (see [deployment/pipeline.md](../../deployment/pipeline.md#deploy-script)), and the built
+to an SSH/rsync host (see [deployment/pipeline.md](../deployment/pipeline.md#deploy-script)), and the built
 frontend reaches production by upload (option C in
 [frontend/build.md](../frontend/build.md#production-delivery)). A release is identified by its
 git semver tag.
@@ -30,12 +30,12 @@ git semver tag.
 ## Deploy tooling
 
 The context jobs `upload_backend`, `upload_frontend` and `release` (see
-[deployment/pipeline.md](../../deployment/pipeline.md#deploy-chain)) need:
+[deployment/pipeline.md](../deployment/pipeline.md#deploy-chain)) need:
 
 - **`deploy_frontend.sh`** from the `darthjee/scripts` image, version `0.12.0` (the
   first version with `cleanup`). Moving to another version is a version bump of the copied
   image plus an image rebuild with a bumped `CI_BASE_VERSION` (see
-  [deployment/pipeline.md](../../deployment/pipeline.md#deploy-script)).
+  [deployment/pipeline.md](../deployment/pipeline.md#deploy-script)).
   It is copied in, not vendored:
   `COPY --from=darthjee/scripts:<version> /home/scripts/sbin/deploy_frontend.sh /usr/local/sbin/`.
 - **`ssh`** (`openssh-client`) and **`rsync`**.
@@ -49,7 +49,7 @@ Images:
   binary at `/usr/local/bin/mailpit` (`COPY --from=axllent/mailpit:v1.32.0 /mailpit`, version
   set by `ARG MAILPIT_VERSION`, bumped together with the compose tag), which `backend_tests`
   uses to start the test Mailpit instances on `localhost` (see
-  [deployment/pipeline.md](../../deployment/pipeline.md#email-test-instances)).
+  [deployment/pipeline.md](../deployment/pipeline.md#email-test-instances)).
 - **No frontend deploy image:** `build_frontend` runs in `darthjee/circleci_node:0.2.1` (like
   `frontend_checks`) and needs no deploy tooling; `upload_frontend` only uploads the built
   `dist/` from the workspace, so it needs no node or yarn.

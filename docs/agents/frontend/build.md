@@ -34,7 +34,7 @@ output never lives in git.
 (`vite build`, in the `build_frontend` job, without the deploy context) and uploads `dist/`
 into the staging release's `static/` folder, next to `public/`, in the same release as the
 backend (the `upload_frontend` job, see
-[deployment/pipeline.md](../../deployment/pipeline.md#deploy-chain)). Both halves come from the
+[deployment/pipeline.md](../deployment/pipeline.md#deploy-chain)). Both halves come from the
 same tag and are swapped in together, so they stay in sync.
 
 Rejected options:

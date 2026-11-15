@@ -49,9 +49,9 @@ Two database users can share the same `DB_HOST`, `DB_PORT` and `DB_NAME`:
   `DB_MIGRATE_PASSWORD` lives in the same shared `.env` that the web app loads on every
   request, so a file-read or code-execution bug in the web app could still obtain the
   migration credentials (see
-  [deployment/known-gaps.md](../../deployment/known-gaps.md#migration-credentials-in-the-shared-env)).
+  [deployment/known-gaps.md](../deployment/known-gaps.md#migration-credentials-in-the-shared-env)).
   The grants of each user in production are in
-  [deployment/server.md](../../deployment/server.md#database-users).
+  [deployment/server.md](../deployment/server.md#database-users).
 - Docker, CI and tests set no `DB_MIGRATE_*` and use one user through the fallback.
 
 ## Migrations
@@ -71,7 +71,7 @@ Two database users can share the same `DB_HOST`, `DB_PORT` and `DB_NAME`:
 - In production the deploy runs `$PHP_BIN bin/migrate` in the staging folder, after
   `bin/check-config` and **before** the swap, so new code never serves an old schema and a
   failed migration aborts the deploy with the live release untouched (see
-  [deployment/pipeline.md](../../deployment/pipeline.md#deploy-script)).
+  [deployment/pipeline.md](../deployment/pipeline.md#deploy-script)).
 - `wait-for-db` runs before migrations wherever the database may still be starting
   (compose, CI).
 - Before integration tests, the test database is created (if missing) and migrated
@@ -88,7 +88,7 @@ migration must keep working with the previous release's code.**
 - **Contract later:** drop or rename columns and tables only in a later release, once no
   released code uses them.
 
-See [deployment/operations.md](../../deployment/operations.md#failure-before-the-swap).
+See [deployment/operations.md](../deployment/operations.md#failure-before-the-swap).
 
 ### One statement per file
 

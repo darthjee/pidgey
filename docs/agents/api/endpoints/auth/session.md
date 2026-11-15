@@ -132,7 +132,7 @@ per-username lockout was rejected: it lets anyone lock a victim out, and a "lock
 reveals that the username exists. Per-IP throttling is a pending decision in
 [api/pending.md](../../pending.md); until then, rate limiting `/auth/*.json` at the proxy is
 recommended. The current production host has no configurable proxy, so this is a known gap
-(see [deployment/known-gaps.md](../../../../deployment/known-gaps.md#no-proxy-rate-limiting)).
+(see [deployment/known-gaps.md](../../../deployment/known-gaps.md#no-proxy-rate-limiting)).
 
 ## `POST /auth/refresh.json`
 

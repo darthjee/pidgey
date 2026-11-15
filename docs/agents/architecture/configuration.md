@@ -41,7 +41,7 @@ Purpose: list every environment variable the application reads, with its default
 
 - `DB_HOST`, `DB_PORT` and `DB_NAME` are shared by both users.
 - `DB_MIGRATE_USER` and `DB_MIGRATE_PASSWORD` are set **together or not at all**. The rule is
-  enforced by [`bin/check-config`](#bin-check-config), which runs before every
+  enforced by [`bin/check-config`](#bincheck-config), which runs before every
   release: when one is set and the other is not (an empty value counts as unset, like every
   other key), it exits non-zero. The schema/admin commands themselves do not enforce it: they
   use the migration user whenever `DB_MIGRATE_USER` is set (with an empty password if
@@ -215,7 +215,7 @@ sent through the system organization's active SMTP connection (see
   follows the same length rule as `SECRET_KEY`; an invalid entry also refuses boot.
 - Keys are never logged or returned by any endpoint.
 - Production keys are generated with a CSPRNG and stored only in the production env file on
-  the host (see [deployment/server.md](../../deployment/server.md#folders)).
+  the host (see [deployment/server.md](../deployment/server.md#folders)).
 
 ### Development key
 
@@ -278,7 +278,7 @@ sent through the system organization's active SMTP connection (see
 ## Env file
 
 An optional env file supplies configuration where the process environment does not, as on the
-production host (see [deployment/server.md](../../deployment/server.md#the-configenv-link)).
+production host (see [deployment/server.md](../deployment/server.md#the-configenv-link)).
 
 - **Location:** `config/.env`, relative to the app root: `source/` in the repository, the
   release root on the server. `config/.env` is git-ignored; in production it is a symlink to
@@ -308,7 +308,7 @@ production host (see [deployment/server.md](../../deployment/server.md#the-confi
 
 A CLI command that checks the configuration without starting the app; the deploy runs it in
 the staging folder before migrating and swapping (see
-[deployment/pipeline.md](../../deployment/pipeline.md#deploy-script)).
+[deployment/pipeline.md](../deployment/pipeline.md#deploy-script)).
 
 - Loads the env file (as every `bin/*` does), then runs the same validation the app runs at
   boot: every rule on this page that refuses boot, including the `SECRET_KEY` and
@@ -318,7 +318,7 @@ the staging folder before migrating and swapping (see
   (see [Origins](#origins)), the [SMTP transport](#smtp-transport) rules and the
   [`LOG_LEVEL`](#logging) rule.
 - Also checks that the running PHP is **8.4.x**, since production is pinned to PHP 8.4 (see
-  [deployment/server.md](../../deployment/server.md#host-requirements)). This catches a wrong
+  [deployment/server.md](../deployment/server.md#host-requirements)). This catches a wrong
   `PHP_BIN` or a host change.
 - Checks that the `sodium` PHP extension is loaded (`extension_loaded('sodium')`), needed to
   encrypt and decrypt SMTP passwords (see [dependencies.md](dependencies.md)). Unlike the PHP

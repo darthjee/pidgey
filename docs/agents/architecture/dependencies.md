@@ -12,7 +12,7 @@ Purpose: constrain what libraries the project may depend on.
     issue), so `composer install` / `composer check-platform-reqs` fail on a PHP without it.
   - The official `php:8.4` images compile `sodium` in; the CircleCI image, which has a
     different base, must be confirmed to have it wherever PHPUnit runs. The production host
-    is covered by `bin/check-config` (see [configuration.md](configuration.md#bin-check-config)),
+    is covered by `bin/check-config` (see [configuration.md](configuration.md#bincheck-config)),
     which runs before every release.
 - **Dev (`require-dev`)**: `phpunit/phpunit`, `squizlabs/php_codesniffer`,
   `slevomat/coding-standard`, `phpmd/phpmd` (as used in the tent repository).

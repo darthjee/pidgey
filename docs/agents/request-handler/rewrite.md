@@ -93,7 +93,7 @@ The production host has the same setup as oak, a DreamHost shared host. Verified
   The probe ran against the earlier layout, with the UI in a web-root subfolder served by Apache (including a `mod_dir` 301 to add the trailing slash). That part no longer applies: the UI is served by PHP at `/` ([static-files.md](static-files.md)), so it needs no Apache feature beyond the front-controller rule verified above.
 - Without `CGIPassAuth On`, `HTTP_AUTHORIZATION` is null. With it, the token arrives, and a request with no header leaves it unset.
 
-The deployment docs describe this target: the release layout, the web directory pointing at the release's `public/` and the host requirements are in [deployment/server.md](../../deployment/server.md). There is no production Docker image (see [docker/images.md](../docker/images.md)).
+The deployment docs describe this target: the release layout, the web directory pointing at the release's `public/` and the host requirements are in [deployment/server.md](../deployment/server.md). There is no production Docker image (see [docker/images.md](../docker/images.md)).
 
 ## Security
 

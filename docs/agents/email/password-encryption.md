@@ -155,7 +155,7 @@ pidgey:smtp-connection:v1:<organization_id>:<connection_id>
    - Exit `0` when nothing is unreadable, `1` otherwise.
 3. The release does **not** run the command automatically.
 4. The operator procedure is the runbook in
-   [deployment/operations.md](../../deployment/operations.md) (section "Rotate
+   [deployment/operations.md](../deployment/operations.md) (section "Rotate
    `SMTP_ENCRYPTION_KEY`"): generate a new key → move the old one to
    `PREVIOUS_SMTP_ENCRYPTION_KEYS` and set the new one as `SMTP_ENCRYPTION_KEY` → run
    `bin/reencrypt-smtp-passwords` → once `--check` reports no old-key rows, remove the old
