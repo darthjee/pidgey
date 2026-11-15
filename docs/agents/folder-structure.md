@@ -1,8 +1,8 @@
 # Folder Structure
 
-The layout below is the target defined in
-[architecture/repository-layout.md](architecture/repository-layout.md),
-which is the source of truth. Entries marked *(planned)* do not exist yet.
+The layout below is the current one; details are in
+[architecture/repository-layout.md](architecture/repository-layout.md).
+Entries marked *(planned)* do not exist yet.
 
 ## Project Root
 
@@ -10,15 +10,15 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 |-----------------|-------------|
 | `source/` | PHP backend: `composer.json`, PSR-4 code under `lib/` (namespace `Pidgey\`), public web root with the front controller, SQL migrations and PHPUnit tests. |
 | `frontend/` | React admin UI (Vite project); its built `dist/` is released into `source/static` (`make build-fe-release`) and served at `/` by the PHP static-file handler. |
-| `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/` (CI image, built and pushed manually with `make build-ci-base && make push-ci-base`), `vite_pidgey-base/`, `vite_pidgey/` (frontend Node images); `pidgey/` *(planned)*. |
+| `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/` (CI image, built and pushed manually with `make build-ci-base && make push-ci-base`), `vite_pidgey-base/`, `vite_pidgey/` (frontend Node images), `mysql/`; `pidgey/` *(planned)*. |
 | `docker_volumes/` | Host-side persistent data mounted into containers. Git-ignored except placeholders. |
 | `dev/` | *(planned)* Development helpers: sample configuration, seed data, local-only scripts. |
-| `scripts/` | *(planned)* Host-side / CI-only operational scripts. DB scripts live in `source/bin/`, since only `source/` ships in the image. |
+| `scripts/` | Host-side / CI-only operational scripts. DB scripts live in `source/bin/`, since only `source/` ships in the image. |
 | `.circleci/` | CircleCI configuration (`config.yml`): `backend_checks`, `backend_tests` and `frontend_checks` on every branch and tag. |
 | `.codacy.yml` | Codacy analysis configuration (`exclude_paths`). |
 | `docker-compose.yml`, `Makefile` | Local orchestration and `make` targets (including `build-ci-base`/`push-ci-base` for the CI image). CI does not call `make`; its jobs run `composer` directly. |
 | `.env` | Committed, development-only values (local MySQL credentials, DB/SMTP hosts) loaded by the compose services. Never holds real secrets. |
-| `docs/agents/` | Agent documentation: specs, issues, plans, architecture and guides. Entry point is `docs/agents/specs.md`. |
+| `docs/agents/` | Agent documentation: area docs, guides, issues and plans. The area docs are indexed in `docs/agents/specs.md`. |
 | `.github/` | PR template, commit message templates and Copilot instructions. |
 | `AGENTS.md` | Agent entry point (rules and documentation index). |
 | `CLAUDE.md` | Points Claude Code to `AGENTS.md`. |
@@ -53,6 +53,8 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 
 | Subdirectory / File | Description |
 |---------------------|-------------|
-| `specs.md`, `specs/` | Specs hub and spec areas. The source of truth for the intended design. |
+| `specs.md` | Hub indexing the area docs. |
+| `<area>.md`, `<area>/` | Area hubs and their detail files (overview, architecture, persistence, request-handler, docker, organizations, email, api, frontend, contributing, deployment). |
+| `folder-structure.md`, `flow.md` | Guides. |
 | `issues/` | Detailed issue files (`<issue_id>_<issue_name>.md`). |
 | `plans/` | Implementation plans (`<issue_id>_<topic>/`). |
