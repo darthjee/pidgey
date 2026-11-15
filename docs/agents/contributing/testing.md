@@ -1,6 +1,8 @@
-# Backend Testing
+# Testing
 
-Purpose: define backend test suites and quality tooling.
+Test suites, tooling and commands. The definition of done lives in [contributing.md](../contributing.md#definition-of-done-for-prs); area-specific testing docs stay with their areas: [persistence/testing.md](../persistence/testing.md), [frontend/testing.md](../frontend/testing.md), [email/testing.md](../email/testing.md).
+
+## Backend Testing
 
 - **PHPUnit**, two suites:
   - `unit` (`source/tests/unit/`): no database, no network.
@@ -37,7 +39,7 @@ Test folders under `source/tests/`:
 | `support/` | Shared test helpers. |
 | `fixtures/` | Static test data. |
 
-## Email test support
+### Email test support
 
 Test-only helpers for the email integration (behavior in
 [email/testing.md](../email/testing.md)):
@@ -96,7 +98,7 @@ Linters:
 - **phpmd**: the unused-code ruleset is a gate in `lint`; the complexity rules produce a
   report through `complexity`.
 
-## Configuration loading
+### Configuration loading
 
 Tests for the env-file loader and `bin/check-config` (see
 [architecture/configuration.md](../architecture/configuration.md#env-file)):
@@ -153,3 +155,15 @@ Tests for the env-file loader and `bin/check-config` (see
 
 There is no automated test of the deploy workflow itself; how a release is verified is in
 [deployment/operations.md](../deployment/operations.md#release).
+
+## Frontend Testing
+
+- Jasmine specs under `specs/assets/js/` mirroring `assets/js/`, named `*Spec.js`; helpers in
+  `specs/support/`.
+- Coverage: `yarn test` runs under nyc, `yarn coverage` under c8 (lcov).
+- ESLint 9 flat config (`eslint.config.mjs`).
+- API responses come from shared JSON fixtures in `specs/support/fixtures/`, hand-maintained
+  copies of the API spec's example responses.
+- Commands: `yarn test`, `yarn coverage`, `yarn lint`, `yarn lint_fix`.
+
+Details in [frontend/testing.md](../frontend/testing.md).
