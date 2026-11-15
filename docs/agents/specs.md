@@ -1,19 +1,12 @@
-# Pidgey Specs
+# Pidgey Docs
 
-This folder defines the intended design of Pidgey: what it is, how the repository is
-organized, how HTTP requests are handled, how it runs in Docker, how organizations, email sending and the API work,
-how the React admin UI is built, and how it is tested. These
-specs are the **source of truth for implementation**: code must not deviate from
-them without updating the relevant spec first. They describe the target state and
-will later be replaced by documentation of the actual project.
-
-Deployment is not specified here: it is documented as built in
-[`deployment.md`](deployment.md), and new deployment requirements go in GitHub issues and
-plans (see [contributing.md](contributing.md#deployment-changes)).
+This file indexes Pidgey's documentation. The docs describe the system as built and are
+updated in the same change set as the code. Later, this hub is also where specs for features
+not built yet will be indexed; there are none today.
 
 ## Index
 
-| Spec | Purpose |
+| Doc | Purpose |
 | --- | --- |
 | [overview](overview.md) | What Pidgey is and is not, goals, component map, terminology. |
 | [architecture](architecture.md) | Repository layout, backend structure, database access, dependency policy. |
@@ -24,25 +17,12 @@ plans (see [contributing.md](contributing.md#deployment-changes)).
 | [email](email.md) | SMTP connections, synchronous send flow, message scope, failure handling. |
 | [api](api.md) | JSON API v1 surface, token authentication and scopes, conventions. |
 | [frontend](frontend.md) | React admin UI stack, layout, client layer, screens, build. |
-| [testing](contributing/testing.md) | Backend| Backend and frontend testing, linting, definition of done. |
-
-## Spec granularity rule
-
-Specs are organized in three levels:
-
-- `docs/agents/specs.md` (this file) — the hub, indexing every spec.
-- `docs/agents/specs/<name>.md` — a short index for one spec area, linking to its
-  detail files.
-- `docs/agents/specs/<name>/*.md` — the detail files holding the actual content.
-
-A spec may start as a single file `docs/agents/specs/<name>.md`. When it grows too
-large to stay coherent in one file, it must be split into a folder
-`docs/agents/specs/<name>/` containing `*.md` files, and `<name>.md` becomes a short
-index of the folder contents. The same rule applies recursively to detail files.
+| [contributing](contributing.md) | Commit, PR and code-organization rules, plus testing, linting and definition of done in [contributing/testing.md](contributing/testing.md). |
+| [deployment](deployment.md) | The production deployment as implemented: pipeline, variables, server, operations, known gaps. |
 
 ## Conventions
 
-- Every spec file begins with a title and a one-line purpose statement.
 - Undecided items are marked explicitly as **Pending decision**.
 - English only.
-- When a new spec area is added, it must be indexed in the table above.
+- When a new area is added, index it in the table above.
+- Each area is a hub `docs/agents/<area>.md` indexing its detail files under `docs/agents/<area>/`.

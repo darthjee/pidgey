@@ -15,8 +15,8 @@ email through SMTP connections configured per organization, exposes a JSON API
 (authenticated by scoped API tokens) for sending messages, and ships a React
 administrative UI.
 
-Project documentation lives under [`docs/agents/`](docs/agents/); the entry point is
-[`docs/agents/specs.md`](docs/agents/specs.md).
+Project documentation lives under [`docs/agents/`](docs/agents/); start with [`AGENTS.md`](AGENTS.md); the area docs
+are indexed in [`docs/agents/specs.md`](docs/agents/specs.md).
 
 ## First run
 
@@ -34,7 +34,7 @@ make dev-up   # or: docker compose up app
 
 After `make dev-up`, the admin UI (Vite dev server) is at `http://localhost:8030/`. See the
 [First run](docs/agents/frontend/development.md#first-run) section of the frontend
-development spec for details (Vite proxy, ports, dependencies).
+development doc for details (Vite proxy, ports, dependencies).
 
 See [`docs/agents/docker/makefile.md`](docs/agents/docker/makefile.md) for
 the full list of `make` targets and platform notes (e.g. Apple Silicon).

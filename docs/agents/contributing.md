@@ -1,9 +1,9 @@
 # Contributing
 
 Pidgey's backend is plain PHP 8.4 (no framework) and its admin UI is React (plain
-JavaScript). The examples below are PHP unless they say otherwise. The specs under
-[`docs/agents/specs.md`](specs.md) are the source of truth: when a change alters a
-decision, update the spec first, in the same change set.
+JavaScript). The examples below are PHP unless they say otherwise. The docs under
+`docs/agents/` (indexed in [specs.md](specs.md)) describe the system as built: a change that
+alters behaviour or a decision updates them in the same change set.
 
 ## Commit Guidelines
 
@@ -98,7 +98,7 @@ This same process must be followed when **planning how to resolve an issue**: in
 
 ### Deployment changes
 
-Deployment has no spec. New deployment requirements are written in the GitHub issue and its
+New deployment requirements are written in the GitHub issue and its
 plan (`docs/agents/plans/`). A change to the pipeline, the deploy variables, the host layout or
 the runbooks updates [deployment.md](deployment.md) and `deployment/*.md` in the **same**
 change that ships it, so those docs keep describing the deployment as built. A gap the change
