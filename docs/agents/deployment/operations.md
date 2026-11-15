@@ -1,6 +1,6 @@
 # Operations
 
-Purpose: runbooks for releasing Pidgey and for the manual tasks the deploy does not automate.
+Runbooks for releasing Pidgey and for the manual tasks the deploy does not automate.
 
 Placeholders: `<live>` is the live folder (`$SSH_REMOTE_DIR`), `<domain>` is Pidgey's domain.
 Commands on the host run over SSH as the host user (see [variables.md](variables.md)).

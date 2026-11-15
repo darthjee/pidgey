@@ -1,6 +1,6 @@
 # Database
 
-Purpose: define how Pidgey stores data and evolves its schema.
+Define how Pidgey stores data and evolves its schema.
 
 ## Access
 

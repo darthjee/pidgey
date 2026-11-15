@@ -1,6 +1,6 @@
 # Repository Layout
 
-Purpose: define the top-level folders of the repository and their responsibilities.
+Define the top-level folders of the repository and their responsibilities.
 
 | Path | Content |
 | --- | --- |

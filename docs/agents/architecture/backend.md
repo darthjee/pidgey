@@ -1,6 +1,6 @@
 # Backend
 
-Purpose: define how the plain PHP backend is structured.
+Define how the plain PHP backend is structured.
 
 ## Principles
 

@@ -1,6 +1,6 @@
 # Known gaps
 
-Purpose: list what the current deployment does not cover yet, why, and where each gap is
+List what the current deployment does not cover yet, why, and where each gap is
 tracked.
 
 ## No proxy rate limiting

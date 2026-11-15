@@ -1,6 +1,6 @@
 # Server
 
-Purpose: describe the production host as the deploy uses it: its folders, the `config/.env`
+Describe the production host as the deploy uses it: its folders, the `config/.env`
 link, the web directory, the shared `.env`, the host requirements, the database users and
 HTTPS.
 

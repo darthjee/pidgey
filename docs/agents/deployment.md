@@ -1,8 +1,8 @@
 # Deployment
 
-Purpose: describe the production deployment **as implemented** (release `0.1.0`,
-`darthjee/scripts:0.12.0`). These docs are the deployment reference; there is no deployment
-spec. New deployment requirements are written in GitHub issues and their plans, and these docs
+Describe the production deployment **as implemented** (release `0.1.0`,
+`darthjee/scripts:0.12.0`). These docs are the deployment reference.
+New deployment requirements are written in GitHub issues and their plans, and these docs
 are updated in the same change that ships a deployment change (see
 [contributing.md](contributing.md#deployment-changes)).
 
