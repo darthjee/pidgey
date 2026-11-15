@@ -1,8 +1,18 @@
 # Architecture
 
-> This document summarizes the target architecture. The authoritative details are in
-> the specs, starting at [specs/architecture.md](specs/architecture.md). If this
-> summary and a spec disagree, the spec wins.
+Index of the architecture docs: repository layout, backend structure, database access,
+dependency policy and configuration. The sections below summarize the architecture; the
+detail files hold the full contract.
+
+## Detail files
+
+| File | Content |
+| --- | --- |
+| [repository-layout.md](architecture/repository-layout.md) | Top-level folders and what goes in each. |
+| [backend.md](architecture/backend.md) | Plain PHP backend: namespace, front controller, layers. |
+| [database.md](architecture/database.md) | MySQL 9 via raw PDO; migrations strategy. |
+| [dependencies.md](architecture/dependencies.md) | Runtime vs dev dependency policy. |
+| [configuration.md](architecture/configuration.md) | Every environment variable, its default and effect. |
 
 ## Overview
 
@@ -24,8 +34,7 @@ See [overview/components.md](overview/components.md) for the component map.
 
 ## Source Code Layout
 
-All backend source code lives under `source/` (*planned*). Frontend code lives under
-`frontend/` (*planned*).
+All backend source code lives under `source/`. Frontend code lives under `frontend/`.
 
 ### `source/lib/` — namespace `Pidgey\`
 

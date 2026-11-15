@@ -16,7 +16,7 @@ plans (see [contributing.md](contributing.md#deployment-changes)).
 | Spec | Purpose |
 | --- | --- |
 | [overview](overview.md) | What Pidgey is and is not, goals, component map, terminology. |
-| [architecture](specs/architecture.md) | Repository layout, backend structure, database access, dependency policy. |
+| [architecture](architecture.md) | Repository layout, backend structure, database access, dependency policy. |
 | [persistence](persistence.md) | Runtime database connection, transactions, initial schema migrations, entities, repositories and their tests. |
 | [request-handler](request-handler.md) | How HTTP requests flow through the backend: Apache rewrite, front controller, request/response, routing, request handlers, middlewares. |
 | [docker](docker.md) | Image layers, docker-compose services, volumes, Makefile targets. |
