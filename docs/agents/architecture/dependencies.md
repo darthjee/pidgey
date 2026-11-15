@@ -26,7 +26,7 @@ Purpose: constrain what libraries the project may depend on.
   because it is used only for local documentation generation and is never shipped in the
   production (`pidgey`) or CI (`circleci_pidgey-base`) images. It is not installed in
   `dev_pidgey-base`.
-- Adding any new runtime dependency requires updating this spec first.
+- Adding any new runtime dependency requires updating this doc first.
 
 ## Frontend (Yarn)
 
