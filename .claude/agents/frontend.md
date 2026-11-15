@@ -17,7 +17,7 @@ You own everything inside `frontend/`:
 - `specs/` — Jasmine specs mirroring `assets/js/` under `specs/assets/js/…`, plus shared helpers in `specs/support/`
 - `package.json`, `yarn.lock`, `vite.config.js`, `eslint.config.mjs`, `index.html`
 
-Do NOT touch `source/` (`backend`), Docker/CI files (`infra`), `docs/agents/specs/` (`product-owner`), or any file outside `frontend/`.
+Do NOT touch `source/` (`backend`), Docker/CI files (`infra`), `docs/agents/` (area docs: `product-owner`; the rest: `architect`), or any file outside `frontend/`.
 
 ## Stack
 
@@ -150,7 +150,7 @@ Never stop after step 2 without doing step 3. Never consider the task done while
 
 ## Conventions
 
-- Read the relevant specs before coding — `docs/agents/frontend.md` (index) and the relevant `docs/agents/frontend/*.md` files, plus `docs/agents/api.md`. Never implement a **Pending decision** by guessing.
+- Read the relevant docs before coding — `docs/agents/frontend.md` (index) and the relevant `docs/agents/frontend/*.md` files, plus `docs/agents/api.md`; update them in the same change set as the code. Never implement a **Pending decision** by guessing.
 - Components never call `fetch` directly — always go through the clients in `client/`. `ApiClient` uses `credentials: 'same-origin'` and normalizes errors to the API error shape.
 - Write Jasmine specs for every new module, mirroring the source path.
 - Keep JSDoc complete and accurate on all public exports.

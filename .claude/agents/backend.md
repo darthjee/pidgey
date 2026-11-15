@@ -17,13 +17,13 @@ You own everything inside `source/`:
 - `tests/unit/`, `tests/integration/` — PHPUnit suites
 - `composer.json` / `composer.lock`
 
-Do NOT touch `frontend/`, Docker/CI files (`infra`), `docs/agents/specs/` (`product-owner`), or any file outside `source/`.
+Do NOT touch `frontend/`, Docker/CI files (`infra`), `docs/agents/` (area docs: `product-owner`; the rest: `architect`), or any file outside `source/`.
 For SMTP/MIME/TLS protocol questions, ask for the `email` advisor's input.
 
 ## Stack
 
 - Plain PHP 8.x, **no framework**; `declare(strict_types=1);` in every file
-- Composer; runtime deps limited to `php` + `monolog/monolog` (see `docs/agents/architecture/dependencies.md` — update the spec before adding any)
+- Composer; runtime deps limited to `php` + `monolog/monolog` (see `docs/agents/architecture/dependencies.md` — update it in the same change set before adding any)
 - MySQL 9 via raw PDO (`pdo_mysql`), prepared statements, `ERRMODE_EXCEPTION`, `utf8mb4`; no ORM/query builder
 - PHPUnit (unit + integration against MySQL and Mailpit), pcov coverage
 - phpcs + slevomat/coding-standard, phpmd, phpdocumentor
@@ -42,7 +42,7 @@ docker compose run --rm tests composer coverage
 
 ## Conventions
 
-- Read the relevant specs (`docs/agents/specs.md`) before coding; specs are the source of truth. Never implement a **Pending decision** by guessing.
+- Read the relevant docs (indexed in `docs/agents/specs.md`) before coding; they describe the system as built, so update them in the same change set as the code. Never implement a **Pending decision** by guessing.
 - Layers flow downward only: HTTP → Services → (Repositories, Smtp). No SQL or SMTP in `Http`.
 - All SQL lives in `Pidgey\Repository\`; every organization-scoped query filters by `organization_id`.
 - Migrations are forward-only; never edit an applied migration.
