@@ -1,7 +1,7 @@
 # Folder Structure
 
 The layout below is the target defined in
-[specs/architecture/repository-layout.md](specs/architecture/repository-layout.md),
+[architecture/repository-layout.md](architecture/repository-layout.md),
 which is the source of truth. Entries marked *(planned)* do not exist yet.
 
 ## Project Root
@@ -30,8 +30,8 @@ which is the source of truth. Entries marked *(planned)* do not exist yet.
 | Subdirectory | Description |
 |--------------|-------------|
 | `lib/` | PSR-4 root for namespace `Pidgey\` (e.g. `Infra/Env.php`). |
-| `public/` | Apache document root: only the `index.php` [front controller](specs/request-handler/front-controller.md) and the `.htaccess`. |
-| `static/` | The built frontend (`index.html` and `assets/`), git-ignored and outside the web root; served at `/` by `StaticFileHandler` (see [static files](specs/request-handler/static-files.md)). |
+| `public/` | Apache document root: only the `index.php` [front controller](request-handler/front-controller.md) and the `.htaccess`. |
+| `static/` | The built frontend (`index.html` and `assets/`), git-ignored and outside the web root; served at `/` by `StaticFileHandler` (see [static files](request-handler/static-files.md)). |
 | `bin/` | Thin PHP CLI entry points (`wait-for-db`, `create-db`, `drop-db`, `migrate`), exposed as `composer db:*` scripts; logic lives in `Pidgey\Infra`. |
 | `migrations/` | Plain SQL migrations named `NNNN_description.sql`, exactly one statement per file. |
 | `tests/unit/` | PHPUnit unit suite (no database, no network). |

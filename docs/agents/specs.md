@@ -15,16 +15,16 @@ plans (see [contributing.md](contributing.md#deployment-changes)).
 
 | Spec | Purpose |
 | --- | --- |
-| [overview](specs/overview.md) | What Pidgey is and is not, goals, component map, terminology. |
+| [overview](overview.md) | What Pidgey is and is not, goals, component map, terminology. |
 | [architecture](specs/architecture.md) | Repository layout, backend structure, database access, dependency policy. |
-| [persistence](specs/persistence.md) | Runtime database connection, transactions, initial schema migrations, entities, repositories and their tests. |
-| [request-handler](specs/request-handler.md) | How HTTP requests flow through the backend: Apache rewrite, front controller, request/response, routing, request handlers, middlewares. |
-| [docker](specs/docker.md) | Image layers, docker-compose services, volumes, Makefile targets. |
-| [organizations](specs/organizations.md) | Organizations, users, bootstrap flow, organization scope, data model. |
-| [email](specs/email.md) | SMTP connections, synchronous send flow, message scope, failure handling. |
-| [api](specs/api.md) | JSON API v1 surface, token authentication and scopes, conventions. |
-| [frontend](specs/frontend.md) | React admin UI stack, layout, client layer, screens, build. |
-| [testing](specs/testing.md) | Backend and frontend testing, linting, definition of done. |
+| [persistence](persistence.md) | Runtime database connection, transactions, initial schema migrations, entities, repositories and their tests. |
+| [request-handler](request-handler.md) | How HTTP requests flow through the backend: Apache rewrite, front controller, request/response, routing, request handlers, middlewares. |
+| [docker](docker.md) | Image layers, docker-compose services, volumes, Makefile targets. |
+| [organizations](organizations.md) | Organizations, users, bootstrap flow, organization scope, data model. |
+| [email](email.md) | SMTP connections, synchronous send flow, message scope, failure handling. |
+| [api](api.md) | JSON API v1 surface, token authentication and scopes, conventions. |
+| [frontend](frontend.md) | React admin UI stack, layout, client layer, screens, build. |
+| [testing](testing.md) | Backend and frontend testing, linting, definition of done. |
 
 ## Spec granularity rule
 

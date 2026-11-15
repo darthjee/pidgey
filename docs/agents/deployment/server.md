@@ -46,7 +46,7 @@ It is a symlink, not a copy: one source of truth, independent of the previous re
 created before `bin/check-config` and `bin/migrate` run, and it moves to live with the rest of
 staging. `config/` is outside `public/`, so the file is never web-reachable. The app's env-file
 loader reads `config/.env` from the release root (format in
-[architecture/configuration.md](../specs/architecture/configuration.md#env-file)).
+[architecture/configuration.md](../architecture/configuration.md#env-file)).
 
 The `link` step runs `mkdir -p` on the parent folder before `ln -sfn` (checked in the
 darthjee/scripts 0.11.0 source), so an existing `config/` is kept and only the `.env` link is
@@ -58,7 +58,7 @@ added.
   `config/`, `lib/`, `migrations/`, `static/` and `vendor/` are therefore not web-reachable.
 - Pidgey runs at the root of `<domain>`, with no base path. The UI is served at `/`, same
   origin as the API, by the PHP static-file handler from `<live>/static/`, which is outside
-  the web directory (see [static-files.md](../specs/request-handler/static-files.md)). Apache
+  the web directory (see [static-files.md](../request-handler/static-files.md)). Apache
   never serves those files directly: every UI request goes through `public/index.php`.
 - The host redirects HTTP to HTTPS.
 - `public/.htaccess` returns `404` for any path segment starting with a dot, disables
@@ -77,7 +77,7 @@ added.
 - It is linked into each release at `config/.env`, outside `public/` (see
   [The `config/.env` link](#the-configenv-link)).
 - It holds every app setting, one `KEY=VALUE` per line. Formats, defaults and validation rules
-  are in [architecture/configuration.md](../specs/architecture/configuration.md).
+  are in [architecture/configuration.md](../architecture/configuration.md).
 
 Keys it must hold:
 
@@ -94,7 +94,7 @@ Keys it must hold:
 | `ALLOWED_ORIGINS` or `FRONTEND_BASE_URL` | `https://<domain>`. |
 
 Optional SMTP transport keys (rules and validation in
-[architecture/configuration.md](../specs/architecture/configuration.md#smtp-transport)):
+[architecture/configuration.md](../architecture/configuration.md#smtp-transport)):
 
 | Key | Default | Value |
 | --- | --- | --- |
@@ -105,7 +105,7 @@ Optional SMTP transport keys (rules and validation in
 | `SMTP_EHLO_NAME` | empty | The `EHLO` client name. Should be the host's public FQDN, ideally matching its reverse DNS. Empty: the socket's local address literal is sent instead. |
 
 Optional SMTP endpoint hardening and logging keys (rules and validation in
-[architecture/configuration.md](../specs/architecture/configuration.md)):
+[architecture/configuration.md](../architecture/configuration.md)):
 
 | Key | Default | Value |
 | --- | --- | --- |
@@ -155,7 +155,7 @@ sits in front of Apache is still unverified (see
 
 Decision (#109): production uses **two MySQL users** on the same database, so the web app runs
 without DDL rights. Which entry point uses which user is in
-[architecture/database.md](../specs/architecture/database.md#database-users).
+[architecture/database.md](../architecture/database.md#database-users).
 
 | User | Settings | Grants on the app database | Used by |
 | --- | --- | --- | --- |

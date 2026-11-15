@@ -38,7 +38,7 @@ make build-fe   # only when the frontend images change
 
 ## Conventions
 
-- Read `docs/agents/specs/docker.md` (index of `docker/*.md`) and `docs/agents/deployment.md` (index of `deployment/*.md`, the deployment as built; there is no deployment spec) before changing anything. Never implement a **Pending decision** in the docker specs, or close a gap listed in `docs/agents/deployment/known-gaps.md`, by guessing: raise it first. A change to the pipeline or the host layout must be reflected in `docs/agents/deployment/` (owned by `architect`) in the same change set.
+- Read `docs/agents/docker.md` (index of `docker/*.md`) and `docs/agents/deployment.md` (index of `deployment/*.md`, the deployment as built; there is no deployment spec) before changing anything. Never implement a **Pending decision** in the docker specs, or close a gap listed in `docs/agents/deployment/known-gaps.md`, by guessing: raise it first. A change to the pipeline or the host layout must be reflected in `docs/agents/deployment/` (owned by `architect`) in the same change set.
 - The production `pidgey` image does not exist yet (future work); when added, it ships no dev tooling and no pcov.
 - `make tests` must stay the single command running every backend and frontend check.
 - Never commit real secrets. The committed root `.env` may hold only development-only placeholder values (local MySQL/Mailpit credentials); real secrets are never committed.

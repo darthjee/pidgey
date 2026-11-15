@@ -53,7 +53,7 @@ migrations are skipped).
 Rerunning an older workflow, or pushing an older tag, redeploys that older code over the
 current one. That works because every migration keeps working with the previous release's code
 (expand first, contract in a later release; see
-[architecture/database.md](../specs/architecture/database.md)).
+[architecture/database.md](../architecture/database.md)).
 
 ## Failure before the swap
 
@@ -68,7 +68,7 @@ migration in a new tag, never by editing an applied one.
 Migrations run before the swap, so a failure after them (or between them and the swap) leaves
 the old release running on the new schema. That is safe because every migration keeps working
 with the previous release's code (expand first, contract in a later release; see
-[architecture/database.md](../specs/architecture/database.md#compatibility-with-the-previous-release)).
+[architecture/database.md](../architecture/database.md#compatibility-with-the-previous-release)).
 
 ## Failure in `Cleanup`
 
@@ -168,8 +168,8 @@ No deploy is needed: `public/index.php` loads `config/.env` on every request, so
 takes effect on the next request.
 
 What it invalidates (see
-[api/authentication/access-token.md](../specs/api/authentication/access-token.md#key-rotation)
-and [architecture/configuration.md](../specs/architecture/configuration.md#secret-keys)): only
+[api/authentication/access-token.md](../api/authentication/access-token.md#key-rotation)
+and [architecture/configuration.md](../architecture/configuration.md#secret-keys)): only
 access tokens signed with a key that is no longer `SECRET_KEY` or in `PREVIOUS_SECRET_KEYS`.
 Clients get a `401` and refresh; refresh tokens are not signed with the key, so nobody is
 logged out unless their refresh token has also expired. Today no endpoint reads `SECRET_KEY`
@@ -179,7 +179,7 @@ yet, so a rotation has no visible effect until authentication ships.
 
 Stored SMTP passwords are encrypted with `SMTP_ENCRYPTION_KEY`; keys in
 `PREVIOUS_SMTP_ENCRYPTION_KEYS` are used only to decrypt (see
-[email/password-encryption.md](../specs/email/password-encryption.md)).
+[email/password-encryption.md](../email/password-encryption.md)).
 
 1. Generate a new key: `openssl rand -hex 32` (at least 32 bytes, no `,`, different from
    `SECRET_KEY`).

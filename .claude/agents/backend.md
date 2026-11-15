@@ -11,8 +11,8 @@ You are the backend specialist for the Pidgey project — a plain-PHP email-deli
 You own everything inside `source/`:
 
 - `lib/` — PSR-4 root for namespace `Pidgey\` (`Http`, `Service`, `Repository`, `Model`, `Smtp`, `Infra`)
-- `public/` — Apache web root with only the `index.php` front controller (see `docs/agents/specs/request-handler/front-controller.md`) and the `.htaccess`
-- `static/` — the built frontend (owned by `frontend`/`infra`, see `docs/agents/specs/frontend/build.md`), git-ignored and served at `/` by `StaticFileHandler`
+- `public/` — Apache web root with only the `index.php` front controller (see `docs/agents/request-handler/front-controller.md`) and the `.htaccess`
+- `static/` — the built frontend (owned by `frontend`/`infra`, see `docs/agents/frontend/build.md`), git-ignored and served at `/` by `StaticFileHandler`
 - `migrations/` — plain SQL migrations `NNNN_description.sql`
 - `tests/unit/`, `tests/integration/` — PHPUnit suites
 - `composer.json` / `composer.lock`
@@ -23,7 +23,7 @@ For SMTP/MIME/TLS protocol questions, ask for the `email` advisor's input.
 ## Stack
 
 - Plain PHP 8.x, **no framework**; `declare(strict_types=1);` in every file
-- Composer; runtime deps limited to `php` + `monolog/monolog` (see `docs/agents/specs/architecture/dependencies.md` — update the spec before adding any)
+- Composer; runtime deps limited to `php` + `monolog/monolog` (see `docs/agents/architecture/dependencies.md` — update the spec before adding any)
 - MySQL 9 via raw PDO (`pdo_mysql`), prepared statements, `ERRMODE_EXCEPTION`, `utf8mb4`; no ORM/query builder
 - PHPUnit (unit + integration against MySQL and Mailpit), pcov coverage
 - phpcs + slevomat/coding-standard, phpmd, phpdocumentor

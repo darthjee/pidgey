@@ -20,7 +20,7 @@ Pidgey is a single PHP application served by Apache, backed by MySQL 9:
   organization's active SMTP server and returns the outcome in the HTTP response.
   There is no queue and no retry.
 
-See [specs/overview/components.md](specs/overview/components.md) for the component map.
+See [overview/components.md](overview/components.md) for the component map.
 
 ## Source Code Layout
 
@@ -33,7 +33,7 @@ Layers, with dependencies flowing downward only (HTTP → Services → Repositor
 
 | Namespace | Responsibility |
 | --- | --- |
-| `Pidgey\Http\` | Request/Response, router, request handlers, middlewares (cookie-session gate, Bearer-token auth), JSON encoding. No SQL, no SMTP. See [specs/request-handler.md](specs/request-handler.md). |
+| `Pidgey\Http\` | Request/Response, router, request handlers, middlewares (cookie-session gate, Bearer-token auth), JSON encoding. No SQL, no SMTP. See [request-handler.md](request-handler.md). |
 | `Pidgey\Service\` | Business logic (registration, login, token issuing/revocation, sending a message). Orchestrates repositories and transport. |
 | `Pidgey\Repository\` | All SQL, through PDO prepared statements. Every organization-scoped query filters by `organization_id`. |
 | `Pidgey\Model\` | Entities and values: Organization, User, SmtpConnection, ApiToken, Message, SendOutcome. |
@@ -42,7 +42,7 @@ Layers, with dependencies flowing downward only (HTTP → Services → Repositor
 
 Wiring is manual (a small container/factory class), with no DI framework. Runtime
 dependencies are limited to `php` and `monolog/monolog`
-(see [specs/architecture/dependencies.md](specs/architecture/dependencies.md)).
+(see [architecture/dependencies.md](architecture/dependencies.md)).
 
 ### `source/public/`
 
@@ -53,7 +53,7 @@ No frontend files live here.
 
 The built frontend (`index.html` and `assets/`), git-ignored and outside the web root. Filled by
 `make build-fe-release` in dev and uploaded with the release in production, it is served at `/`
-by `StaticFileHandler` (see [specs/request-handler/static-files.md](specs/request-handler/static-files.md)).
+by `StaticFileHandler` (see [request-handler/static-files.md](request-handler/static-files.md)).
 
 ### `source/migrations/`
 
@@ -69,4 +69,4 @@ PHPUnit `unit/` and `integration/` suites (integration runs against MySQL and Ma
 `main.jsx` mounts `App.jsx` (hash router). `client/` holds the API clients: `ApiClient`
 is the base, and domain clients cover each endpoint. `components/` holds screens and shared UI.
 `utils/` holds pure helpers. Jasmine specs mirror this tree under `frontend/specs/`.
-Components never call `fetch` directly. See [specs/frontend.md](specs/frontend.md).
+Components never call `fetch` directly. See [frontend.md](frontend.md).

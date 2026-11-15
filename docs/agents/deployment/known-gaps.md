@@ -7,7 +7,7 @@ tracked.
 
 The public auth endpoints (`/auth/*.json`: login, register, recover, reset-password) have no
 application-level throttle in v1 (see
-[api/endpoints/auth/session.md](../specs/api/endpoints/auth/session.md#brute-force)).
+[api/endpoints/auth/session.md](../api/endpoints/auth/session.md#brute-force)).
 Deployments behind a configurable reverse proxy should rate-limit `/auth/*.json` per client IP
 there, to slow down password guessing and registration abuse.
 
@@ -16,7 +16,7 @@ applied. To limit registration abuse, production keeps `USER_APPROVAL_REQUIRED=t
 [server.md](server.md#shared-env)).
 
 Application-level throttling is an open decision owned by
-[api/pending.md](../specs/api/pending.md) (rate limits).
+[api/pending.md](../api/pending.md) (rate limits).
 
 ## Migration credentials in the shared `.env`
 
@@ -56,7 +56,7 @@ beyond `SMTP_TOTAL_TIMEOUT`. Not tracked yet; the host's resolver is assumed to 
 
 With `SMTP_ALLOW_PRIVATE_HOSTS=false` (see [server.md](server.md#shared-env)), a send to an
 SMTP host that resolves to a non-public address is refused before any connection (see
-[email/smtp-connections.md](../specs/email/smtp-connections.md)). Ports are not restricted,
+[email/smtp-connections.md](../email/smtp-connections.md)). Ports are not restricted,
 and public hosts are allowed, so the test email still acts as a reachability oracle: an
 approved user can learn whether a public host accepts TCP connections on a given port from
 the error code and timing. The per-organization test-email rate limit (`SMTP_TEST_MAX_ATTEMPTS`
@@ -74,13 +74,13 @@ workers busy with test emails across organizations, and on the shared host that 
 the worker pool for up to `SMTP_TOTAL_TIMEOUT` seconds per request. With
 `USER_APPROVAL_REQUIRED=true` only approved users can send test emails, which limits who can
 do it. A global limit belongs to the open rate-limit decision in
-[api/pending.md](../specs/api/pending.md).
+[api/pending.md](../api/pending.md).
 
 ## No automated image builds
 
 The images CI and development use (`dev_pidgey-base`, `circleci_pidgey-base`,
 `vite_pidgey-base`) are built and pushed by hand with the Makefile's `build-*` / `push-*`
-targets (see [docker/makefile.md](../specs/docker/makefile.md)). There is no `build_images`
+targets (see [docker/makefile.md](../docker/makefile.md)). There is no `build_images`
 job: a change to a Dockerfile reaches CI only after the owner rebuilds the image, pushes it
 with a bumped version and updates the tag in `.circleci/config.yml` (for example
 `ci_base_image`). Bumping the deploy script works the same way (see
