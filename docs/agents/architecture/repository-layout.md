@@ -21,7 +21,7 @@ Purpose: define the top-level folders of the repository and their responsibiliti
 
 | Path | Content |
 | --- | --- |
-| `source/composer.json` | Dependencies and composer scripts (see [testing](../testing.md)). |
+| `source/composer.json` | Dependencies and composer scripts (see [testing](../contributing/testing.md)). |
 | `source/lib/` | PSR-4 root for namespace `Pidgey\`. |
 | `source/bin/` | Executable PHP CLI entry points (`wait-for-db`, `create-db`, `drop-db`, `migrate`), backed by `Pidgey\Infra`. See [database.md](database.md#database-scripts). |
 | `source/public/` | Apache document root (web root): only the `index.php` front controller and the `.htaccess` ([request-handler/rewrite.md](../request-handler/rewrite.md)). The front controller is specified in [request-handler/front-controller.md](../request-handler/front-controller.md). No frontend files live here. |

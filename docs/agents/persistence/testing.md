@@ -3,7 +3,7 @@
 Purpose: define how the schema, entities and repositories are tested.
 
 Suites, the `_test` database guard and `db:prepare` are in
-[testing/backend.md](../testing/backend.md).
+[contributing/testing.md](../contributing/testing.md#backend-testing).
 
 ## Entities: unit suite
 

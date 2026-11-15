@@ -22,12 +22,16 @@ decision, update the spec first, in the same change set.
 
 ## Definition of Done for PRs
 
-A PR is considered complete when (see also [testing/definition-of-done.md](testing/definition-of-done.md)):
+Test suites, tooling and commands: see [contributing/testing.md](contributing/testing.md).
+
+A PR is considered complete when:
 
 - The stated objective has been achieved.
-- Relevant specs were read, and updated first if the change alters a decision.
+- Relevant docs in `docs/agents/` were read, and updated first if the change alters a decision.
+- New behavior is covered by tests (unit, and integration where DB/SMTP is involved).
 - All tests are passing (unit, and integration where DB/SMTP is involved) — `make tests` is green.
 - Linting passes without errors (`composer lint` for the backend, `yarn lint` for the frontend).
+- CI is green.
 - Code coverage is as high as reasonably possible.
 - Code is not overly complex:
   - Classes and methods should have clear, focused responsibilities.
