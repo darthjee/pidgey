@@ -1,7 +1,5 @@
 # Frontend Build and Release
 
-Purpose: define how the frontend is built, released into `source/static/` and served at `/`.
-
 ## Build
 
 - `yarn build` (Vite) produces `frontend/dist/`.

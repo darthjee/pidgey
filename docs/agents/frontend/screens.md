@@ -1,10 +1,8 @@
 # Authentication, Routing and Screens
 
-Purpose: define how the admin UI authenticates, routes and which screens it has.
-
 The UI was copied from Citadel and speaks the Citadel auth contract
 ([api/authentication.md](../api/authentication.md)). Every endpoint it calls, and whether the
-call matches the spec, is listed in [api-compatibility.md](api-compatibility.md).
+call matches the API docs, is listed in [api-compatibility.md](api-compatibility.md).
 
 ## Authentication
 
@@ -46,9 +44,6 @@ The same check runs again after login and register, so a new `pending` user land
   [api/conventions/errors.md](../api/conventions/errors.md)).
 
 ### Refresh single flight
-
-Target behaviour, follow-up #41 (today every `401` starts its own refresh, see
-[api-compatibility.md](api-compatibility.md#cross-cutting-behaviour)).
 
 Why: the API rotates the refresh token on every refresh and treats a re-presented rotated
 token as a replay, which **revokes every session of the user**
@@ -276,8 +271,7 @@ modal has these modes:
 - **Password login:** username and password.
 - **Register:** username, email, password and confirmation. Registration creates the
   organization together with the first user, so the form needs an **"Organization name"**
-  field sent as `organizationName` (target, #40; without it every registration answers
-  `400 VALIDATION_FAILED`).
+  field sent as `organizationName`.
 - **Recover password:** email; the answer is always "sent".
 - **Reset password:** new password and confirmation, with the token from the recovery link.
 - **Device login:** username; creates an authorization request, shows a countdown to its

@@ -1,8 +1,5 @@
 # Synchronous Send Flow
 
-Purpose: define, step by step, what happens when a send request is received, down to each
-SMTP command and its success and failure mapping.
-
 Sending is **synchronous**: the HTTP request blocks until the SMTP transaction ends
 and the response carries the outcome. There is no queue and no retry in v1.
 

@@ -1,8 +1,5 @@
 # Email Testing
 
-Purpose: define how email sending is tested: the SMTP servers used by the tests, how tests
-reach them, the TLS fixtures, the fake SMTP server and the required coverage.
-
 - Unit tests cover MIME building and the SMTP reply → error code mapping with a fake
   transport.
 - Integration tests send real email through the test-only Mailpit instances below and
@@ -39,7 +36,7 @@ development mailbox.
   base image (see [Reaching the instances](#reaching-the-instances)).
 - Each instance has **distinct ports** everywhere: required in CI, where service containers
   share one network namespace, and kept identical in compose. The ports are part of the
-  contract; changing one means updating compose, CI and the specs together.
+  contract; changing one means updating compose, CI and the docs together.
 - Service names use **hyphens**, because an SMTP `host` must be an ASCII LDH name.
 
 See [docker/compose.md](../docker/compose.md) for the services.

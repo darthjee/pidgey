@@ -1,7 +1,5 @@
 # Frontend
 
-Purpose: index of the specs describing the React admin UI.
-
 | File | Content |
 | --- | --- |
 | [stack.md](frontend/stack.md) | Libraries and tooling. |

@@ -1,7 +1,5 @@
 # Frontend Stack
 
-Purpose: fix the libraries and tooling of the admin UI.
-
 | Concern | Choice |
 | --- | --- |
 | UI library | React 19 |

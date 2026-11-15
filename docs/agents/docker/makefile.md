@@ -1,7 +1,5 @@
 # Makefile
 
-Purpose: define the Makefile targets used for local work and CI.
-
 | Target | Action |
 | --- | --- |
 | `build-base` | Build the `dev_pidgey-base` image. |

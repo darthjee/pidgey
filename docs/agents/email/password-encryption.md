@@ -1,8 +1,5 @@
 # SMTP Password Encryption
 
-Purpose: define how the SMTP connection password is encrypted at rest, keyed, rotated and
-decrypted, and how failures are answered.
-
 The SMTP password must be recoverable to authenticate against the SMTP server, so it is
 **encrypted**, not hashed (see [smtp-connections.md](smtp-connections.md)). It is
 stored in `smtp_connections.password`

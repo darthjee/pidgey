@@ -1,7 +1,5 @@
 # Volumes
 
-Purpose: define what is mounted into containers and where persistent data lives.
-
 | Host path | Container path | Purpose |
 | --- | --- | --- |
 | `./source` | `/home/app/app` (app root) | Backend source, live-edited. |
@@ -12,8 +10,7 @@ Purpose: define what is mounted into containers and where persistent data lives.
 | `./docker_volumes/configuration` | configuration dir | Future work. Local env/config files. |
 | `./docker_volumes/cache` | cache dir | Future work. Composer/Yarn caches. |
 
-Rows marked "Future work" are kept as the target design but are not part of the initial
-setup.
+Rows marked "Future work" are not set up yet.
 
 There is no volume for the built frontend: `make build-fe-release` writes it to
 `source/static/`, which `app` already serves at `/` through the `./source` mount
