@@ -1,7 +1,5 @@
 # Pending API Decisions
 
-Purpose: track API concerns that are explicitly not decided yet.
-
 - **Pending decision — rate limits:** per-token/per-organization request limits and the
   `429` response format. This includes throttling the public auth endpoints
   ([login, register](endpoints/auth/session.md#brute-force) and

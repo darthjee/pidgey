@@ -1,8 +1,5 @@
 # SMTP Connection Endpoints
 
-Purpose: define the `/smtp-connections*.json` endpoints: list, create, read, update, delete,
-activate, deactivate and send a test email through an organization's SMTP connections.
-
 Shared rules (access, guards, `:id` handling, field rules, operator log) are in
 [pidgey-admin.md](../pidgey-admin.md). The meaning of each setting is in
 [email/smtp-connections.md](../../../email/smtp-connections.md), the password encryption in

@@ -1,8 +1,5 @@
 # Format
 
-Purpose: define the request/response format, the path rule, success codes and the guard
-order shared by every API endpoint.
-
 ## Content type
 
 - Requests and responses are JSON (`Content-Type: application/json`). The admin frontend
@@ -35,11 +32,11 @@ order shared by every API endpoint.
 | Status | Use |
 | --- | --- |
 | `201` | Default for `POST`, including "read-like" `POST`s (status, search, poll…). |
-| `200` | `GET`, `PATCH`, and the `POST`s whose endpoint spec says so (e.g. recover, reset-password, approve, deny). |
+| `200` | `GET`, `PATCH`, and the `POST`s whose endpoint doc says so (e.g. recover, reset-password, approve, deny). |
 | `204` | No content (e.g. logoff). |
 
 Clients treat any 2xx as success, so `200` and `201` are interchangeable for the admin
-frontend; each endpoint spec still states its exact code, and the backend matches it.
+frontend; each endpoint doc still states its exact code, and the backend matches it.
 
 ## Guard order
 

@@ -1,7 +1,5 @@
 # Validation
 
-Purpose: define how request bodies are validated and how validation messages are worded.
-
 ## Rules
 
 - Validation runs on the request body **before** any business logic or side effect.
@@ -65,7 +63,7 @@ declares them, then each field's messages in the order its rules are declared.
 | no control characters | `<field> must not contain control characters` |
 | no line breaks (CR or LF) | `<field> must not contain line breaks` |
 
-Endpoint specs list the rules for each field; the messages always follow these templates.
+Endpoint docs list the rules for each field; the messages always follow these templates.
 
 In the range template, `<min>` and `<max>` are the bounds as decimal integers, e.g.
 `port must be between 1 and 65535`. Only a JSON integer passes the integer rule: a
@@ -74,4 +72,4 @@ fraction** such as `587.0`, or a boolean — gets `<field> must be an integer` a
 rule runs for it.
 
 **Pending decision:** message templates for rules not listed above (e.g. booleans), to be
-added when an endpoint spec first needs one.
+added when an endpoint doc first needs one.

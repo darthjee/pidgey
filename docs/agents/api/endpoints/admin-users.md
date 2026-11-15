@@ -1,8 +1,5 @@
 # Admin User Endpoints
 
-Purpose: index of the `/admin/users/*.json` endpoint specs (instance-admin user management)
-and the rules they all share (guards, admin user item, `:id` handling, operator log).
-
 The admin user endpoints follow the Citadel contract ([conventions.md](../conventions.md)) and
 the authentication model ([authentication.md](../authentication.md)). The admin's powers and
 trust level are defined in [organizations/entities.md](../../organizations/entities.md#admin).

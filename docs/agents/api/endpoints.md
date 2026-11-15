@@ -1,8 +1,5 @@
 # Endpoints
 
-Purpose: index of the endpoint specs: the public sending API, the auth endpoints, the admin
-user endpoints, the Pidgey admin endpoints and the operational probes.
-
 Admin and auth endpoints follow the Citadel contract (root-relative `*.json` paths, no `/v1`
 prefix, cookie session); the public sending API keeps its `/v1` prefix and Bearer tokens (see
 [conventions.md](conventions.md) and [authentication.md](authentication.md)).

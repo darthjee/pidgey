@@ -1,8 +1,5 @@
 # Authentication
 
-Purpose: index of the specs defining how the admin UI and API clients authenticate and are
-authorized (the Citadel contract, adapted to Pidgey).
-
 Pidgey has two **disjoint** credentials:
 
 - a **cookie session** (a JWT access token in the `access_token` cookie plus a refresh token)
@@ -10,7 +7,7 @@ Pidgey has two **disjoint** credentials:
   SMTP connection, API token and test-email endpoints;
 - a **Bearer API token** with scopes for the public sending API (`POST /v1/messages`).
 
-There is no PHP session. Endpoint payloads and error codes live in the endpoint specs
+There is no PHP session. Endpoint payloads and error codes live in the endpoint docs
 ([endpoints/auth.md](endpoints/auth.md)); device authorization, a second way to start a
 session, is in [endpoints/auth/device-authorization.md](endpoints/auth/device-authorization.md);
 the settings used here are in

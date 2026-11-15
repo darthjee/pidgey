@@ -1,9 +1,5 @@
 # Device Authorization: Approver Endpoints
 
-Purpose: define the endpoints called by a logged-in device to list, authorize or deny the
-device-authorization requests raised against its own username, and the per-request authorize
-lockout.
-
 Shared rules (state machine, guards, `201` success codes, input rules, error answers, expiry
 boundary, clock, known limitations) are in [device-authorization.md](../device-authorization.md).
 The table is `authorization_requests`

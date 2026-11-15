@@ -1,8 +1,5 @@
 # Local Development
 
-Purpose: explain how the `Secure` `access_token` cookie works in local development without
-TLS, and what production requires.
-
 ## No TLS in development
 
 - Development runs over plain HTTP, and there is **no switch** that turns off `Secure`. The

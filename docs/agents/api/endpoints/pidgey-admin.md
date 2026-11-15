@@ -1,9 +1,5 @@
 # Pidgey Admin Endpoints
 
-Purpose: index of the Pidgey-only admin endpoint specs (organization, SMTP connections, API
-tokens) and the rules they all share (access, guards, `:id` handling, field rules, operator
-log).
-
 These endpoints follow the Citadel conventions ([conventions.md](../conventions.md)) and the
 authentication model ([authentication.md](../authentication.md)). Organization isolation is
 defined in [organizations/scope.md](../../organizations/scope.md). Errors use

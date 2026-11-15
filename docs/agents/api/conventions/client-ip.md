@@ -1,9 +1,5 @@
 # Client IP and User Agent
 
-Purpose: define how the API resolves the caller's IP address and user agent, so every
-feature that records or throttles by client (device authorization, a future per-IP throttle)
-uses the same rules.
-
 Used by the [device-authorization create](../endpoints/auth/device-authorization/requester.md#post-authauthorization-requestsjson)
 (`request_ip`, `request_user_agent`) and by the per-IP throttle pending in
 [pending.md](../pending.md). The setting `TRUSTED_PROXY_HOPS` (default `1`) is in

@@ -1,8 +1,5 @@
 # Session Endpoints
 
-Purpose: define the contracts of register, login, refresh, logoff and status, the endpoints
-that start, continue, end and inspect a session.
-
 Shared rules (guards, trimming, identifiers, password hashing) are in
 [auth.md](../auth.md). Tokens, sessions, rotation and replay detection are defined in
 [authentication/sessions.md](../../authentication/sessions.md); the cookie in

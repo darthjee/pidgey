@@ -1,8 +1,5 @@
 # Access Token
 
-Purpose: define the JWT access token of an admin UI session, its strict verification rules,
-the `access_token` cookie and secret-key rotation.
-
 The access token is the short-lived credential of a session (see [sessions.md](sessions.md)).
 It is a JWT signed with **HS256** and carried **only** in the `access_token` cookie. Settings
 (`SECRET_KEY`, `PREVIOUS_SECRET_KEYS`, `ACCESS_TOKEN_TTL`) are defined in

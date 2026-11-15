@@ -1,8 +1,5 @@
 # Origin Check
 
-Purpose: define the origin (CSRF) check applied to state-changing requests and its relation
-with CORS.
-
 ## Rules
 
 Every method except `GET`, `HEAD` and `OPTIONS` goes through the origin check, **including

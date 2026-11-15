@@ -1,8 +1,5 @@
 # Admin User Recovery Endpoints
 
-Purpose: define the admin-driven password recovery: `POST /admin/users/:id/recovery-link.json`
-and `POST /admin/users/:id/send-recovery-email.json`.
-
 Shared rules (guards, `:id` handling, operator log) are in [admin-users.md](../admin-users.md).
 Password-reset tokens and the recovery email are defined in
 [auth/recovery.md](../auth/recovery.md); settings (`PASSWORD_RESET_TOKEN_TTL`,

@@ -1,8 +1,5 @@
 # Recovery Endpoints
 
-Purpose: define self-service password recovery: `POST /auth/recover.json`,
-`POST /auth/reset-password.json`, password-reset tokens and the recovery email.
-
 Shared rules (guards, trimming, password hashing) are in [auth.md](../auth.md). Tokens are
 stored in `password_reset_tokens`
 ([organizations/data-model/password-reset-tokens.md](../../../organizations/data-model/password-reset-tokens.md)).

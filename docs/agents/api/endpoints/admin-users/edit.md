@@ -1,8 +1,5 @@
 # Admin User Edit Endpoint
 
-Purpose: define `POST /admin/users/:id/edit.json`, the admin edit of any user's username,
-email and/or password.
-
 Shared rules (guards, admin user item, `:id` handling, trimming, operator log) are in
 [admin-users.md](../admin-users.md). Password hashing and identifiers follow
 [auth.md](../auth.md); the "taken" checks are those of the account edit

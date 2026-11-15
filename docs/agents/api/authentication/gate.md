@@ -1,8 +1,5 @@
 # Gate and Admin Check
 
-Purpose: define the per-request authentication gate of the admin UI surface, the admin
-check, user status at the gate and the shared `user` payload.
-
 ## Guard order
 
 Every request on the cookie-authenticated surface goes through, in order (see also

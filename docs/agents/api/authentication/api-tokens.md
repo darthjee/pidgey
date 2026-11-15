@@ -1,8 +1,5 @@
 # API Tokens
 
-Purpose: define the Bearer API tokens that authenticate the public `/v1` sending API, their
-scopes and revocation.
-
 Tokens are stored in the `api_tokens` table
 ([organizations/data-model/api-tokens.md](../../organizations/data-model/api-tokens.md)).
 They are created, listed and revoked from the admin UI, through the cookie-authenticated

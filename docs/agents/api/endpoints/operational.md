@@ -1,7 +1,5 @@
 # Operational Endpoints
 
-Purpose: define the liveness and readiness probes, `GET /health.json` and `GET /ready.json`.
-
 Both routes are **public**: no gate, no admin check, and, being `GET`, no origin check (see
 the guard order in [conventions/format.md](../conventions/format.md#guard-order)). They send no
 cache headers: Pidgey has no caching proxy in front of the API

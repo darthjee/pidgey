@@ -1,8 +1,5 @@
 # Admin User Review Endpoints
 
-Purpose: define the admin review tools: `POST /admin/users/search.json`,
-`POST /admin/users/:id/approve.json` and `POST /admin/users/:id/deny.json`.
-
 Shared rules (guards, admin user item, `:id` handling, operator log) are in
 [admin-users.md](../admin-users.md). The user status lifecycle is in
 [organizations/entities.md](../../../organizations/entities.md#user-status-lifecycle);

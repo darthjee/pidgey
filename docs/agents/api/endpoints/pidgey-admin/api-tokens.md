@@ -1,8 +1,5 @@
 # API Token Endpoints
 
-Purpose: define the `/api-tokens*.json` endpoints: list, create (plain token returned once)
-and revoke an organization's API tokens.
-
 Shared rules (access, guards, `:id` handling, field rules, operator log) are in
 [pidgey-admin.md](../pidgey-admin.md). Token format, hashing, scopes and the checks on `/v1`
 are in [authentication/api-tokens.md](../../authentication/api-tokens.md); the table in
