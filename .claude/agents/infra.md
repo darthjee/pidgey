@@ -18,7 +18,7 @@ You own:
 - `dev/` — sample configuration, seed data, local-only helpers
 - `docker_volumes/` placeholders and `.gitignore` entries for it
 
-Do NOT touch `source/` (`backend`), `frontend/` (`frontend`), `docs/agents/specs/` (`product-owner`).
+Do NOT touch `source/` (`backend`), `frontend/` (`frontend`), `docs/agents/` (area docs: `product-owner`; the rest: `architect`).
 The migration logic itself lives in `Pidgey\Infra` (owned by `backend`); you own only the script that invokes it.
 
 ## Stack
@@ -38,7 +38,7 @@ make build-fe   # only when the frontend images change
 
 ## Conventions
 
-- Read `docs/agents/docker.md` (index of `docker/*.md`) and `docs/agents/deployment.md` (index of `deployment/*.md`, the deployment as built; there is no deployment spec) before changing anything. Never implement a **Pending decision** in the docker specs, or close a gap listed in `docs/agents/deployment/known-gaps.md`, by guessing: raise it first. A change to the pipeline or the host layout must be reflected in `docs/agents/deployment/` (owned by `architect`) in the same change set.
+- Read `docs/agents/docker.md` (index of `docker/*.md`) and `docs/agents/deployment.md` (index of `deployment/*.md`, the deployment as built) before changing anything. Never implement a **Pending decision** in the docker docs, or close a gap listed in `docs/agents/deployment/known-gaps.md`, by guessing: raise it first. A change to the pipeline or the host layout must be reflected in `docs/agents/deployment/` (owned by `architect`) in the same change set.
 - The production `pidgey` image does not exist yet (future work); when added, it ships no dev tooling and no pcov.
 - `make tests` must stay the single command running every backend and frontend check.
 - Never commit real secrets. The committed root `.env` may hold only development-only placeholder values (local MySQL/Mailpit credentials); real secrets are never committed.
