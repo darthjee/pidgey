@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pidgey\Tests\Unit\Smtp;
 
+use RuntimeException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use Pidgey\Infra\SecretString;

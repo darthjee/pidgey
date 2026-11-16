@@ -19,7 +19,10 @@ final class FailureCodeCoverageTest extends TestCase
      * Every transport failure code and the test (class and method) that reaches it.
      */
     private const COVERAGE = [
-        'SMTP_CONNECTION_FAILED' => [SmtpTransportConnectionTest::class, 'testCloseBeforeTheGreetingIsAConnectionFailure'],
+        'SMTP_CONNECTION_FAILED' => [
+            SmtpTransportConnectionTest::class,
+            'testCloseBeforeTheGreetingIsAConnectionFailure',
+        ],
         'SMTP_TLS_FAILED' => [SmtpTransportTlsTest::class, 'testStartTlsNotAdvertisedIsATlsFailure'],
         'SMTP_AUTH_FAILED' => [SmtpTransportMailpitTest::class, 'testMailpitWrongPasswordIsAnAuthFailure'],
         'SMTP_REJECTED' => [SmtpTransportFakeServerTest::class, 'testRejectedMessageAtEndOfData'],

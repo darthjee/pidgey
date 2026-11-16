@@ -87,5 +87,4 @@ trait SmtpTransportServerHelpers
 
         return (int) substr($name, (int) strrpos($name, ':') + 1);
     }
-
 }

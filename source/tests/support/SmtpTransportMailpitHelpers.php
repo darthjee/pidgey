@@ -54,5 +54,4 @@ trait SmtpTransportMailpitHelpers
 
         return AppPath::resolve($caFile);
     }
-
 }
