@@ -1,6 +1,6 @@
 # Variables
 
-Purpose: list every CircleCI variable the deploy uses, what it holds and its format.
+List every CircleCI variable the deploy uses, what it holds and its format.
 
 ## Where they live
 

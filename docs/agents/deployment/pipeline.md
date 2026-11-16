@@ -1,6 +1,6 @@
 # Pipeline
 
-Purpose: describe the CircleCI workflow as defined in `.circleci/config.yml`: which jobs run,
+Describe the CircleCI workflow as defined in `.circleci/config.yml`: which jobs run,
 when, in which order, with which secrets, and how they reach the host.
 
 The workflow is `main`. Every job is in it; filters decide which jobs run for a branch or a

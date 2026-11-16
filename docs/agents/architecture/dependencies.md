@@ -1,6 +1,6 @@
 # Dependencies Policy
 
-Purpose: constrain what libraries the project may depend on.
+Constrain what libraries the project may depend on.
 
 ## Backend (Composer)
 

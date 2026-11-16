@@ -1,6 +1,6 @@
 # Configuration
 
-Purpose: list every environment variable the application reads, with its default and effect.
+List every environment variable the application reads, with its default and effect.
 
 ## Rules
 
@@ -173,7 +173,10 @@ Used by [api/conventions/origin-check.md](../api/conventions/origin-check.md).
 | Setting | Default | Effect |
 | --- | --- | --- |
 | `ALLOWED_ORIGINS` | empty | Comma-separated bare origins (e.g. `https://admin.example.com`) trusted by the origin check and CORS; exact match only. |
-| `FRONTEND_BASE_URL` | empty | Fallback trusted origin when `ALLOWED_ORIGINS` is empty; base URL of links in emails. When empty, system emails (password recovery) are not sent, since their link would be broken (see [recovery.md](../api/endpoints/auth/recovery.md#recovery-email)). |
+| `FRONTEND_BASE_URL` | empty | Fallback trusted origin when `ALLOWED_ORIGINS` is empty; base URL of links in emails. When empty, system emails (password recovery) are not sent, since their link would be broken (see [recovery.md](../api/endpoints/auth/recovery.md#recovery-email)). How the system
+organization is marked is still a **Pending decision**
+([recovery.md](../api/endpoints/auth/recovery.md#pending-decisions)); until it is decided there
+is no system organization and no system email is sent. |
 
 - `ALLOWED_ORIGINS` is split on `,`; each entry is trimmed and empty entries are dropped (see
   [origin-check.md](../api/conventions/origin-check.md#trusted-origins-and-cors)).
@@ -201,7 +204,10 @@ Used by [api/endpoints/auth/recovery.md](../api/endpoints/auth/recovery.md) and
 
 There is no mail-enabled flag and there are no `SYSTEM_SMTP_*` settings: system emails are
 sent through the system organization's active SMTP connection (see
-[recovery.md](../api/endpoints/auth/recovery.md#recovery-email)).
+[recovery.md](../api/endpoints/auth/recovery.md#recovery-email)). How the system organization is
+marked is still a **Pending decision**
+([recovery.md](../api/endpoints/auth/recovery.md#pending-decisions)); until it is decided there
+is no system organization and no system email is sent.
 
 ## Secret keys
 
