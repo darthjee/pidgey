@@ -15,7 +15,6 @@ use PDO;
  */
 abstract class SchemaTestCase extends IntegrationTestCase
 {
-
     /** Every base table the migrations create, plus the runner's own table. */
     protected const TABLES = [
         'account_edit_lockouts',
