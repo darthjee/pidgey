@@ -40,6 +40,7 @@ use Pidgey\Smtp\SessionSettings;
 use Pidgey\Smtp\SmtpFailure;
 use Pidgey\Smtp\SmtpResult;
 use Pidgey\Smtp\SmtpSessionState;
+use Pidgey\Smtp\SmtpTransport;
 use Pidgey\Smtp\SocketStream;
 use Pidgey\Smtp\StreamFailure;
 use Pidgey\Smtp\SystemHostResolver;
