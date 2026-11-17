@@ -54,6 +54,28 @@ final class RoutesSecurityTest extends TestCase
         );
     }
 
+    public function testEveryApiTokenRouteListsTheGateAndNoAdminCheck(): void
+    {
+        /** @var Router $router */
+        $router = require __DIR__ . '/../../../config/routes.php';
+        $routes = [];
+
+        foreach ($router->routes() as $route) {
+            if (str_starts_with($route->pattern(), '/api-tokens')) {
+                $routes[$route->method() . ' ' . $route->pattern()] = $route->middlewares();
+            }
+        }
+
+        $this->assertSame(
+            [
+                'GET /api-tokens.json' => [Gate::class],
+                'POST /api-tokens.json' => [Gate::class],
+                'DELETE /api-tokens/:id.json' => [Gate::class],
+            ],
+            $routes,
+        );
+    }
+
     public function testTheFallbackIsPublicAndUnguarded(): void
     {
         $router = require __DIR__ . '/../../../config/routes.php';
