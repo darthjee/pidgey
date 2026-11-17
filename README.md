@@ -6,9 +6,9 @@
 
 ![pidgey](https://raw.githubusercontent.com/darthjee/pidgey/master/pidgey.png)
 
-**Current Version:** [0.4.0](https://github.com/darthjee/pidgey/releases/tag/0.4.0)
+**Current Version:** [0.5.0](https://github.com/darthjee/pidgey/releases/tag/0.5.0)
 
-**Next Release:** [0.4.1](https://github.com/darthjee/pidgey/compare/0.4.0...main)
+**Next Release:** [0.5.1](https://github.com/darthjee/pidgey/compare/0.5.0...main)
 
 Pidgey is an email-delivery service written in plain PHP. It sends transactional
 email through SMTP connections configured per organization, exposes a JSON API
