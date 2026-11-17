@@ -156,4 +156,53 @@ final class ApiTokenRepositoryTest extends RepositoryTestCase
         $this->assertSame('2026-03-01 09:00:00', $token?->lastUsedAt?->format('Y-m-d H:i:s'));
         $this->assertSame('2026-03-02 10:00:00', $token?->revokedAt?->format('Y-m-d H:i:s'));
     }
+
+    public function testListByOrganizationOrdersByIdIncludesRevokedAndExcludesOthers(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $first = $this->fixtures->apiToken(organizationId: $organizationId);
+        $second = $this->fixtures->apiToken(organizationId: $organizationId, revokedAt: '2026-03-02 10:00:00');
+        $this->fixtures->apiToken();
+
+        $tokens = $this->repository->listByOrganization($organizationId);
+
+        $this->assertSame([$first, $second], array_map(static fn (ApiToken $t): int => $t->id, $tokens));
+        $this->assertNotNull($tokens[1]->revokedAt);
+    }
+
+    public function testListByOrganizationReturnsEmptyListWithoutTokens(): void
+    {
+        $this->assertSame([], $this->repository->listByOrganization($this->fixtures->organization()));
+    }
+
+    public function testRevokeChangesOnlyTheFirstTime(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $id = $this->fixtures->apiToken(organizationId: $organizationId);
+
+        $this->assertTrue($this->repository->revoke($organizationId, $id));
+        $firstRevokedAt = $this->repository->findInOrganization($organizationId, $id)?->revokedAt;
+        $this->assertNotNull($firstRevokedAt);
+
+        $this->assertFalse($this->repository->revoke($organizationId, $id));
+        $this->assertEquals($firstRevokedAt, $this->repository->findInOrganization($organizationId, $id)?->revokedAt);
+    }
+
+    public function testRevokeIgnoresATokenOfAnotherOrganization(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $otherOrganizationId = $this->fixtures->organization();
+        $id = $this->fixtures->apiToken(organizationId: $otherOrganizationId);
+
+        $this->assertFalse($this->repository->revoke($organizationId, $id));
+        $this->assertNull($this->repository->findInOrganization($otherOrganizationId, $id)?->revokedAt);
+    }
+
+    public function testRevokeReturnsFalseForAnUnknownId(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $id = $this->fixtures->apiToken(organizationId: $organizationId);
+
+        $this->assertFalse($this->repository->revoke($organizationId, $id + 1000000));
+    }
 }
