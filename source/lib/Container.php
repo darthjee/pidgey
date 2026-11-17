@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use PDO;
 use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccountEdit;
+use Pidgey\Auth\ApiTokens;
 use Pidgey\Auth\Login;
 use Pidgey\Auth\Passwords;
 use Pidgey\Auth\Registration;
@@ -91,6 +92,8 @@ final class Container
     private ?Passwords $passwords = null;
 
     private ?Registration $registration = null;
+
+    private ?ApiTokens $apiTokens = null;
 
     private ?Login $login = null;
 
@@ -407,6 +410,19 @@ final class Container
             $this->passwords(),
             $this->userApprovalRequired(),
         );
+    }
+
+    /**
+     * Returns the API tokens service, built from the `api_tokens` repository on the first call
+     * (which opens the connection).
+     *
+     * @return ApiTokens
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function apiTokens(): ApiTokens
+    {
+        return $this->apiTokens ??= new ApiTokens($this->apiTokenRepository());
     }
 
     /**

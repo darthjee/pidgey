@@ -14,7 +14,7 @@ use Pidgey\Model\ApiToken;
  * Reads and writes the `api_tokens` table.
  *
  * Stores the SHA-256 hex digest of each token and its non-secret display prefix only, never
- * the plain token: hashing happens in the service, before the call.
+ * the plain token: hashing happens in `Pidgey\Auth\ApiTokens`, before the call.
  */
 final class ApiTokenRepository
 {
@@ -33,7 +33,7 @@ final class ApiTokenRepository
     /**
      * Inserts an API token and returns it, re-read so column defaults (`created_at`) are reflected.
      *
-     * Scope names are stored as given: validating them is the service's job.
+     * Scope names are stored as given: validating them is `ApiTokenRules`' job.
      *
      * @param integer  $organizationId Organization the token belongs to.
      * @param string   $name           Label shown in the UI.
@@ -110,6 +110,54 @@ final class ApiTokenRepository
             'SELECT ' . self::COLUMNS . ' FROM api_tokens WHERE token_hash = :token_hash',
             ['token_hash' => $tokenHash],
         );
+    }
+
+    /**
+     * Lists every API token of an organization, revoked ones included, ordered by id.
+     *
+     * @param integer $organizationId Organization the tokens belong to.
+     *
+     * @return ApiToken[]
+     *
+     * @phpstan-return list<ApiToken>
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function listByOrganization(int $organizationId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT ' . self::COLUMNS . ' FROM api_tokens WHERE organization_id = :organization_id ORDER BY id',
+        );
+        $statement->execute(['organization_id' => $organizationId]);
+
+        return array_map(
+            static fn (array $row): ApiToken => ApiToken::fromRow($row),
+            $statement->fetchAll(PDO::FETCH_ASSOC),
+        );
+    }
+
+    /**
+     * Revokes an API token of an organization, only if it is not revoked yet.
+     *
+     * A single conditional `UPDATE`, so concurrent revokes change the row once.
+     *
+     * @param integer $organizationId Organization the token must belong to.
+     * @param integer $id             Primary key.
+     *
+     * @return boolean True when this call revoked the token; false when it was unknown, from
+     *                 another organization or already revoked.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function revoke(int $organizationId, int $id): bool
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE api_tokens SET revoked_at = UTC_TIMESTAMP() '
+            . 'WHERE organization_id = :organization_id AND id = :id AND revoked_at IS NULL',
+        );
+        $statement->execute(['organization_id' => $organizationId, 'id' => $id]);
+
+        return $statement->rowCount() === 1;
     }
 
     /**

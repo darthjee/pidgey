@@ -10,6 +10,8 @@ use PHPUnit\Framework\TestCase;
 use Pidgey\Auth\AdminCheck;
 use Pidgey\Auth\Gate;
 use Pidgey\Container;
+use Pidgey\Http\Handler\ApiTokenHandler;
+use Pidgey\Http\Handler\ApiTokensHandler;
 use Pidgey\Http\HandlerFactory;
 use Pidgey\Http\Middleware;
 use Pidgey\Http\RequestHandler;
@@ -62,6 +64,28 @@ final class HandlerFactoryRoutesTest extends TestCase
         $this->assertInstanceOf($handlerClass, $handler);
         $this->assertInstanceOf(RequestHandler::class, $handler);
         $this->assertSame($middlewareClasses, array_map(static fn (Middleware $m): string => $m::class, $middlewares));
+    }
+
+    public function testApiTokenRoutesResolveToTheirHandlers(): void
+    {
+        /** @var Router $router */
+        $router = require __DIR__ . '/../../../config/routes.php';
+        $handlers = [];
+
+        foreach ($router->routes() as $route) {
+            if (str_starts_with($route->pattern(), '/api-tokens')) {
+                $handlers[$route->method() . ' ' . $route->pattern()] = $route->handlerClass();
+            }
+        }
+
+        $this->assertSame(
+            [
+                'GET /api-tokens.json' => ApiTokensHandler::class,
+                'POST /api-tokens.json' => ApiTokensHandler::class,
+                'DELETE /api-tokens/:id.json' => ApiTokenHandler::class,
+            ],
+            $handlers,
+        );
     }
 
     /**

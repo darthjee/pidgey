@@ -28,6 +28,10 @@ final class OperatorLog
 
     public const SMTP_CONNECTION_TEST = 'smtp-connection-test';
 
+    public const API_TOKEN_CREATE = 'api-token-create';
+
+    public const API_TOKEN_REVOKE = 'api-token-revoke';
+
     /**
      * Builds the log on the application logger.
      *
