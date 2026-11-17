@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Organization-area routes (SMTP connections; the organization and API-token routes join
+ * Organization-area routes (SMTP connections and API tokens; the organization routes join
  * later), required from config/routes.php.
  *
  * Every route is gated by the Gate middleware (cookie access token of an approved user), with
@@ -12,6 +12,8 @@
 declare(strict_types=1);
 
 use Pidgey\Auth\Gate;
+use Pidgey\Http\Handler\ApiTokenHandler;
+use Pidgey\Http\Handler\ApiTokensHandler;
 use Pidgey\Http\Handler\SmtpConnectionActivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionDeactivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionHandler;
@@ -28,3 +30,6 @@ $router->delete('/smtp-connections/:id.json', SmtpConnectionHandler::class, [Gat
 $router->post('/smtp-connections/:id/activate.json', SmtpConnectionActivateHandler::class, [Gate::class]);
 $router->post('/smtp-connections/:id/deactivate.json', SmtpConnectionDeactivateHandler::class, [Gate::class]);
 $router->post('/smtp-connections/:id/test.json', SmtpConnectionTestHandler::class, [Gate::class]);
+$router->get('/api-tokens.json', ApiTokensHandler::class, [Gate::class]);
+$router->post('/api-tokens.json', ApiTokensHandler::class, [Gate::class]);
+$router->delete('/api-tokens/:id.json', ApiTokenHandler::class, [Gate::class]);
