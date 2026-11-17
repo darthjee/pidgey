@@ -10,6 +10,7 @@ use PHPUnit\Framework\Attributes\UsesClass;
 use Pidgey\Auth\AccessToken;
 use Pidgey\Auth\AccessTokenClaims;
 use Pidgey\Auth\AccountEdit;
+use Pidgey\Auth\ApiTokens;
 use Pidgey\Auth\Base64Url;
 use Pidgey\Auth\Login;
 use Pidgey\Auth\Passwords;
@@ -54,6 +55,7 @@ use RuntimeException;
 #[UsesClass(AccessToken::class)]
 #[UsesClass(AccessTokenClaims::class)]
 #[UsesClass(AccountEdit::class)]
+#[UsesClass(ApiTokens::class)]
 #[UsesClass(Base64Url::class)]
 #[UsesClass(Login::class)]
 #[UsesClass(Passwords::class)]
@@ -180,6 +182,19 @@ final class ContainerAuthTest extends ContainerTestCase
 
         $this->assertInstanceOf(Passwords::class, $passwords);
         $this->assertSame($passwords, $container->passwords());
+    }
+
+    public function testApiTokensIsMemoizedOnASinglePdo(): void
+    {
+        $factory = $this->createMock(ConnectionFactory::class);
+        $factory->expects($this->once())->method('create')->willReturn($this->createStub(PDO::class));
+        $container = new Container($factory);
+
+        $apiTokens = $container->apiTokens();
+
+        $this->assertInstanceOf(ApiTokens::class, $apiTokens);
+        $this->assertSame($apiTokens, $container->apiTokens());
+        $container->apiTokenRepository();
     }
 
     public function testRegistrationIsMemoizedOnASinglePdo(): void
