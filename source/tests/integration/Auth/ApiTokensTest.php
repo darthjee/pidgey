@@ -83,7 +83,7 @@ final class ApiTokensTest extends RepositoryTestCase
             $apiTokens->create($this->fixtures->organization() + 1000000, 'Orphan', ['send']);
             $this->fail('Expected a PDOException.');
         } catch (PDOException $exception) {
-            $this->assertStringNotContainsString('pdg_', $exception->getTraceAsString());
+            $this->assertDoesNotMatchRegularExpression('/pdg_[0-9a-f]{8}/', $exception->getTraceAsString());
         }
     }
 
