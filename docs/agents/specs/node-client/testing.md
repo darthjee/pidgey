@@ -1,0 +1,79 @@
+# Testing
+
+Spec of how `pidgey-client` and `pidgey-cli` are tested and which CI jobs run the tests.
+
+## Approach
+
+- **Real `fetch`, local server.** Library specs exercise HTTP with real `fetch` against an
+  in-process `node:http` server started per spec, not a stubbed `globalThis.fetch`: only a
+  real server proves `redirect: 'error'`, timeouts, non-JSON bodies and abort wiring.
+  Stubbing `fetch` cannot prove those behaviours.
+- **Fast backoff.** Backoff is tested with a tiny `retryDelayMs` plus a spy on the delay
+  function, so specs stay fast without fake timers.
+- **End-to-end in CI.** An end-to-end run is part of CI, not opt-in
+  ([Integration](#integration)). Mailpit already exists in `docker-compose.yml`, so a real
+  delivery assertion is cheap.
+- Specs mirror the source tree of each package.
+
+## Library (`clients/nodejs/specs/`)
+
+| Spec | Covers |
+| --- | --- |
+| `specs/client/PidgeyClient_spec.js` | Configuration validation (`token`, `baseUrl`, scheme, trailing slash, `maxRetries`, `timeoutMs`); invalid `send` argument; the header set; no `Origin` header; `redirect: 'error'`; no request made when the configuration is invalid. |
+| `specs/client/PidgeyClientSend_spec.js` | Body mapping for `to`/`subject`/`text`/`html`; unknown keys not sent; `undefined` fields omitted; the request path; the resolved `{ status, smtp }` passthrough; a `200` body without `smtp`. |
+| `specs/client/PidgeyError_spec.js` | Envelope mapping to `statusCode`/`code`/`message`/`details`/`smtp`; the fallback to the HTTP status; `INVALID_RESPONSE` for a non-JSON body; the retained response body. |
+| `specs/client/RetryPolicy_spec.js` | One case per row of the [retry table](errors-and-retry.md#retry-table) (each `SMTP_*` code, unknown `SMTP_*` on `502`/`503`/`504`, network errors); no retry on `400`/`401`/`403`/`409`/`429`/`500`, 3xx and a non-JSON `200`; `ABORTED` from a caller signal during an attempt and during the backoff wait; attempt count for `maxRetries` `0`, `1` and `2`; backoff growing and capped; the last error surfacing when retries are exhausted; a timeout classified as an ambiguous `NETWORK_ERROR`; `retryAmbiguous` off and on; `possiblySent` for every code, including the "any attempt was ambiguous" rule. |
+| `specs/contract/OpenApi_spec.js` | Request bodies built by `send` and the response fixtures used by the specs validate against the OpenAPI document; the generated `types/` file is up to date with it ([openapi.md](openapi.md#contract-tests)). |
+
+## CLI (`clients/cli/specs/`)
+
+| Spec | Covers |
+| --- | --- |
+| `specs/cli/Arguments_spec.js` | Parsing of every flag; `--token`/`--url` versus `PIDGEY_TOKEN`/`PIDGEY_URL`; `--help` and `--version`; unknown flag; repeated flag; missing token or URL. |
+| `specs/cli/Body_spec.js` | Stdin read when neither body flag is given and stdin is not a TTY; no stdin read when `--html` is present; unreadable stdin. |
+| `specs/cli/ExitCode_spec.js` | `0` on a sent message, `1` on a `PidgeyError`, `2` on a usage error and on `CLIENT_CONFIGURATION`, `130` on SIGINT, with nothing printed on success. |
+
+## Cross-cutting
+
+- **Backend, OpenAPI diff:** the `/v1` breaking-change diff against `main` runs in the
+  backend checks and is green ([openapi.md](openapi.md#v1-is-additive-only)).
+- **Backend, OpenAPI route:** a PHPUnit test for `GET /v1/openapi.json` (`200`, JSON content
+  type, no token required, valid OpenAPI 3.1), and a check that the documented status codes
+  of `POST /v1/messages` match the document.
+- **Contract:** `specs/contract/OpenApi_spec.js` in the library (above).
+- **Lint:** `yarn lint` in both packages, with the same rules as `frontend/`, green.
+
+## Integration
+
+`specs/integration/Send_spec.js`, run by the dedicated CI job `clients_integration` and a
+matching `Makefile` target:
+
+1. The job boots the compose stack: Pidgey backend, MySQL, Mailpit.
+2. It seeds an organization, a `send`-scoped API token and an SMTP connection pointing at
+   Mailpit.
+3. It sends through the library **and** through the `pidgey` CLI, and asserts delivery
+   through Mailpit's HTTP API.
+4. It also covers a real `409 NO_SMTP_CONNECTION` for an organization without an active
+   connection, and a real `401` for a revoked token.
+
+Locally the spec is skipped unless the environment points at a running stack.
+
+## CI and `make tests`
+
+| Job | Runs |
+| --- | --- |
+| `clients_checks` | Lint and tests of both packages, in parallel with the existing `backend_checks`, `backend_tests` and `frontend_checks` jobs. |
+| `clients_integration` | The [integration](#integration) spec against Pidgey + MySQL + Mailpit. |
+
+- `clients_checks` ships with the library scaffold, so `clients/` is checked from its first
+  commit: [contributing.md](../../contributing.md) requires the check job of a new
+  application folder to exist before changes to that folder are merged.
+- The `Makefile` gains the client targets, so `make tests` keeps being the single command
+  that runs every check. The `Makefile` target and the CI job call the **same** commands:
+  `clients_checks` must not become a job that `make tests` skips.
+- Done means: `clients_checks` and `clients_integration` green on a branch that touches
+  `clients/`, and `make tests` green locally.
+
+## Extra checks
+
+**Pending decision** (#220): which extra checks the packages carry — pack smoke test, `.d.ts` type check, CLI subprocess tests, coverage threshold, Node.js version matrix — and, for each adopted one, its package, command, `Makefile` target and CI job.
