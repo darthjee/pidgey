@@ -155,6 +155,6 @@ Concurrent `send` calls on one client are independent: the client holds no per-c
 
 ## Runtime constraints
 
-- Standard library only: `fetch` and `AbortSignal`; zero runtime dependencies.
-- No Node-only API beyond `fetch` and `AbortSignal`, so a later browser target (out of scope
-  today) is possible without a rewrite.
+The library uses no Node-only API beyond `fetch` and `AbortSignal`, so a later browser target
+(out of scope today) is possible without a rewrite. Runtime dependencies and the stack are in
+[packaging.md](packaging.md#stack).

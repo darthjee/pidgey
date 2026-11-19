@@ -104,11 +104,10 @@ state that codes may be added); a case that becomes **not** retried; documentati
 - The README states that the client works with **any Pidgey serving `POST /v1/messages`**.
   The client never calls `GET /v1/openapi.json` at runtime, so servers older than that route
   are supported.
-- The client tolerates API growth: the success body is passed through unchanged; unknown
-  `SMTP_*` codes follow the status rows of the retry table; any other unknown code is
-  surfaced as received and never retried
-  ([errors-and-retry.md](errors-and-retry.md#forward-compatibility)).
-- A new request field needs a client release: the request payload is a whitelist.
+- The client tolerates API growth
+  ([errors-and-retry.md](errors-and-retry.md#forward-compatibility)); a new request field
+  needs a client release, because the request payload is a whitelist
+  ([library.md](library.md#message)).
 - `/v1` itself is additive-only, enforced in backend CI
   ([openapi.md](openapi.md#v1-is-additive-only)).
 

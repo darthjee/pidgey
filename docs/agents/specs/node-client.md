@@ -73,7 +73,7 @@ will land. Each enhancement sub-issue replaces its own markers.
 | Issue | Topic | Markers in |
 | --- | --- | --- |
 | #220 | Extra test checks (pack smoke test, `.d.ts` type check, CLI subprocess tests, coverage threshold, Node.js version matrix). | [testing.md](node-client/testing.md) |
-| #222 | How `pidgey-cli` depends on a published `pidgey-client` (caret, exact pin, lockstep). | [packaging.md](node-client/packaging.md) |
+| #222 | How `pidgey-cli` depends on a published `pidgey-client` (caret, exact pin, lockstep). | [packaging.md](node-client/packaging.md), [cli.md](node-client/cli.md) |
 | #223 | Publishing mechanism, credential and release procedure. | [packaging.md](node-client/packaging.md) |
 | #225 | Performance and security (cleartext `http://`, retained response body, token on the command line, stdin size, public OpenAPI route, supply chain, connection reuse and worst-case duration). | [library.md](node-client/library.md), [errors-and-retry.md](node-client/errors-and-retry.md), [cli.md](node-client/cli.md), [openapi.md](node-client/openapi.md), [packaging.md](node-client/packaging.md) |
 | #226 | Node.js version and supported `engines` range. | [packaging.md](node-client/packaging.md) |
