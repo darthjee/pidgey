@@ -1,8 +1,8 @@
 # Pidgey Docs
 
 This file indexes Pidgey's documentation. The docs describe the system as built and are
-updated in the same change set as the code. Later, this hub is also where specs for features
-not built yet will be indexed; there are none today.
+updated in the same change set as the code. This hub also indexes the specs of features not
+built yet, in the [Specs](#specs) table; a spec is removed once the as-built docs cover it.
 
 ## Index
 
@@ -19,6 +19,15 @@ not built yet will be indexed; there are none today.
 | [frontend](frontend.md) | React admin UI stack, layout, client layer, screens, build. |
 | [contributing](contributing.md) | Commit, PR and code-organization rules, plus testing, linting and definition of done in [contributing/testing.md](contributing/testing.md). |
 | [deployment](deployment.md) | The production deployment as implemented: pipeline, variables, server, operations, known gaps. |
+
+## Specs
+
+Features not built yet. Each spec is temporary: it is removed, with its row, once the as-built
+docs of its area cover it.
+
+| Spec | Purpose |
+| --- | --- |
+| [node-client](specs/node-client.md) | Node.js library `pidgey-client`, CLI `pidgey-cli` and the `/v1` OpenAPI document (epic #219). |
 
 ## Conventions
 
