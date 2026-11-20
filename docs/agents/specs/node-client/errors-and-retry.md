@@ -28,7 +28,9 @@ failure and an application failure.
 Mapping from a response:
 
 1. The body is JSON and carries the envelope (`error` with `code` and `message`): the fields
-   above are copied from it.
+   above are copied from it. The parse runs on the **already redacted** response text
+   ([Redaction](#response-body)), so the token is also absent from `message`, `details` and
+   `smtp.message` (the CLI prints `code`, `message` and `smtp` to stderr).
 2. The body is not JSON, or is JSON without `error`: `INVALID_RESPONSE`, keeping the HTTP
    status, instead of a raw parse error.
 
@@ -43,6 +45,13 @@ Mapping from a response:
 - **Decoding.** The bytes are decoded as UTF-8 with replacement characters.
 - **Redaction.**
   - Every occurrence of the literal token in the text read is replaced with `[redacted]`.
+  - Redaction is applied to the response text **before JSON parsing**, so it covers both
+    `body` and every string copied out of the parsed envelope (`message`, `details`,
+    `smtp.message`), not only the retained `body`.
+  - It matches the token **as actually sent**. The client does not trim the configured token
+    itself, but `fetch` strips leading and trailing HTTP whitespace from header values, so
+    the sent value is the trimmed one; both the trimmed value and the configured value are
+    matched when they differ, the longer first.
   - Redaction runs **before** any cut, so a token straddling the cut cannot survive
     partially.
   - Encoded forms (URL-encoded, base64) are not searched.
@@ -50,7 +59,10 @@ Mapping from a response:
   character, with `bodyTruncated: true` when it was cut.
 - **Logging.**
   - `body` and `bodyTruncated` are **non-enumerable**, so `JSON.stringify`, `util.inspect`
-    (without `showHidden`) and logger error serializers do not include them.
+    (without `showHidden`) and logger error serializers that read only enumerable properties
+    do not include them.
+  - A serializer that enumerates own property names (for example `serialize-error`) would
+    include them, which is why `body` is redacted and capped anyway.
   - The parsed fields (`code`, `message`, `statusCode`, `details`, `smtp`, `possiblySent`)
     stay enumerable.
   - `err.body` still works when read on purpose.
@@ -95,6 +107,11 @@ saw an error:
 | `SMTP_PROTOCOL_ERROR` (`502`) | yes | It may happen after `DATA`. |
 | `INVALID_RESPONSE` on a 2xx | yes | The API may have delivered the message before the body broke. |
 | `ABORTED` during an attempt in flight | yes | The abort cut a request that was already dispatched (before its response body was fully read): Pidgey may have sent the message. |
+
+The `ABORTED` rule is deliberately broad: an abort while reading the body of an
+already-received response (even a `400`, `401`, `403` or `409`, which would otherwise be
+`possiblySent: false`) also reports `true`. This errs on the safe side and is the simplest
+rule to implement: the status is not consulted once the abort fires.
 
 ## Possibly sent
 

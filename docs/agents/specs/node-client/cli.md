@@ -53,7 +53,8 @@ without breaking the flags.
 - `--allow-insecure-http` has no environment variable; one can be added later without a
   breaking change. Without the flag, an `http://` `--url` on a non-loopback host exits `2`
   (the library's `CLIENT_CONFIGURATION`), and the message names the cleartext reason, never
-  the token. With an `https://` URL the flag is accepted and has no effect.
+  the token. It does not include the URL (or strips its userinfo), so credentials in
+  `http://user:pass@host` are never echoed. With an `https://` URL the flag is accepted and has no effect.
 
 ## Credentials and URL
 

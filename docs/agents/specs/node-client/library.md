@@ -90,7 +90,8 @@ opt-in only for a literal loopback host**: `localhost`, any `127.0.0.0/8` addres
   `http://[::ffff:127.0.0.1]` and `http://0.0.0.0`.
 - Any other `http://` host needs an explicit opt-in: `allowInsecureHttp: true`. Without it the
   client rejects with `CLIENT_CONFIGURATION` **before any request**. The message names the
-  reason (cleartext token) and never the token.
+  reason (cleartext token) and never the token. It does not include the URL either (or strips
+  its userinfo), so credentials written as `http://user:pass@host` are never echoed.
 - With an `https://` URL the option is accepted and has no effect.
 - No warning is printed in any case.
 - There is no environment variable for the opt-in; one can be added later without a breaking
