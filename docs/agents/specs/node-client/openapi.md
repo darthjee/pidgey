@@ -124,6 +124,11 @@ docs win for current behaviour; the implementation sub-issue of the route settle
   that `/v1` paths keep their own contract **without** the `.json` suffix
   ([api/endpoints/sending.md](../../api/endpoints/sending.md#relation-to-the-conventions));
   `GET /v1/openapi.json` carries one. The route is a documented exception to record there.
+- **Public exception to the Bearer gate.** Every `/v1/*` request needs a Bearer API token
+  ([api/authentication/api-tokens.md](../../api/authentication/api-tokens.md#disjoint-credentials)).
+  The route's implementation sub-issue adds an explicit public exception there, limited to
+  `GET` and `HEAD` on exactly `/v1/openapi.json` (an exact match, never a prefix), so no other
+  `/v1` path or method becomes public.
 - **`HEAD`.** The router never falls back from `HEAD` to `GET`
   ([request-handler/routing.md](../../request-handler/routing.md)): answering `HEAD` needs
   its own route. "Other methods follow the API's conventions" means the routing `404`

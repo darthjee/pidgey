@@ -134,10 +134,15 @@ the pack check and the hardened publishing token that navi lacks.
   validator, ESLint, Jasmine, c8) are never installed by consumers. Specs, fixtures, the
   `types/` sources, coverage and lint config never enter the tarball; the generated `.d.ts`
   declarations are in the allowlist ([openapi.md](openapi.md#generated-types)).
-- **Pack check.** CI runs `npm pack --dry-run` for each package and fails when the file list
-  contains anything outside the allowlist. The fuller smoke test (install the packed tarball,
+- **Pack check.** CI runs `npm pack --dry-run` for each package and compares its file list
+  against an **explicit expected file list** committed per package, failing on any added or
+  missing file. Comparing against the `files` allowlist alone could never fail, since
+  `npm pack` only ever packs what the allowlist matches; the expected list catches an
+  allowlist glob that is too broad. The fuller smoke test (install the packed tarball,
   run `pidgey --help`, type-check the `.d.ts`) is not decided here: it stays with the extra
   checks pending decision ([testing.md](testing.md#extra-checks)).
+- **No install scripts.** Neither package declares `preinstall`, `install` or `postinstall`
+  scripts: installing them runs no code.
 - **2FA and token.** 2FA is required on the maintainer's npm account and in each package's
   publishing settings. CI publishes with a **granular** npm token limited to `pidgey-client`
   and `pidgey-cli`, with an expiry date, never a classic long-lived automation token. Where

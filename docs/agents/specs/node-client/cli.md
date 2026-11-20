@@ -62,11 +62,18 @@ without breaking the flags.
   only by the same user and root. There is no `--token` flag: it was removed before the first
   release, while removing it was free; removing it after `0.1.0` would have been breaking.
   `--token` is an unknown flag (exit `2`).
-- **Reading the token file.** The token is the file's content with **one** trailing newline
-  (`\n` or `\r\n`) trimmed; no other whitespace is trimmed. A missing or unreadable file, or
-  a token that is empty or whitespace-only after trimming, is a usage error (exit `2`). The
-  message names the path, never the content.
-- **Permissions.** On POSIX systems, a token file readable by group or others
+- **Reading the token file.** The path must resolve, after following symlinks, to a
+  **regular file**: a device, FIFO, socket or directory (for example `/dev/stdin`,
+  `/dev/zero` or a named pipe) is a usage error (exit `2`), which keeps the token off stdin.
+  At most **4 KiB** is read; a larger file is a usage error (exit `2`). The token is the
+  file's content with **one** trailing newline (`\n` or `\r\n`) trimmed; no other whitespace
+  is trimmed. A missing or unreadable file, a token that is empty or whitespace-only after
+  trimming, or a token that still contains any control character (CR, LF, NUL, tab or any
+  other) after trimming, is a usage error (exit `2`). The message names the path, never the
+  content.
+- **Permissions.** On POSIX systems, the mode is checked with `fstat` on the descriptor the
+  token is actually read from (not a separate `stat` of the path, which a swap between check
+  and read could defeat). A token file readable by group or others
   (`mode & 0o077`) prints a warning to stderr and the send continues. There is no check on
   Windows. Refusing such a file (as `ssh` does for keys) was rejected because
   orchestrator-mounted secrets often carry broad modes.
@@ -102,7 +109,7 @@ without breaking the flags.
 | --- | --- |
 | `0` | The message was sent. |
 | `1` | The send failed or the client could not complete the call: any `PidgeyError` except `CLIENT_CONFIGURATION`, network failures included. |
-| `2` | Usage error: unknown flag, repeated flag, missing required flag, missing token (no `--token-file` and no `PIDGEY_TOKEN`) or URL (no `--url` and no `PIDGEY_URL`), an unreadable or empty token file, a `CLIENT_CONFIGURATION` error from the library (for example a malformed `--url`), unreadable stdin, neither body flag with a TTY stdin. |
+| `2` | Usage error: unknown flag, repeated flag, missing required flag, missing token (no `--token-file` and no `PIDGEY_TOKEN`) or URL (no `--url` and no `PIDGEY_URL`), an unreadable, empty, oversized (over 4 KiB) or non-regular token file, a token file holding a control character, a `CLIENT_CONFIGURATION` error from the library (for example a malformed `--url`), unreadable stdin, neither body flag with a TTY stdin. |
 | `130` | Interrupted by SIGINT. |
 
 - Separate codes let a shell script distinguish a rejected send from a mistyped command.
