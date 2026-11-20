@@ -38,7 +38,10 @@ Spec of how `pidgey-client` and `pidgey-cli` are tested and which CI jobs run th
 - **Backend, OpenAPI diff:** the `/v1` breaking-change diff against `main` runs in the
   backend checks and is green ([openapi.md](openapi.md#v1-is-additive-only)).
 - **Backend, OpenAPI route:** a PHPUnit test for `GET /v1/openapi.json` (`200`, JSON content
-  type, no token required, valid OpenAPI 3.1), and a check that the documented status codes
+  type, no token required, valid OpenAPI 3.1); the
+  [content rules](openapi.md#content-rules) (every path starts with `/v1`, no `servers`
+  entry with a real host, `info.version` is not the Pidgey release version); no cache
+  headers; an invalid Bearer is still served; and a check that the documented status codes
   of `POST /v1/messages` match the document.
 - **Contract:** `specs/contract/OpenApi_spec.js` in the library (above).
 - **Pack check:** `npm pack --dry-run` in both packages, failing when the file list contains
