@@ -29,7 +29,7 @@ Spec of how `pidgey-client` and `pidgey-cli` are tested and which CI jobs run th
 
 | Spec | Covers |
 | --- | --- |
-| `specs/cli/Arguments_spec.js` | Parsing of every flag; `--token`/`--url` versus `PIDGEY_TOKEN`/`PIDGEY_URL`; `--help` and `--version`; unknown flag; repeated flag; missing token or URL. |
+| `specs/cli/Arguments_spec.js` | Parsing of every flag; `--token-file`/`--url` versus `PIDGEY_TOKEN`/`PIDGEY_URL` precedence; one trailing newline (`\n` or `\r\n`) trimmed from the token file; missing, unreadable and empty token file → exit `2`; the group/other-readable token file warning; `--token` rejected as an unknown flag; `--help` and `--version`; unknown flag; repeated flag; missing token or URL. |
 | `specs/cli/Body_spec.js` | Stdin read when neither body flag is given and stdin is not a TTY; no stdin read when `--html` is present; unreadable stdin. |
 | `specs/cli/ExitCode_spec.js` | `0` on a sent message, `1` on a `PidgeyError`, `2` on a usage error and on `CLIENT_CONFIGURATION`, `130` on SIGINT, with nothing printed on success. |
 

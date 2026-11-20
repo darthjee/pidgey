@@ -11,6 +11,9 @@ printf 'Hi!' | pidgey --to user@example.com --subject Hello
 
 PIDGEY_URL=https://pidgey.example.com PIDGEY_TOKEN=pdg_example... \
   pidgey --to user@example.com --subject Hello --html '<p>Hi!</p>'
+
+PIDGEY_URL=https://pidgey.example.com \
+  pidgey --token-file /run/secrets/pidgey_token --to user@example.com --subject Hello --text 'Hi!'
 ```
 
 ## Thin layer
@@ -33,7 +36,7 @@ without breaking the flags.
 | `--subject` | Subject | `message.subject` |
 | `--text` | Plain-text body | `message.text` |
 | `--html` | HTML body | `message.html` |
-| `--token` | API token | `token` option; falls back to `PIDGEY_TOKEN` |
+| `--token-file` | Path to a file holding the API token | `token` option; `PIDGEY_TOKEN` when absent ([Credentials and URL](#credentials-and-url)) |
 | `--url` | Pidgey base URL | `baseUrl` option; falls back to `PIDGEY_URL` |
 | `--retry-ambiguous` | Boolean | `retryAmbiguous: true` ([errors-and-retry.md](errors-and-retry.md#retryambiguous)) |
 | `--verbose` | Boolean | Prints the result on success ([Output](#output)) |
@@ -49,16 +52,33 @@ without breaking the flags.
 
 ## Credentials and URL
 
-- `--token` falls back to `PIDGEY_TOKEN`; `--url` falls back to `PIDGEY_URL`. An explicit
-  flag wins over the environment variable.
-- A token on the command line is visible in process listings; the environment variable is
-  the safer default, while the flag stays usable.
-- A missing token (no `--token` and no `PIDGEY_TOKEN`) or URL (no `--url` and no
-  `PIDGEY_URL`) is exit `2`.
-- The CLI never reads a token from stdin, so piping a body never exposes the token in the
-  pipeline.
+- **Token sources**, in precedence order:
+  1. `--token-file <path>`: the content of the file.
+  2. `PIDGEY_TOKEN`.
 
-**Pending decision** (#225): should the CLI warn when `--token` is used, or support reading the token from a file?
+  An explicit `--token-file` wins over `PIDGEY_TOKEN`, as `--url` wins over `PIDGEY_URL`.
+- **The token is never taken from argv.** Command-line arguments are readable by every local
+  user (`ps`, `/proc/<pid>/cmdline`) and land in shell history; the environment is readable
+  only by the same user and root. There is no `--token` flag: it was removed before the first
+  release, while removing it was free; removing it after `0.1.0` would have been breaking.
+  `--token` is an unknown flag (exit `2`).
+- **Reading the token file.** The token is the file's content with **one** trailing newline
+  (`\n` or `\r\n`) trimmed; no other whitespace is trimmed. A missing or unreadable file, or
+  a token that is empty or whitespace-only after trimming, is a usage error (exit `2`). The
+  message names the path, never the content.
+- **Permissions.** On POSIX systems, a token file readable by group or others
+  (`mode & 0o077`) prints a warning to stderr and the send continues. There is no check on
+  Windows. Refusing such a file (as `ssh` does for keys) was rejected because
+  orchestrator-mounted secrets often carry broad modes.
+- A missing token (no `--token-file` and no `PIDGEY_TOKEN`) or URL (no `--url` and no
+  `PIDGEY_URL`) is exit `2`.
+- The token is never read from stdin (so piping a body never exposes it in the pipeline),
+  never prompted for, and never printed.
+- **Rejected:** keeping `--token` with a stderr warning (noisy, cannot be silenced, ignored in
+  practice); keeping `--token` documented only; an interactive `/dev/tty` prompt (unfit for
+  scripting, and it conflicts with "missing token → exit `2`"); a config file or keychain
+  with `pidgey login` (a feature of its own, out of scope for `0.1.0`); a `PIDGEY_TOKEN_FILE`
+  variable (not needed now; it can be added later without a breaking change).
 
 ## Body and stdin
 
@@ -82,7 +102,7 @@ without breaking the flags.
 | --- | --- |
 | `0` | The message was sent. |
 | `1` | The send failed or the client could not complete the call: any `PidgeyError` except `CLIENT_CONFIGURATION`, network failures included. |
-| `2` | Usage error: unknown flag, repeated flag, missing required flag, missing token or URL in both flag and environment, a `CLIENT_CONFIGURATION` error from the library (for example a malformed `--url`), unreadable stdin, neither body flag with a TTY stdin. |
+| `2` | Usage error: unknown flag, repeated flag, missing required flag, missing token (no `--token-file` and no `PIDGEY_TOKEN`) or URL (no `--url` and no `PIDGEY_URL`), an unreadable or empty token file, a `CLIENT_CONFIGURATION` error from the library (for example a malformed `--url`), unreadable stdin, neither body flag with a TTY stdin. |
 | `130` | Interrupted by SIGINT. |
 
 - Separate codes let a shell script distinguish a rejected send from a mistyped command.
