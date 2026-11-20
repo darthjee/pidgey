@@ -94,7 +94,7 @@ without breaking the flags.
   is the validator.
 - An unreadable stdin or a closed pipe is exit `2`, not exit `1`.
 
-**Pending decision** (#225): should the CLI cap the size of the body read from stdin (the API has no body-size limit yet, see [api/pending.md](../../api/pending.md))?
+**Pending decision** (#231): should the CLI cap the size of the body read from stdin (the API has no body-size limit yet, see [api/pending.md](../../api/pending.md))?
 
 ## Exit codes
 
