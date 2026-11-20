@@ -46,7 +46,7 @@ keeps the CLI buildable without a workspace. A published CLI release depends on 
   (`axios`, `got`, `node-fetch`) were rejected.
 - The CLI parses its flags with `node:util` `parseArgs` in strict mode; `commander` /
   `yargs` were rejected.
-- **Tooling:** Yarn, Jasmine, nyc/c8 for coverage, ESLint 9 flat config: the same as
+- **Tooling:** Yarn, Jasmine, `c8` for coverage (100 % threshold, see [testing.md](testing.md#coverage-threshold-adopted)), ESLint 9 flat config: the same as
   `frontend/` ([frontend/stack.md](../../frontend/stack.md)).
 - **Code style:** the repository's JavaScript rules apply: files declare one module, the
   entrypoint is the only script, public exports carry accurate JSDoc.
@@ -68,6 +68,7 @@ a number yet.
 | --- | --- |
 | `clients/nodejs/` (source, Jasmine specs, `package.json`, `yarn.lock`, `eslint.config.mjs`, the package README) | New agent `nodejs` |
 | `clients/cli/` (`bin/`, source, Jasmine specs, `package.json`, `yarn.lock`, `eslint.config.mjs`) | New agent `cli` |
+| `clients/scripts/` (the shared check and integration scripts, called by the `Makefile` and CI; `nodejs` and `cli` own the npm scripts they call) | `infra` |
 | `docs/agents/clients.md` and `docs/agents/clients/` (as-built docs) | `product-owner` |
 | `.claude/agents/`, `AGENTS.md`, `docs/agents/folder-structure.md` | `architect` |
 
@@ -139,9 +140,11 @@ the pack check and the hardened publishing token that navi lacks.
   against an **explicit expected file list** committed per package, failing on any added or
   missing file. Comparing against the `files` allowlist alone could never fail, since
   `npm pack` only ever packs what the allowlist matches; the expected list catches an
-  allowlist glob that is too broad. The fuller smoke test (install the packed tarball,
-  run `pidgey --help`, type-check the `.d.ts`) is not decided here: it stays with the extra
-  checks pending decision ([testing.md](testing.md#extra-checks)).
+  allowlist glob that is too broad. The fuller pack smoke test (install the packed tarballs, run
+  `pidgey --version` and `--help`, import through the `exports` map, type-check the `.d.ts`)
+  runs on every build and is specified in
+  [testing.md](testing.md#pack-smoke-test-adopted) and
+  [testing.md](testing.md#dts-type-check-adopted).
 - **No install scripts.** Neither package declares `preinstall`, `install` or `postinstall`
   scripts: installing them runs no code.
 - **2FA and token.** 2FA is required on the maintainer's npm account and in each package's

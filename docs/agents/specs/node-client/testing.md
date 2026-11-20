@@ -144,7 +144,7 @@ script):
 
 ## Extra checks
 
-Decided in #220. Every check below runs in `clients_checks` through the shared
+Every check below runs in `clients_checks` through the shared
 `clients/scripts/checks.sh` script, which `make clients-checks` also calls
 ([CI and `make tests`](#ci-and-make-tests)). Script paths, fixture and spec file names are
 indicative: the rule is that the `Makefile` target and the CI job call the same script.
