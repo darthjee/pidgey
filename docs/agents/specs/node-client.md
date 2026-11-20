@@ -53,14 +53,17 @@ Out of scope (non-goals of the epic):
 - **OpenAPI for the admin API.** The document covers `/v1` only.
 - **Idempotency.** Removing the client-to-Pidgey duplicate case with an `Idempotency-Key`
   is tracked separately in #221.
+- **API request size limits.** The API has no body-size limit today; adding one is tracked
+  separately in #233, and the CLI stdin cap follows it if it ends up lower
+  ([node-client/cli.md](node-client/cli.md#stdin-size-cap)).
 
 ## Files
 
 | File | Content |
 | --- | --- |
-| [library.md](node-client/library.md) | `PidgeyClient`, its options, `send(message, { signal })`, the v1 field whitelist, headers, success passthrough, redirects, abort, timeout. |
-| [errors-and-retry.md](node-client/errors-and-retry.md) | `PidgeyError`, client-local codes, `possiblySent`, the retry table by `error.code`, `retryAmbiguous`, backoff. |
-| [cli.md](node-client/cli.md) | The `pidgey` command: flags, token sources (`--token-file`, `PIDGEY_TOKEN`), environment fallbacks, stdin, exit codes, output. |
+| [library.md](node-client/library.md) | `PidgeyClient`, its options, `send(message, { signal })`, the v1 field whitelist, headers, success passthrough, redirects, abort, timeout, connections, the cleartext rule. |
+| [errors-and-retry.md](node-client/errors-and-retry.md) | `PidgeyError`, client-local codes, `possiblySent`, the retry table by `error.code`, `retryAmbiguous`, backoff, the retained response body. |
+| [cli.md](node-client/cli.md) | The `pidgey` command: flags, token sources (`--token-file`, `PIDGEY_TOKEN`), environment fallbacks, stdin and its size cap, exit codes, output. |
 | [openapi.md](node-client/openapi.md) | The `/v1` OpenAPI document, `GET /v1/openapi.json`, generated types and `.d.ts`, contract tests, the additive-only rule and its CI diff. |
 | [packaging.md](node-client/packaging.md) | Packages and names, stack, runtime dependencies, versioning and compatibility, publishing and supply chain, ownership. |
 | [testing.md](node-client/testing.md) | Test approach, spec files per package, cross-cutting checks, the CI jobs. |
@@ -76,7 +79,6 @@ will land. Each enhancement sub-issue replaces its own markers.
 | #222 | How `pidgey-cli` depends on a published `pidgey-client` (caret, exact pin, lockstep). | [packaging.md](node-client/packaging.md), [cli.md](node-client/cli.md) |
 | #223 | Publishing mechanism, credential and release procedure. | [packaging.md](node-client/packaging.md) |
 | #226 | Node.js version and supported `engines` range. | [packaging.md](node-client/packaging.md) |
-| #231 | Runtime security and limits (cleartext `http://`, retained response body, stdin size cap, connection reuse and worst-case duration). | [library.md](node-client/library.md), [errors-and-retry.md](node-client/errors-and-retry.md), [cli.md](node-client/cli.md) |
 
 ## Lifecycle
 
