@@ -41,6 +41,8 @@ Spec of how `pidgey-client` and `pidgey-cli` are tested and which CI jobs run th
   type, no token required, valid OpenAPI 3.1), and a check that the documented status codes
   of `POST /v1/messages` match the document.
 - **Contract:** `specs/contract/OpenApi_spec.js` in the library (above).
+- **Pack check:** `npm pack --dry-run` in both packages, failing when the file list contains
+  anything outside the `files` allowlist ([packaging.md](packaging.md#supply-chain)).
 - **Lint:** `yarn lint` in both packages, with the same rules as `frontend/`, green.
 
 ## Integration

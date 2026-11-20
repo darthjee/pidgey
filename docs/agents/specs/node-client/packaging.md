@@ -124,4 +124,29 @@ state that codes may be added); a case that becomes **not** retried; documentati
 
 **Pending decision** (#223): the publishing mechanism (CircleCI on a per-package tag, manual `npm publish`, or GitHub Actions with trusted publishing), tag naming, pre-publish gate, credential lifecycle and release/rollback procedure.
 
-**Pending decision** (#225): supply-chain settings (npm 2FA on the packages, provenance) and confirming that devDependencies (`openapi-typescript`, `typescript`, the contract-test schema validator) never ship.
+### Supply chain
+
+The approach follows darthjee/navi's `navi-hey-client` package (a `files` allowlist), adding
+the pack check and the hardened publishing token that navi lacks.
+
+- **What ships.** Each package declares a `files` allowlist in `package.json`; there is no
+  `.npmignore`. devDependencies (`openapi-typescript`, `typescript`, the contract-test schema
+  validator, ESLint, Jasmine, c8) are never installed by consumers. Specs, fixtures, the
+  `types/` sources, coverage and lint config never enter the tarball; the generated `.d.ts`
+  declarations are in the allowlist ([openapi.md](openapi.md#generated-types)).
+- **Pack check.** CI runs `npm pack --dry-run` for each package and fails when the file list
+  contains anything outside the allowlist. The fuller smoke test (install the packed tarball,
+  run `pidgey --help`, type-check the `.d.ts`) is not decided here: it stays with the extra
+  checks pending decision ([testing.md](testing.md#extra-checks)).
+- **2FA and token.** 2FA is required on the maintainer's npm account and in each package's
+  publishing settings. CI publishes with a **granular** npm token limited to `pidgey-client`
+  and `pidgey-cli`, with an expiry date, never a classic long-lived automation token. Where
+  the token lives, its rotation and the release procedure belong to the publishing pending
+  decision above (#223).
+- **Provenance.** The goal is provenance-attested releases: `npm publish --provenance`, or
+  npm trusted publishing (OIDC), whenever the mechanism chosen in #223 supports it. If that
+  mechanism cannot attest, the spec records the gap explicitly instead of dropping the goal
+  silently; #223 confirms feasibility.
+- **Frozen installs.** CI installs with the committed lockfile frozen
+  (`yarn install --frozen-lockfile`, matching the Yarn tooling in [Stack](#stack)), so a
+  release never resolves new dependency versions.
