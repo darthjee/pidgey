@@ -66,7 +66,7 @@ Out of scope (non-goals of the epic):
 | [cli.md](node-client/cli.md) | The `pidgey` command: flags, token sources (`--token-file`, `PIDGEY_TOKEN`), environment fallbacks, stdin and its size cap, exit codes, output. |
 | [openapi.md](node-client/openapi.md) | The `/v1` OpenAPI document, `GET /v1/openapi.json`, generated types and `.d.ts`, contract tests, the additive-only rule and its CI diff. |
 | [packaging.md](node-client/packaging.md) | Packages and names, stack, runtime dependencies, versioning and compatibility, publishing and supply chain, ownership. |
-| [testing.md](node-client/testing.md) | Test approach, spec files per package, cross-cutting checks, the CI jobs. |
+| [testing.md](node-client/testing.md) | Test approach, edge-case rules, spec files per package, cross-cutting checks, the extra checks, the shared scripts, `Makefile` targets and CI jobs. |
 
 ## Pending decisions
 
@@ -75,7 +75,6 @@ will land. Each enhancement sub-issue replaces its own markers.
 
 | Issue | Topic | Markers in |
 | --- | --- | --- |
-| #220 | Extra test checks (pack smoke test, `.d.ts` type check, CLI subprocess tests, coverage threshold, Node.js version matrix). | [testing.md](node-client/testing.md) |
 | #222 | How `pidgey-cli` depends on a published `pidgey-client` (caret, exact pin, lockstep). | [packaging.md](node-client/packaging.md), [cli.md](node-client/cli.md) |
 | #223 | Publishing mechanism, credential and release procedure. | [packaging.md](node-client/packaging.md) |
 | #226 | Node.js version and supported `engines` range. | [packaging.md](node-client/packaging.md) |
