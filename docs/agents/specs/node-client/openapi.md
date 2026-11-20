@@ -133,8 +133,10 @@ docs win for current behaviour; the implementation sub-issue of the route settle
   ([request-handler/routing.md](../../request-handler/routing.md)): answering `HEAD` needs
   its own route. "Other methods follow the API's conventions" means the routing `404`
   `NOT_FOUND`, never `405`.
-- **Documented statuses.** The error table of `POST /v1/messages` does not list the
-  body-parser answers (`400 BAD_REQUEST`, `413`, `415`) nor the routing `404`, which
+- **Documented statuses.** The error table of `POST /v1/messages` lists the body-parser
+  answers (`400 BAD_REQUEST`, `413 HTTP_413`, `415 HTTP_415`, see
+  [api/endpoints/sending.md](../../api/endpoints/sending.md#errors)), and the OpenAPI document
+  includes them, matching that table. The routing `404`, which
   [api/conventions/errors.md](../../api/conventions/errors.md#generic-errors) applies to
-  every endpoint. "Every documented error status" in the document must state whether they
-  are included.
+  every endpoint, is not part of the table; "Every documented error status" in the document
+  must state whether it is included.

@@ -109,8 +109,9 @@ without breaking the flags.
 
 ### Stdin size cap
 
-- The CLI stops reading stdin after **10 MiB**, counted in bytes before UTF-8 decoding.
-  - Exactly 10 MiB is accepted; one byte more exits `2` with a message naming the limit, and
+- The CLI stops reading stdin after **1 MiB** (1048576 bytes), counted in bytes before UTF-8
+  decoding.
+  - Exactly 1 MiB is accepted; one byte more exits `2` with a message naming the limit, and
     nothing is sent.
   - Reading stops as soon as the input goes over the cap; the rest is not drained.
 - `--text`/`--html` are not capped: the shell already limits argument size.
@@ -119,7 +120,11 @@ without breaking the flags.
 - The library does **not** cap `text`/`html` ([library.md](library.md#message)).
 - The cap is not configurable; a `--max-body-size` flag can be added later without a breaking
   change.
-- If the API limit (#233) ends up below 10 MiB, the CLI cap follows it.
+- The cap equals the API's request body limit of 1 MiB
+  ([api/endpoints/sending.md](../../api/endpoints/sending.md#size-limits)). The body the CLI
+  sends is the JSON encoding of the message, which can be larger than the stdin text (escaping,
+  the other fields): a stdin under the cap whose JSON body goes over 1 MiB is not caught by
+  the CLI and gets the API's `413 HTTP_413` (exit `1`).
 - **Rejected:** a library cap (it duplicates a rule the API owns); a configurable cap (nobody
   needs it yet); no cap (no protection against an endless pipe such as `pidgey < /dev/zero`).
 
@@ -134,7 +139,7 @@ The CLI process exits right after a send, without waiting on an idle keep-alive 
 | --- | --- |
 | `0` | The message was sent. |
 | `1` | The send failed or the client could not complete the call: any `PidgeyError` except `CLIENT_CONFIGURATION`, network failures included. |
-| `2` | Usage error: unknown flag, repeated flag, missing required flag, missing token (no `--token-file` and no `PIDGEY_TOKEN`) or URL (no `--url` and no `PIDGEY_URL`), an unreadable, empty, oversized (over 4 KiB) or non-regular token file, a token file holding a control character, a `CLIENT_CONFIGURATION` error from the library (for example a malformed `--url`, or a non-loopback `http://` `--url` without `--allow-insecure-http`), unreadable stdin, stdin over 10 MiB, neither body flag with a TTY stdin. |
+| `2` | Usage error: unknown flag, repeated flag, missing required flag, missing token (no `--token-file` and no `PIDGEY_TOKEN`) or URL (no `--url` and no `PIDGEY_URL`), an unreadable, empty, oversized (over 4 KiB) or non-regular token file, a token file holding a control character, a `CLIENT_CONFIGURATION` error from the library (for example a malformed `--url`, or a non-loopback `http://` `--url` without `--allow-insecure-http`), unreadable stdin, stdin over 1 MiB, neither body flag with a TTY stdin. |
 | `130` | Interrupted by SIGINT. |
 
 - Separate codes let a shell script distinguish a rejected send from a mistyped command.

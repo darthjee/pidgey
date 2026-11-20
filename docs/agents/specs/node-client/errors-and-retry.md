@@ -155,7 +155,8 @@ rule to implement: the status is not consulted once the abort fires.
 
 **Never retried**, whatever the options: `400` (`VALIDATION_FAILED`, `BAD_REQUEST`), `401`,
 `403`, `409` (every code: `NO_SMTP_CONNECTION`, `SMTP_INSECURE_CREDENTIALS`,
-`SMTP_HOST_NOT_ALLOWED`, `SMTP_PASSWORD_UNREADABLE`), `429`, `500`, any 3xx, any other
+`SMTP_HOST_NOT_ALLOWED`, `SMTP_PASSWORD_UNREADABLE`), `413` (`HTTP_413`, body over the API's
+1 MiB limit), `415`, `429`, `500`, any 3xx, any other
 status, any other unknown code, `INVALID_RESPONSE` (including on a 2xx),
 `CLIENT_CONFIGURATION` and `ABORTED`. A validation error, a bad token, a missing SMTP
 connection or a refused credential will not fix itself, and retrying multiplies the load.

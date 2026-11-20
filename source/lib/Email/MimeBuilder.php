@@ -14,9 +14,10 @@ use Pidgey\Infra\WallClock;
  *
  * - Headers, in order: `Date` (UTC), `From`, `To`, `Subject`, `Message-ID`, `MIME-Version`,
  *   `Content-Type` and, for a single part, `Content-Transfer-Encoding`.
- * - The subject is kept as is when it is printable ASCII, else encoded as RFC 2047
- *   `=?UTF-8?B?...?=` words of at most 75 characters that never split a UTF-8 character,
- *   on lines of at most 76 characters; a printable ASCII subject is folded at 78 characters.
+ * - The subject is kept as is when it is printable ASCII without the two characters `=?`,
+ *   else (non-ASCII, or containing `=?`) encoded as RFC 2047 `=?UTF-8?B?...?=` words of at
+ *   most 75 characters that never split a UTF-8 character, on lines of at most 76
+ *   characters; a kept printable ASCII subject is folded at 78 characters.
  * - Every body is normalized to CRLF, then quoted-printable with lines of at most 76
  *   characters; text and HTML together become `multipart/alternative`, text first.
  * - CRLF throughout; no dot-stuffing and no final `.` (the transport's job).
@@ -205,7 +206,7 @@ final class MimeBuilder
      */
     private static function subject(string $subject): string
     {
-        if (preg_match('/^[\x20-\x7E]*$/D', $subject) === 1) {
+        if (preg_match('/^[\x20-\x7E]*$/D', $subject) === 1 && !str_contains($subject, '=?')) {
             return self::fold($subject);
         }
 

@@ -35,6 +35,22 @@ Payload rules (fields, required ones, multipart building) are in
 [email/message-scope.md](../../email/message-scope.md). The `From:` header and envelope sender
 are the active connection's `fromAddress`.
 
+### Size limits
+
+- **Body:** at most **1 MiB** for the whole request, a limit shared by every route and
+  enforced by the body parser
+  ([request-handler/request-response/request.md](../../request-handler/request-response/request.md#json-body)).
+  A larger body answers `413 HTTP_413` (`Content Too Large`) when the body is read (after the guards, before validation).
+- **`subject`:** at most **255 characters** (UTF-8 characters, not bytes); a longer subject
+  answers `400 VALIDATION_FAILED` with `subject must be shorter than or equal to 255 characters`.
+- **`text` / `html`:** no field-level cap; they are bounded only by the 1 MiB body limit. A
+  message that fits the body limit but is too large for the SMTP server still fails at the
+  server (`552`, answered as `502 SMTP_REJECTED`, see [email/failures.md](../../email/failures.md)).
+
+Why: the `subject` cap keeps the header well inside RFC 5322's line limits (see
+[email/message-scope.md](../../email/message-scope.md#headers)); the body limit is the single
+bound on the rest of the payload.
+
 Steps: the synchronous [send flow](../../email/send-flow.md) — origin check, token
 authentication (below), scope check, payload validation, active connection resolution, SMTP
 transaction, answer, log.
@@ -79,7 +95,10 @@ Then a valid token lacking scope `send` answers `403 FORBIDDEN`.
 | Cross-site browser request | `403 FORBIDDEN` — `Cross-site request rejected` |
 | Missing, malformed, unknown or revoked token, or organization with no approved user | `401 UNAUTHORIZED` |
 | Token without scope `send` | `403 FORBIDDEN` |
-| Invalid payload | `400 VALIDATION_FAILED` |
+| Malformed JSON or a body that is not a JSON object | `400 BAD_REQUEST` — `Bad Request` |
+| Body over 1 MiB | `413 HTTP_413` — `Content Too Large` |
+| `Content-Type` is not `application/json` | `415 HTTP_415` — `Unsupported Media Type` |
+| Invalid payload (including a `subject` over 255 characters) | `400 VALIDATION_FAILED` |
 | No active SMTP connection | `409 NO_SMTP_CONNECTION` |
 | Active connection with credentials and `encryption: none` | `409 SMTP_INSECURE_CREDENTIALS` |
 | Active connection's `host` resolves to a denied address (`SMTP_ALLOW_PRIVATE_HOSTS=false`) | `409 SMTP_HOST_NOT_ALLOWED` — `The SMTP host resolves to an address that is not allowed` ([email/send-flow.md](../../email/send-flow.md#host-check)) |
@@ -102,10 +121,12 @@ The implementation must cover at least:
 - `401` for missing, unknown and revoked tokens and for tokens of an organization without an
   approved user, all with the same body; no `revoked_at` change in the last case;
 - `403` for a token without scope `send`;
+- a `subject` of exactly 255 characters is accepted and one of 256 characters answers
+  `400 VALIDATION_FAILED`; a body over 1 MiB answers `413 HTTP_413`;
 - the error envelope on every failure, including `409 NO_SMTP_CONNECTION` and the `SMTP_*`
   codes.
 
 ## Pending decisions
 
-Size limits, idempotency keys, rate limits and CORS for browser clients are tracked in
+Idempotency keys, rate limits and CORS for browser clients are tracked in
 [api/pending.md](../pending.md).

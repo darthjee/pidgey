@@ -97,9 +97,25 @@ final class MimeBuilderTest extends TestCase
 
     public function testKeepsAnAsciiSubjectAsIs(): void
     {
-        [$headers] = self::split($this->build(new Message(self::TO, 'Re: =?not-encoded?= 100%', 'x', null)));
+        [$headers] = self::split($this->build(new Message(self::TO, 'Re: Hello 100%', 'x', null)));
 
-        $this->assertSame('Subject: Re: =?not-encoded?= 100%', $headers[3]);
+        $this->assertSame('Subject: Re: Hello 100%', $headers[3]);
+    }
+
+    public function testKeepsAnAsciiSubjectWithALoneEqualsOrQuestionMarkAsIs(): void
+    {
+        [$headers] = self::split($this->build(new Message(self::TO, 'a=b? what?=', 'x', null)));
+
+        $this->assertSame('Subject: a=b? what?=', $headers[3]);
+    }
+
+    public function testEncodesAPrintableSubjectContainingEqualsQuestionMark(): void
+    {
+        $subject = 'Price =?100';
+
+        $lines = self::subjectLines($this->build(new Message(self::TO, $subject, 'x', null)));
+
+        $this->assertSame(['Subject: =?UTF-8?B?' . base64_encode($subject) . '?='], $lines);
     }
 
     public function testFoldsALongAsciiSubjectAt78(): void
