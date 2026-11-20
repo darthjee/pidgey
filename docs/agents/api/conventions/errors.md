@@ -127,7 +127,7 @@ here.
 | 403 | Authenticated but not allowed (missing scope, not an admin, denied user), or cross-site request rejected by the [origin check](origin-check.md). |
 | 404 | Not found, including resources of other organizations and unknown routes. |
 | 409 | State conflict (e.g. username/email taken, no active SMTP connection, an SMTP connection to fix before sending). |
-| 413 | Body too large. |
+| 413 | Body too large: over the **1 MiB** limit ([request.md](../../request-handler/request-response/request.md#json-body)). |
 | 415 | Unsupported content type. |
 | 422 | Business rule violated on a valid request (e.g. `USER_NOT_PENDING`); never used for body validation. |
 | 423 | Locked (e.g. account edit lockout). |
