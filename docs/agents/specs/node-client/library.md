@@ -60,6 +60,7 @@ types ([openapi.md](openapi.md#generated-types)).
 | `retryDelayMs` | no | `500` | Base delay of the exponential backoff ([errors-and-retry.md](errors-and-retry.md#backoff)). |
 | `retryAmbiguous` | no | `false` | When `true`, failures that may have delivered the message are retried too, at the risk of a duplicate ([errors-and-retry.md](errors-and-retry.md#retryambiguous)). |
 | `timeoutMs` | no | `30000` | Per-attempt timeout in milliseconds ([Timeout](#timeout)). |
+| `allowInsecureHttp` | no | `false` | Allows an `http://` `baseUrl` on a non-loopback host; has no effect with `https://` ([Cleartext transport](#cleartext-transport)). |
 
 Configuration mistakes reject with the client-local code `CLIENT_CONFIGURATION` **before any
 request is made**:
@@ -67,6 +68,8 @@ request is made**:
 - `token` absent, empty or whitespace-only: the client never sends an empty Bearer header;
 - `baseUrl` absent, not absolute, without a scheme, or with a scheme other than `http` /
   `https`;
+- an `http://` `baseUrl` on a non-loopback host without `allowInsecureHttp: true`
+  ([Cleartext transport](#cleartext-transport));
 - `maxRetries` negative or not an integer;
 - an invalid `timeoutMs`.
 
@@ -75,10 +78,33 @@ both send to `https://pidgey.example.com/v1/messages`; a prefix is kept, so
 `https://example.com/pidgey` and `https://example.com/pidgey/` both send to
 `https://example.com/pidgey/v1/messages`.
 
-An `http://` `baseUrl` is accepted (local development) and documented as sending the token
-in clear text; the library prints no warning.
+### Cleartext transport
 
-**Pending decision** (#231): should an `http://` `baseUrl` stay silent, warn, or require an explicit opt-in?
+An `http://` `baseUrl` sends the Bearer token in clear text, so it is accepted **without
+opt-in only for a literal loopback host**: `localhost`, any `127.0.0.0/8` address, or `[::1]`.
+
+- The check runs on the hostname after WHATWG URL parsing, so `http://LOCALHOST` and
+  `http://127.1` are exempt.
+- There is no DNS lookup.
+- **Not exempt:** `http://localhost.` (trailing dot), `*.localhost`, the IPv4-mapped
+  `http://[::ffff:127.0.0.1]` and `http://0.0.0.0`.
+- Any other `http://` host needs an explicit opt-in: `allowInsecureHttp: true`. Without it the
+  client rejects with `CLIENT_CONFIGURATION` **before any request**. The message names the
+  reason (cleartext token) and never the token. It does not include the URL either (or strips
+  its userinfo), so credentials written as `http://user:pass@host` are never echoed.
+- With an `https://` URL the option is accepted and has no effect.
+- No warning is printed in any case.
+- There is no environment variable for the opt-in; one can be added later without a breaking
+  change.
+- Redirects cannot downgrade the connection to cleartext: any 3xx is already
+  `INVALID_RESPONSE` ([Redirects](#redirects)).
+
+**Rejected:**
+
+- Staying silent: it leaks the token on a mistyped production URL.
+- Warning only: easy to ignore, and a library warning is noise for server consumers.
+- Requiring the opt-in for every `http://` host, loopback included: friction with no gain,
+  because loopback traffic never leaves the host.
 
 ## `client.send(message, options)`
 
@@ -95,6 +121,9 @@ Performs `POST /v1/messages` and returns a promise.
 - The client does **not** validate the values: the API is the only validator (a
   `400 VALIDATION_FAILED` comes back as a `PidgeyError` with `details`), and duplicating its
   rules would drift.
+- The library does **not** cap the size of `text`/`html`: the caller already holds the string,
+  and the API is the only validator. When the API defines a request size limit (#233), its
+  error reaches the consumer as a normal `PidgeyError`.
 
 ### Request
 
@@ -139,6 +168,9 @@ and could carry the `Authorization` header to another host. Any 3xx rejects with
   the client-local code `ABORTED`, which is never retried.
 - A signal that is already aborted rejects with `ABORTED` before any request is made.
 - Aborting during the backoff wait rejects at once, without another attempt.
+- `possiblySent` on an `ABORTED` follows the rule in
+  [errors-and-retry.md](errors-and-retry.md#client-local-codes): `true` when the abort cuts a
+  request already dispatched, `false` before any request.
 
 ## Timeout
 
@@ -147,11 +179,34 @@ and could carry the `Authorization` header to another host. Any 3xx rejects with
   (`possiblySent: true`): Pidgey may have sent the message before the response was lost. It
   is retried only with `retryAmbiguous: true`.
 
-**Pending decision** (#231): connection reuse across sends (`fetch` keep-alive defaults), and whether the worst-case duration of a call (`timeoutMs` × attempts + backoff) needs an overall bound.
+### Worst-case duration
+
+With the defaults, a call can take about **91.5 s** (3 attempts × 30 s + 0.5 s + 1 s of
+backoff). That worst case is reached only by retried, unambiguous failures that each run to
+`timeoutMs`.
+
+- There is no overall-deadline option. The README shows
+  `send(msg, { signal: AbortSignal.timeout(ms) })` as the way to bound the whole call
+  ([Abort](#abort)). The CLI has no `--deadline` flag.
+- **Rejected:** a `deadlineMs` option (it duplicates `AbortSignal`); lower default timeouts
+  (they would cut legitimate slow SMTP sends into ambiguous errors).
 
 ## Concurrency
 
 Concurrent `send` calls on one client are independent: the client holds no per-call state.
+
+## Connections
+
+- The library uses Node's global `fetch` dispatcher as is, with its default keep-alive, so
+  connections are reused across sends. There is no custom `Agent`, no dependency and no
+  option.
+- The README notes that connections are reused, and that undici's `setGlobalDispatcher` tunes
+  this process-wide.
+- A custom `Agent` would need the `undici` package, which breaks the zero-runtime-dependency
+  rule ([packaging.md](packaging.md#stack)).
+- **Rejected:** a custom `fetch` option: API surface nobody needs yet.
+- The CLI process exits right after a send, without waiting on an idle keep-alive socket
+  ([cli.md](cli.md#process-exit)).
 
 ## Runtime constraints
 

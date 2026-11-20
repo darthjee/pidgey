@@ -22,16 +22,61 @@ failure and an application failure.
 | `details` | `error.details` when present (validation errors only: one string per failed rule). |
 | `smtp` | `error.smtp` when present: `{ code, message }`, the SMTP server's reply to the failing command. |
 | `possiblySent` | Boolean: `true` when the message may have been delivered ([Possibly sent](#possibly-sent)). |
-| Response body | The original response body, kept on the error for diagnostics. |
+| `body` | The raw response text, with the token redacted and cut to 4 KiB without splitting a character, kept for diagnostics ([Response body](#response-body)). **Non-enumerable.** Absent when there was no HTTP response (`CLIENT_CONFIGURATION`, `ABORTED`, `NETWORK_ERROR`). |
+| `bodyTruncated` | `true` when `body` was cut. Non-enumerable. |
 
 Mapping from a response:
 
 1. The body is JSON and carries the envelope (`error` with `code` and `message`): the fields
-   above are copied from it.
+   above are copied from it. The parse runs on the **already redacted** response text
+   ([Redaction](#response-body)), so the token is also absent from `message`, `details` and
+   `smtp.message` (the CLI prints `code`, `message` and `smtp` to stderr).
 2. The body is not JSON, or is JSON without `error`: `INVALID_RESPONSE`, keeping the HTTP
    status, instead of a raw parse error.
 
-**Pending decision** (#231): confirm the retained response body can never contain the token or other secrets, and whether it must be bounded or redacted.
+### Response body
+
+- **Read cap.** Every response, 2xx included, is read up to **64 KiB**.
+  - The cap counts bytes after `fetch`'s transparent decompression, which also guards against
+    a decompression bomb.
+  - A `Content-Length` above the cap is rejected without reading the body.
+  - A longer body aborts the read and becomes `INVALID_RESPONSE`, with `possiblySent: true`
+    on a 2xx, as for any broken 2xx body.
+- **Decoding.** The bytes are decoded as UTF-8 with replacement characters.
+- **Redaction.**
+  - Every occurrence of the literal token in the text read is replaced with `[redacted]`.
+  - Redaction is applied to the response text **before JSON parsing**, so it covers both
+    `body` and every string copied out of the parsed envelope (`message`, `details`,
+    `smtp.message`), not only the retained `body`.
+  - It matches the token **as actually sent**. The client does not trim the configured token
+    itself, but `fetch` strips leading and trailing HTTP whitespace from header values, so
+    the sent value is the trimmed one; both the trimmed value and the configured value are
+    matched when they differ, the longer first.
+  - Redaction runs **before** any cut, so a token straddling the cut cannot survive
+    partially.
+  - Encoded forms (URL-encoded, base64) are not searched.
+- **Retention.** `body` keeps the redacted text cut to **4 KiB** without splitting a
+  character, with `bodyTruncated: true` when it was cut.
+- **Logging.**
+  - `body` and `bodyTruncated` are **non-enumerable**, so `JSON.stringify`, `util.inspect`
+    (without `showHidden`) and logger error serializers that read only enumerable properties
+    do not include them.
+  - A serializer that enumerates own property names (for example `serialize-error`) would
+    include them, which is why `body` is redacted and capped anyway.
+  - The parsed fields (`code`, `message`, `statusCode`, `details`, `smtp`, `possiblySent`)
+    stay enumerable.
+  - `err.body` still works when read on purpose.
+- **CLI.** The CLI does not print `body`; its stderr output is unchanged
+  ([cli.md](cli.md#output)).
+- **Why Pidgey's own bodies are safe.** `error.smtp.message` is already redacted, sanitized
+  and capped ([email/failures.md](../../email/failures.md#echo-redaction)); `details` hold
+  rule messages; the token is never echoed. The cap and the redaction guard against bodies
+  that do not come from Pidgey: a proxy page, or a wrong `baseUrl` pointing at a server that
+  reflects request headers and so would echo the token.
+- **Rejected:**
+  - No caps: a broken or hostile server can push unbounded memory into the client.
+  - Keeping only the parsed envelope: it loses the proxy page needed to diagnose.
+  - A custom `toJSON` / `util.inspect.custom`: more code, and logger serializers bypass it.
 
 ## Client-local codes
 
@@ -43,10 +88,10 @@ added (a new code is not a breaking change, see
 
 | Code | When | `possiblySent` | Retried |
 | --- | --- | --- | --- |
-| `CLIENT_CONFIGURATION` | Missing or empty `token`; missing, relative or non-`http(s)` `baseUrl`; negative or non-integer `maxRetries`; invalid `timeoutMs`; `send` argument absent, `null`, an array or a non-object. No request is made. | `false` | never |
+| `CLIENT_CONFIGURATION` | Missing or empty `token`; missing, relative or non-`http(s)` `baseUrl`; a non-loopback `http://` `baseUrl` without `allowInsecureHttp`; negative or non-integer `maxRetries`; invalid `timeoutMs`; `send` argument absent, `null`, an array or a non-object. No request is made. | `false` | never |
 | `NETWORK_ERROR` | DNS failure, connection refused, connection reset, TLS failure, client timeout. | see [Ambiguous failures](#ambiguous-failures) | see [Retry table](#retry-table) |
-| `INVALID_RESPONSE` | A non-JSON body, or JSON without the envelope, on a non-`200` status; a non-JSON body on a 2xx; any 3xx. Keeps the HTTP status. | `true` on a 2xx, `false` otherwise | never |
-| `ABORTED` | The caller's `AbortSignal` fired, before or during an attempt, or during the backoff wait. | `false` | never |
+| `INVALID_RESPONSE` | A non-JSON body, or JSON without the envelope, on a non-`200` status; a non-JSON body on a 2xx; a body over 64 KiB; any 3xx. Keeps the HTTP status. | `true` on a 2xx, `false` otherwise | never |
+| `ABORTED` | The caller's `AbortSignal` fired, before or during an attempt, or during the backoff wait. | `true` when the abort fires after a request was dispatched (`fetch` called) and before its response body was fully read, or when an earlier attempt was ambiguous; `false` otherwise (before any request, or during the backoff after only unambiguous failures) | never |
 
 ## Ambiguous failures
 
@@ -61,6 +106,12 @@ saw an error:
 | Unknown `SMTP_*` on `504` | yes | A timeout: delivery state unknown. |
 | `SMTP_PROTOCOL_ERROR` (`502`) | yes | It may happen after `DATA`. |
 | `INVALID_RESPONSE` on a 2xx | yes | The API may have delivered the message before the body broke. |
+| `ABORTED` during an attempt in flight | yes | The abort cut a request that was already dispatched (before its response body was fully read): Pidgey may have sent the message. |
+
+The `ABORTED` rule is deliberately broad: an abort while reading the body of an
+already-received response (even a `400`, `401`, `403` or `409`, which would otherwise be
+`possiblySent: false`) also reports `true`. This errs on the safe side and is the simplest
+rule to implement: the status is not consulted once the abort fires.
 
 ## Possibly sent
 

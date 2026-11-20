@@ -93,11 +93,12 @@ a number yet.
 
 | Package | Breaking |
 | --- | --- |
-| Library | Removing or renaming an export, an option or a `PidgeyError` field; changing a default (`maxRetries`, `retryAmbiguous`, `timeoutMs`, `retryDelayMs`); making the retry table retry **more** cases; changing a client-local code; dropping a Node.js major. |
-| CLI | Removing or renaming a flag; changing an exit code or its meaning; changing what is printed on success; dropping a Node.js major. |
+| Library | Removing or renaming an export, an option or a `PidgeyError` field; changing a default (`maxRetries`, `retryAmbiguous`, `timeoutMs`, `retryDelayMs`); making the retry table retry **more** cases; changing a client-local code; narrowing or removing the loopback exemption for `http://`; dropping a Node.js major. |
+| CLI | Removing or renaming a flag; changing an exit code or its meaning; changing what is printed on success; lowering the stdin cap; dropping a Node.js major. |
 
 Not breaking: a new option, flag or `PidgeyError` field; a new client-local code (the docs
-state that codes may be added); a case that becomes **not** retried; documentation.
+state that codes may be added); a case that becomes **not** retried; a new opt-in (such as an environment variable for
+`--allow-insecure-http`, or a `--max-body-size` flag); documentation.
 
 ## Compatibility
 
