@@ -110,17 +110,35 @@ Accepted trade-off: the machine executor boots slower.
 
 ## CI and `make tests`
 
+One script per job, shared by the `Makefile` and CI (paths and names are indicative: the
+implementation may adjust them as long as the `Makefile` target and the CI job call the same
+script):
+
+| Script | Runs |
+| --- | --- |
+| `clients/scripts/checks.sh` | Per package: `yarn install --frozen-lockfile`, `yarn lint`, `yarn typecheck`, `yarn coverage` (including the CLI subprocess spec and the 100 % threshold); then the pack file-list check and the [smoke test](#pack-smoke-test-adopted) with the `.d.ts` check. |
+| `clients/scripts/integration.sh` | The [integration](#integration) spec, with the "required" flag set. |
+
 | Job | Runs |
 | --- | --- |
-| `clients_checks` | Lint and tests of both packages, in parallel with the existing `backend_checks`, `backend_tests` and `frontend_checks` jobs. |
-| `clients_integration` | The [integration](#integration) spec against Pidgey + MySQL + Mailpit. |
+| `clients_checks` | `checks.sh`, as a CircleCI matrix over the [Node.js floor and current versions](#nodejs-version-matrix-adopted-floor--current), in parallel with the existing `backend_checks`, `backend_tests` and `frontend_checks` jobs. On the current version it uploads the coverage of each package to Codacy with `upload_codacy_coverage`, with the prefixes `clients/nodejs` and `clients/cli`. |
+| `clients_integration` | `integration.sh`: the [integration](#integration) spec against Pidgey + MySQL + Mailpit, on a machine executor, on the current Node.js version only. `requires: [clients_checks]`. |
 
 - `clients_checks` ships with the library scaffold, so `clients/` is checked from its first
   commit: [contributing.md](../../contributing.md) requires the check job of a new
   application folder to exist before changes to that folder are merged.
+- `coverage_final` also requires `clients_checks`.
 - The `Makefile` gains the client targets, so `make tests` keeps being the single command
-  that runs every check. The `Makefile` target and the CI job call the **same** commands:
-  `clients_checks` must not become a job that `make tests` skips.
+  that runs every check:
+  - `make clients-checks` runs `checks.sh` in a compose Node service;
+  - `make clients-integration` boots the compose stack (Pidgey backend, MySQL, Mailpit) and
+    runs `integration.sh`;
+  - `make tests` runs backend + frontend + `clients-checks` + `clients-integration`.
+    Accepted: a slower local run.
+- The `Makefile` target and the CI job call the **same** script: `clients_checks` must not
+  become a job that `make tests` skips. The one exception is the Node.js matrix:
+  `make clients-checks` runs on the development version only, and the floor is checked in CI
+  only.
 - Done means: `clients_checks` and `clients_integration` green on a branch that touches
   `clients/`, and `make tests` green locally.
 
