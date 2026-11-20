@@ -40,7 +40,7 @@ are the active connection's `fromAddress`.
 - **Body:** at most **1 MiB** for the whole request, a limit shared by every route and
   enforced by the body parser
   ([request-handler/request-response/request.md](../../request-handler/request-response/request.md#json-body)).
-  A larger body answers `413 HTTP_413` (`Content Too Large`) before any validation.
+  A larger body answers `413 HTTP_413` (`Content Too Large`) when the body is read (after the guards, before validation).
 - **`subject`:** at most **255 characters** (UTF-8 characters, not bytes); a longer subject
   answers `400 VALIDATION_FAILED` with `subject must be shorter than or equal to 255 characters`.
 - **`text` / `html`:** no field-level cap; they are bounded only by the 1 MiB body limit. A

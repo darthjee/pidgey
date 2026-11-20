@@ -19,6 +19,10 @@ The `From:` header comes from the SMTP connection's `from_address`.
 - `subject` must not contain control characters (CR, LF and TAB included) →
   `subject must not contain control characters` (prevents header injection). The rule only
   affects requests, never stored data.
+- `subject` is at most **255 characters** (UTF-8 characters, not bytes) →
+  `subject must be shorter than or equal to 255 characters`. With this cap no unbreakable run
+  can reach RFC 5322's 998-character line limit. `text` and `html` have no field cap (see
+  [Body](#body)).
 
 ## Message format
 
@@ -39,7 +43,7 @@ In this order:
 | `Date` | RFC 5322 date from `Pidgey\Infra\WallClock` (wall-clock time; the monotonic `Pidgey\Infra\Clock` only drives the session deadline), in UTC (`Sat, 07 Nov 2026 14:03:00 +0000`). |
 | `From` | `fromAddress`, bare address (no display name in v1). |
 | `To` | The recipient, bare address. |
-| `Subject` | Printable ASCII as-is; otherwise RFC 2047 encoded-words (`=?UTF-8?B?…?=`), each at most 75 characters, never splitting a UTF-8 character. A plain ASCII subject is folded at 78 characters (RFC 5322 §2.1.1); a line carrying encoded-words is at most 76 characters (RFC 2047 §2). |
+| `Subject` | Printable ASCII as-is **unless it contains `=?`** (which a receiver could misread as an encoded-word); otherwise (non-ASCII, or containing `=?`) RFC 2047 encoded-words (`=?UTF-8?B?…?=`), each at most 75 characters, never splitting a UTF-8 character. A plain ASCII subject is folded at 78 characters (RFC 5322 §2.1.1); a line carrying encoded-words is at most 76 characters (RFC 2047 §2). |
 | `Message-ID` | `<` 32 hex characters (`random_bytes(16)`) `@` the `fromAddress` domain `>`. |
 | `MIME-Version` | `1.0`. |
 | `Content-Type` / `Content-Transfer-Encoding` | See [Body](#body). |
@@ -62,8 +66,10 @@ Not added: `X-Mailer` / `User-Agent` (fingerprinting), `Reply-To`, `Sender`,
 - Dot-stuffing and the final `CRLF.CRLF` belong to the SMTP transport, not to the message
   (see [send-flow.md](send-flow.md#envelope-and-data)).
 - There is no `SIZE` parameter on `MAIL FROM`; an oversized message is rejected by the
-  server (`552` → `SMTP_REJECTED`). An API body-size limit stays a pending item of
-  `POST /v1/messages` ([api/pending.md](../api/pending.md)).
+  server (`552` → `SMTP_REJECTED`).
+- Size: `POST /v1/messages` bounds the whole request at **1 MiB** (shared by every route, see
+  [api/endpoints/sending.md](../api/endpoints/sending.md#size-limits)); `text` and `html` have
+  no field cap of their own.
 
 ## Pending decisions (future scope)
 
