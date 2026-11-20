@@ -31,7 +31,7 @@ Mapping from a response:
 2. The body is not JSON, or is JSON without `error`: `INVALID_RESPONSE`, keeping the HTTP
    status, instead of a raw parse error.
 
-**Pending decision** (#225): confirm the retained response body can never contain the token or other secrets, and whether it must be bounded or redacted.
+**Pending decision** (#231): confirm the retained response body can never contain the token or other secrets, and whether it must be bounded or redacted.
 
 ## Client-local codes
 

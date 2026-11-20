@@ -16,7 +16,7 @@ backwards compatible.
     ([api/authentication/api-tokens.md](../../api/authentication/api-tokens.md)).
 - It does **not** describe the admin API (the cookie-session routes).
 - It is a static file in the backend source tree, owned by `backend`; its exact path is
-  decided by its implementation sub-issue.
+  decided by its implementation sub-issue ([Static committed file](#static-committed-file)).
 - [api/](../../api.md) stays the narrative contract. The document is updated in the same
   change set as any `/v1` change, so the two never disagree; the implementation sub-issue
   that adds the document also documents the route in `docs/agents/api/`.
@@ -27,14 +27,59 @@ The backend serves the document; it is the only backend addition of the epic.
 
 | Aspect | Rule |
 | --- | --- |
-| Authentication | Public: no token, no scope. |
+| Authentication | Public: no token, no scope ([Why public](#why-public)). Credentials are ignored: an invalid Bearer is served normally. |
 | Methods | `GET` and `HEAD` only; other methods follow the API's conventions. |
 | Response | `200`, `Content-Type: application/json`, always JSON (no YAML negotiation). |
-| Content | The public contract only: no organization data, no internal or admin routes. |
+| Content | The public contract only, under the [content rules](#content-rules). |
+| Cache headers | None, following [api/conventions/format.md](../../api/conventions/format.md#cache-headers), like `/health.json`. |
 | Origin check | No difference from the rest of `/v1`. |
 | CORS | No CORS headers: cross-origin browser access (for example a hosted Swagger UI) is out of scope. |
 
-**Pending decision** (#225): confirm the public route reveals nothing beyond the public contract, and whether it needs caching headers.
+### Why public
+
+The route stays public. The document reveals nothing beyond what the error envelope of
+`POST /v1/messages` and the published npm package already reveal; requiring a token would
+protect nothing secret and would break tooling that reads the contract.
+
+### Static committed file
+
+- The `/v1` document is a file committed in the repository and served **verbatim** by the
+  route. The CI breaking-change diff ([`/v1` is additive-only](#v1-is-additive-only)) and the
+  client's type generation ([Generated types](#generated-types)) read that same file.
+- It is never generated at runtime from the router, so no deployment-specific data (hosts,
+  organizations, build info) and no non-`/v1` route can get into it.
+- Its exact location in the backend tree is left to the implementation sub-issue.
+
+### Content rules
+
+A spec rule, enforced by the route's PHPUnit test ([testing.md](testing.md#cross-cutting)):
+
+- only `/v1` paths: no admin, `/auth`, operational or other non-`/v1` routes;
+- no `servers` entry with a real host (omitted, or the relative `/`);
+- `info.version` is the **contract** version (for example `1.0.0`), never the Pidgey release
+  version, so the route does not fingerprint the running build;
+- examples use placeholder tokens (`pdg_example…`) and `example.com` hosts only, with no
+  internal names, emails or IDs;
+- the Bearer security scheme is described without any detail of how tokens are stored or
+  hashed.
+
+### Caching
+
+No cache headers, as for `/health.json`
+([api/endpoints/operational.md](../../api/endpoints/operational.md)): the client never
+fetches the document at runtime, and the cache-headers pending item of
+[api/pending.md](../../api/pending.md) covers any later change. **Rejected:**
+`Cache-Control: no-cache` and `max-age` + `ETag` (an exception to the conventions with no
+consumer).
+
+### Load and abuse
+
+- The route reads a static file and touches no database.
+- Like the operational probes
+  ([api/endpoints/operational.md](../../api/endpoints/operational.md#edge-cases)), it ignores
+  credentials: an anonymous request or an invalid Bearer header is served normally.
+- No route-specific rate limit: the global rate-limits pending item of
+  [api/pending.md](../../api/pending.md) applies.
 
 ## Generated types
 
@@ -79,6 +124,11 @@ docs win for current behaviour; the implementation sub-issue of the route settle
   that `/v1` paths keep their own contract **without** the `.json` suffix
   ([api/endpoints/sending.md](../../api/endpoints/sending.md#relation-to-the-conventions));
   `GET /v1/openapi.json` carries one. The route is a documented exception to record there.
+- **Public exception to the Bearer gate.** Every `/v1/*` request needs a Bearer API token
+  ([api/authentication/api-tokens.md](../../api/authentication/api-tokens.md#disjoint-credentials)).
+  The route's implementation sub-issue adds an explicit public exception there, limited to
+  `GET` and `HEAD` on exactly `/v1/openapi.json` (an exact match, never a prefix), so no other
+  `/v1` path or method becomes public.
 - **`HEAD`.** The router never falls back from `HEAD` to `GET`
   ([request-handler/routing.md](../../request-handler/routing.md)): answering `HEAD` needs
   its own route. "Other methods follow the API's conventions" means the routing `404`

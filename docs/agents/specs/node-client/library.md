@@ -78,7 +78,7 @@ both send to `https://pidgey.example.com/v1/messages`; a prefix is kept, so
 An `http://` `baseUrl` is accepted (local development) and documented as sending the token
 in clear text; the library prints no warning.
 
-**Pending decision** (#225): should an `http://` `baseUrl` stay silent, warn, or require an explicit opt-in?
+**Pending decision** (#231): should an `http://` `baseUrl` stay silent, warn, or require an explicit opt-in?
 
 ## `client.send(message, options)`
 
@@ -147,7 +147,7 @@ and could carry the `Authorization` header to another host. Any 3xx rejects with
   (`possiblySent: true`): Pidgey may have sent the message before the response was lost. It
   is retried only with `retryAmbiguous: true`.
 
-**Pending decision** (#225): connection reuse across sends (`fetch` keep-alive defaults), and whether the worst-case duration of a call (`timeoutMs` × attempts + backoff) needs an overall bound.
+**Pending decision** (#231): connection reuse across sends (`fetch` keep-alive defaults), and whether the worst-case duration of a call (`timeoutMs` × attempts + backoff) needs an overall bound.
 
 ## Concurrency
 
