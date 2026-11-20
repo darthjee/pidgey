@@ -60,6 +60,7 @@ types ([openapi.md](openapi.md#generated-types)).
 | `retryDelayMs` | no | `500` | Base delay of the exponential backoff ([errors-and-retry.md](errors-and-retry.md#backoff)). |
 | `retryAmbiguous` | no | `false` | When `true`, failures that may have delivered the message are retried too, at the risk of a duplicate ([errors-and-retry.md](errors-and-retry.md#retryambiguous)). |
 | `timeoutMs` | no | `30000` | Per-attempt timeout in milliseconds ([Timeout](#timeout)). |
+| `allowInsecureHttp` | no | `false` | Allows an `http://` `baseUrl` on a non-loopback host; has no effect with `https://` ([Cleartext transport](#cleartext-transport)). |
 
 Configuration mistakes reject with the client-local code `CLIENT_CONFIGURATION` **before any
 request is made**:
@@ -67,6 +68,8 @@ request is made**:
 - `token` absent, empty or whitespace-only: the client never sends an empty Bearer header;
 - `baseUrl` absent, not absolute, without a scheme, or with a scheme other than `http` /
   `https`;
+- an `http://` `baseUrl` on a non-loopback host without `allowInsecureHttp: true`
+  ([Cleartext transport](#cleartext-transport));
 - `maxRetries` negative or not an integer;
 - an invalid `timeoutMs`.
 
@@ -75,10 +78,32 @@ both send to `https://pidgey.example.com/v1/messages`; a prefix is kept, so
 `https://example.com/pidgey` and `https://example.com/pidgey/` both send to
 `https://example.com/pidgey/v1/messages`.
 
-An `http://` `baseUrl` is accepted (local development) and documented as sending the token
-in clear text; the library prints no warning.
+### Cleartext transport
 
-**Pending decision** (#231): should an `http://` `baseUrl` stay silent, warn, or require an explicit opt-in?
+An `http://` `baseUrl` sends the Bearer token in clear text, so it is accepted **without
+opt-in only for a literal loopback host**: `localhost`, any `127.0.0.0/8` address, or `[::1]`.
+
+- The check runs on the hostname after WHATWG URL parsing, so `http://LOCALHOST` and
+  `http://127.1` are exempt.
+- There is no DNS lookup.
+- **Not exempt:** `http://localhost.` (trailing dot), `*.localhost`, the IPv4-mapped
+  `http://[::ffff:127.0.0.1]` and `http://0.0.0.0`.
+- Any other `http://` host needs an explicit opt-in: `allowInsecureHttp: true`. Without it the
+  client rejects with `CLIENT_CONFIGURATION` **before any request**. The message names the
+  reason (cleartext token) and never the token.
+- With an `https://` URL the option is accepted and has no effect.
+- No warning is printed in any case.
+- There is no environment variable for the opt-in; one can be added later without a breaking
+  change.
+- Redirects cannot downgrade the connection to cleartext: any 3xx is already
+  `INVALID_RESPONSE` ([Redirects](#redirects)).
+
+**Rejected:**
+
+- Staying silent: it leaks the token on a mistyped production URL.
+- Warning only: easy to ignore, and a library warning is noise for server consumers.
+- Requiring the opt-in for every `http://` host, loopback included: friction with no gain,
+  because loopback traffic never leaves the host.
 
 ## `client.send(message, options)`
 

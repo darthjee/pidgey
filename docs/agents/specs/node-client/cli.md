@@ -39,6 +39,7 @@ without breaking the flags.
 | `--token-file` | Path to a file holding the API token | `token` option; `PIDGEY_TOKEN` when absent ([Credentials and URL](#credentials-and-url)) |
 | `--url` | Pidgey base URL | `baseUrl` option; falls back to `PIDGEY_URL` |
 | `--retry-ambiguous` | Boolean | `retryAmbiguous: true` ([errors-and-retry.md](errors-and-retry.md#retryambiguous)) |
+| `--allow-insecure-http` | Boolean | `allowInsecureHttp: true`: allows an `http://` `--url` on a non-loopback host ([library.md](library.md#cleartext-transport)) |
 | `--verbose` | Boolean | Prints the result on success ([Output](#output)) |
 | `--help` | Boolean | Prints the usage |
 | `--version` | Boolean | Prints the CLI version |
@@ -49,6 +50,10 @@ without breaking the flags.
   not suggest multiple recipients.
 - Values are forwarded as given: `--text ''` is sent, and the API decides whether an empty
   body is valid. The CLI validates no value; the API is the validator.
+- `--allow-insecure-http` has no environment variable; one can be added later without a
+  breaking change. Without the flag, an `http://` `--url` on a non-loopback host exits `2`
+  (the library's `CLIENT_CONFIGURATION`), and the message names the cleartext reason, never
+  the token. With an `https://` URL the flag is accepted and has no effect.
 
 ## Credentials and URL
 
@@ -109,7 +114,7 @@ without breaking the flags.
 | --- | --- |
 | `0` | The message was sent. |
 | `1` | The send failed or the client could not complete the call: any `PidgeyError` except `CLIENT_CONFIGURATION`, network failures included. |
-| `2` | Usage error: unknown flag, repeated flag, missing required flag, missing token (no `--token-file` and no `PIDGEY_TOKEN`) or URL (no `--url` and no `PIDGEY_URL`), an unreadable, empty, oversized (over 4 KiB) or non-regular token file, a token file holding a control character, a `CLIENT_CONFIGURATION` error from the library (for example a malformed `--url`), unreadable stdin, neither body flag with a TTY stdin. |
+| `2` | Usage error: unknown flag, repeated flag, missing required flag, missing token (no `--token-file` and no `PIDGEY_TOKEN`) or URL (no `--url` and no `PIDGEY_URL`), an unreadable, empty, oversized (over 4 KiB) or non-regular token file, a token file holding a control character, a `CLIENT_CONFIGURATION` error from the library (for example a malformed `--url`, or a non-loopback `http://` `--url` without `--allow-insecure-http`), unreadable stdin, neither body flag with a TTY stdin. |
 | `130` | Interrupted by SIGINT. |
 
 - Separate codes let a shell script distinguish a rejected send from a mistyped command.

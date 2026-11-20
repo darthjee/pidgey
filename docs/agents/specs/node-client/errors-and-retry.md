@@ -43,7 +43,7 @@ added (a new code is not a breaking change, see
 
 | Code | When | `possiblySent` | Retried |
 | --- | --- | --- | --- |
-| `CLIENT_CONFIGURATION` | Missing or empty `token`; missing, relative or non-`http(s)` `baseUrl`; negative or non-integer `maxRetries`; invalid `timeoutMs`; `send` argument absent, `null`, an array or a non-object. No request is made. | `false` | never |
+| `CLIENT_CONFIGURATION` | Missing or empty `token`; missing, relative or non-`http(s)` `baseUrl`; a non-loopback `http://` `baseUrl` without `allowInsecureHttp`; negative or non-integer `maxRetries`; invalid `timeoutMs`; `send` argument absent, `null`, an array or a non-object. No request is made. | `false` | never |
 | `NETWORK_ERROR` | DNS failure, connection refused, connection reset, TLS failure, client timeout. | see [Ambiguous failures](#ambiguous-failures) | see [Retry table](#retry-table) |
 | `INVALID_RESPONSE` | A non-JSON body, or JSON without the envelope, on a non-`200` status; a non-JSON body on a 2xx; any 3xx. Keeps the HTTP status. | `true` on a 2xx, `false` otherwise | never |
 | `ABORTED` | The caller's `AbortSignal` fired, before or during an attempt, or during the backoff wait. | `false` | never |
