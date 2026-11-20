@@ -8,12 +8,34 @@ Spec of how `pidgey-client` and `pidgey-cli` are tested and which CI jobs run th
   in-process `node:http` server started per spec, not a stubbed `globalThis.fetch`: only a
   real server proves `redirect: 'error'`, timeouts, non-JSON bodies and abort wiring.
   Stubbing `fetch` cannot prove those behaviours.
+- **The receiver is the spec itself: no mock container.** The server listens on `127.0.0.1`
+  with port `0`, records every request (method, path, headers, body) for the spec to assert
+  on, and is scripted per spec for the reply: envelope errors, delays, a reset after the
+  request is written, a non-JSON or oversized body, an idle keep-alive socket. It runs in
+  `clients_checks` on a single `darthjee/circleci_node` container, like `frontend_checks`,
+  with no secondary container. Rejected: a mock server image (WireMock, MockServer, an echo
+  server) as a secondary container, since it cannot easily script those transport failures,
+  makes the specs slower and flakier, and adds an image to maintain.
 - **Fast backoff.** Backoff is tested with a tiny `retryDelayMs` plus a spy on the delay
   function, so specs stay fast without fake timers.
 - **End-to-end in CI.** An end-to-end run is part of CI, not opt-in
   ([Integration](#integration)). Mailpit already exists in `docker-compose.yml`, so a real
   delivery assertion is cheap.
 - Specs mirror the source tree of each package.
+
+### Edge-case rules
+
+- The test server listens on `127.0.0.1`, port `0`, and the clients under test target
+  `127.0.0.1`, never `localhost`: `localhost` resolves IPv6-first, and a fixed port collides
+  in parallel runs.
+- Teardown calls `server.closeAllConnections()` before `server.close()`, so an idle
+  keep-alive socket never keeps Jasmine alive.
+- The integration spec is skipped locally without a stack, but `clients_integration` sets a
+  flag (for example `PIDGEY_INTEGRATION=required`) that turns a missing stack into a failure
+  instead of a skip ([Integration](#integration)).
+- Left to the implementation's judgment: a minimal env for spawned CLI processes, SIGINT
+  timing, the location of the smoke test's temporary directory, Mailpit isolation and timing
+  margins.
 
 ## Library (`clients/nodejs/specs/`)
 
@@ -61,15 +83,28 @@ it runs with them: whether and how those are adopted is a pending decision of #2
 `specs/integration/Send_spec.js`, run by the dedicated CI job `clients_integration` and a
 matching `Makefile` target:
 
-1. The job boots the compose stack: Pidgey backend, MySQL, Mailpit.
+1. The job runs on a CircleCI **machine executor** and boots the stack with
+   `docker compose`: Pidgey backend, MySQL, Mailpit. It is the same stack and the same
+   commands as the matching `Makefile` target, `make clients-integration`.
 2. It seeds an organization, a `send`-scoped API token and an SMTP connection pointing at
    Mailpit.
 3. It sends through the library **and** through the `pidgey` CLI, and asserts delivery
-   through Mailpit's HTTP API.
+   through Mailpit's HTTP API (`GET /api/v1/messages`): a real Pidgey delivers over SMTP to
+   Mailpit, and Mailpit lists.
 4. It also covers a real `409 NO_SMTP_CONNECTION` for an organization without an active
    connection, and a real `401` for a revoked token.
 
-Locally the spec is skipped unless the environment points at a running stack.
+Locally the spec is skipped unless the environment points at a running stack. The exception
+is CI: `clients_integration` sets the "required" flag (for example
+`PIDGEY_INTEGRATION=required`), which turns a missing stack into a failure instead of a skip.
+
+**Rejected executors:**
+
+- A Docker executor with the Pidgey image as a secondary container: it needs a Pidgey image
+  per branch, and `build_backend` only builds at release.
+- A primary container carrying both PHP and Node: it needs a new CI image.
+
+Accepted trade-off: the machine executor boots slower.
 
 ## CI and `make tests`
 
