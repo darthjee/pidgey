@@ -122,8 +122,9 @@ Performs `POST /v1/messages` and returns a promise.
   `400 VALIDATION_FAILED` comes back as a `PidgeyError` with `details`), and duplicating its
   rules would drift.
 - The library does **not** cap the size of `text`/`html`: the caller already holds the string,
-  and the API is the only validator. When the API defines a request size limit (#233), its
-  error reaches the consumer as a normal `PidgeyError`.
+  and the API is the only validator. The API's request limits (1 MiB body, 255-character `subject`,
+  see [api/endpoints/sending.md](../../api/endpoints/sending.md#size-limits)) answer
+  `413 HTTP_413` / `400 VALIDATION_FAILED`, which reach the consumer as a normal `PidgeyError`.
 
 ### Request
 

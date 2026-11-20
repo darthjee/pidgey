@@ -53,9 +53,9 @@ Out of scope (non-goals of the epic):
 - **OpenAPI for the admin API.** The document covers `/v1` only.
 - **Idempotency.** Removing the client-to-Pidgey duplicate case with an `Idempotency-Key`
   is tracked separately in #221.
-- **API request size limits.** The API has no body-size limit today; adding one is tracked
-  separately in #233, and the CLI stdin cap follows it if it ends up lower
-  ([node-client/cli.md](node-client/cli.md#stdin-size-cap)).
+- **API request size limits.** Decided in #233: a 1 MiB request body limit and a 255-character
+  `subject` cap ([api/endpoints/sending.md](../api/endpoints/sending.md#size-limits)). The CLI
+  stdin cap equals the body limit ([node-client/cli.md](node-client/cli.md#stdin-size-cap)).
 
 ## Files
 
