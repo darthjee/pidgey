@@ -164,6 +164,9 @@ and could carry the `Authorization` header to another host. Any 3xx rejects with
   the client-local code `ABORTED`, which is never retried.
 - A signal that is already aborted rejects with `ABORTED` before any request is made.
 - Aborting during the backoff wait rejects at once, without another attempt.
+- `possiblySent` on an `ABORTED` follows the rule in
+  [errors-and-retry.md](errors-and-retry.md#client-local-codes): `true` when the abort cuts a
+  request already dispatched, `false` before any request.
 
 ## Timeout
 

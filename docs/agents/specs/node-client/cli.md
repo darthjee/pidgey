@@ -125,7 +125,9 @@ without breaking the flags.
 
 - **Success:** nothing is written, unless `--verbose` is passed.
 - **Failure:** stderr gets the `code` and `message` of the `PidgeyError`, the SMTP reply when
-  `error.smtp` is present, and a `possibly sent` notice when `possiblySent` is `true`.
-- **Never printed:** message content, the token, or an SMTP password.
+  `error.smtp` is present, and a `possibly sent` notice when `possiblySent` is `true`. The
+  notice also applies to an `ABORTED` (SIGINT, exit `130`) that reports `possiblySent: true`.
+- **Never printed:** message content, the token, an SMTP password, or the response `body` of
+  the error ([errors-and-retry.md](errors-and-retry.md#response-body)).
 - Changing what is printed on success is a breaking change of the CLI
   ([packaging.md](packaging.md#what-is-breaking)).
