@@ -1,0 +1,13 @@
+# Extra checks
+
+Replace the `**Pending decision** (#220)` marker of `testing.md` "Extra checks" with the adopted checks, each with its package, command, `Makefile` target and CI job, and its rejected alternatives, from the issue's Solution section.
+
+- **Pack smoke test** (both packages, every build, a step of `checks.sh` after the `npm pack --dry-run` file-list check): `npm pack` both, `npm install --ignore-scripts --no-audit --no-fund` both tarballs together in a fresh temporary project; asserts the ESM import through `exports`, `npx pidgey --version` / `--help`, and `require('pidgey-client')` through `require(esm)` (conditional on #226). Not adopted: a deep-import assertion. The CLI's library dependency in its published form comes from #222; the publish gate belongs to #223. Rejected: only before publish.
+- **`.d.ts` type check** inside the smoke test against the installed tarball: a TypeScript consumer fixture in `clients/nodejs/` (for example `specs/types/consumer.ts`), `tsc --noEmit`, `strict`, `nodenext`, positive usage only. Not adopted: `@ts-expect-error` cases (record the accepted `any` gap) and a CommonJS fixture. Rejected: checking the in-repo declarations.
+- **Source `checkJs`**: `yarn typecheck` (`tsc --allowJs --checkJs --noEmit`) in both packages; the CLI gains `typescript` as a devDependency.
+- **CLI subprocess tests** (thin layer): add a row for the subprocess spec (for example `specs/bin/Pidgey_spec.js`) to the "CLI" table with its cases (exit codes and streams, stdin pipe including the 10 MiB cap, SIGINT → `130`, no-hang within a bounded time such as 5 s). State that parsing and the exit-code mapping stay in the in-process specs. Rewrite "No-hang expectation" so it points at this spec instead of a pending #220 decision.
+- **Coverage threshold**: `c8`, `check-coverage: true`, 100 % lines/branches/functions/statements for both packages, `/* c8 ignore next */` with a reason for an unreachable branch; only `yarn coverage` counts (including the subprocess spec through `NODE_V8_COVERAGE`), never integration. Rejected: 95 % for the CLI, a 90 % floor, merged integration coverage.
+- **Node.js version matrix**: `clients_checks` over the `engines` floor and the `vite_pidgey-base` version (one job when equal), numbers from #226; floor on `cimg/node:<floor>`; integration and Codacy upload on the current version only; local runs on the development version only (accepted gap). Rejected: every supported major, deferring to #226, a single version.
+
+## Files to Change
+- `docs/agents/specs/node-client/testing.md` — "Extra checks" (marker replaced), "CLI" table, "No-hang expectation".
