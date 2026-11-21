@@ -1,5 +1,8 @@
 # Pending API Decisions
 
+Idempotency keys for `POST /v1/messages` are decided and no longer pending: see
+[endpoints/sending.md](endpoints/sending.md#idempotency-key).
+
 - **Pending decision — rate limits:** per-token/per-organization request limits and the
   `429` response format. This includes throttling the public auth endpoints
   ([login, register](endpoints/auth/session.md#brute-force) and
@@ -15,9 +18,6 @@
   exists). Until then, proxy-level rate limiting is recommended; the current production host cannot apply it, a known gap recorded in
   [deployment/known-gaps.md](../deployment/known-gaps.md#no-proxy-rate-limiting), so production keeps
   `USER_APPROVAL_REQUIRED=true`.
-- **Pending decision — idempotency:** whether `POST /v1/messages` accepts an
-  `Idempotency-Key` header to avoid duplicate sends on client retries (relevant since
-  sending is synchronous and not persisted).
 - **Pending decision — pagination** for list endpoints. In v1 the list endpoints (SMTP
   connections, API tokens, see [endpoints/pidgey-admin.md](endpoints/pidgey-admin.md#shared-rules))
   are **unpaginated**, ordered by `id` ascending; admin user search returns every match. This
