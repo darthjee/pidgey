@@ -11,6 +11,7 @@
 | [api-tokens.md](data-model/api-tokens.md) | `api_tokens`. |
 | [smtp-connections.md](data-model/smtp-connections.md) | `smtp_connections`. |
 | [smtp-test-limits.md](data-model/smtp-test-limits.md) | `smtp_test_limits` (per-organization test-email window and lease). |
+| [idempotency-keys.md](data-model/idempotency-keys.md) | `idempotency_keys` (per-organization `Idempotency-Key` answers of `POST /v1/messages`). |
 
 `schema_migrations` is owned by the migrations runner and specified in
 [architecture/database.md](../architecture/database.md).

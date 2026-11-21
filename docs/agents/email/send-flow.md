@@ -6,6 +6,9 @@ and the response carries the outcome. There is no queue and no retry in v1.
 1. `POST /v1/messages` arrives with a Bearer token (see [api](../api.md)).
 2. Authenticate the token; require scope `send`; resolve the token's organization.
 3. Validate the payload (see [message-scope.md](message-scope.md)); invalid → `400 VALIDATION_FAILED`.
+   When the `Idempotency-Key` header is present, run the
+   [idempotency key step](#idempotency-key-step) next; a replay or a conflict answers here,
+   **before** the connection is resolved.
 4. Resolve the organization's **active** SMTP connection; none → `409 NO_SMTP_CONNECTION`.
 5. Run the [send-time checks](#send-time-checks), then open the session: connect (with
    `ssl` implicit TLS, or plain then `STARTTLS` for `tls`), greeting, `EHLO`, authenticate
@@ -19,7 +22,50 @@ and the response carries the outcome. There is no queue and no retry in v1.
 The test email (`POST /smtp-connections/:id/test.json`) runs steps 5–8 with its fixed
 content; the rules below apply to both alike.
 
-**Pending decision:** whether send attempts are persisted (a `messages` log table).
+**Pending decision:** whether send attempts are persisted (a `messages` log table). This
+stays open: the idempotency rows below hold answers, not messages (the content is never
+stored).
+
+## Idempotency key step
+
+Only `POST /v1/messages`, only when the optional `Idempotency-Key` header is present; the
+test email never uses it, and a request without the header never touches the
+[`idempotency_keys` table](../organizations/data-model/idempotency-keys.md). The contract
+(format, headers, codes) is in
+[api/endpoints/sending.md](../api/endpoints/sending.md#idempotency-key); in this flow:
+
+1. Invalid key → `400 VALIDATION_FAILED`
+   (`Idempotency-Key must be 1 to 255 printable ASCII characters`).
+2. Look up (organization, key), ignoring an expired row:
+   - a different `request_hash` (any state) → `422 IDEMPOTENCY_KEY_REUSED`;
+   - `completed` → replay `response_status` and `response_body` verbatim (original
+     `timestamp` included) with `Idempotent-Replayed: true`; no send and no
+     `smtp-send-attempt` line;
+   - `in_flight` with `lease_until` in the future → `409 IDEMPOTENCY_KEY_IN_USE`;
+   - `in_flight` with the lease passed → completed as the stored `504 SMTP_TIMEOUT`
+     envelope (delivery unknown), then replayed;
+   - absent or expired → reserved (`INSERT`, or overwrite of the expired row) as
+     `in_flight`, deleting at most **100** expired rows of the organization, and the flow
+     continues with step 4.
+3. Steps 4–8 run as without a key.
+4. **Store** (`completed`) when the answer is `200`, `504 SMTP_TIMEOUT`,
+   `502 SMTP_PROTOCOL_ERROR`, or a `500 INTERNAL_ERROR` raised after the SMTP transaction
+   started. **Release** (delete the row) on every other answer: the connection `409`s
+   (`NO_SMTP_CONNECTION`, `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED`,
+   `SMTP_PASSWORD_UNREADABLE`) and `SMTP_CONNECTION_FAILED`, `SMTP_TEMPORARY_FAILURE`,
+   `SMTP_REJECTED`, `SMTP_AUTH_FAILED`, `SMTP_TLS_FAILED`.
+
+- A duplicate-key error on the reservation `INSERT` (a concurrent request won the race)
+  re-reads the row and applies step 2.
+- `request_hash` is the SHA-256 of the normalized payload: `json_encode` (flags
+  `JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES`) of `to`, `subject`, `text`, `html` in
+  this order, an absent field as `null`, values as received after validation.
+- Why store the ambiguous outcomes: SMTP has no idempotency, so after `SMTP_TIMEOUT` or
+  `SMTP_PROTOCOL_ERROR` Pidgey cannot know whether the message was delivered; the stored
+  answer is replayed, never re-sent. Outcomes proving nothing was sent are released so a
+  retry really sends.
+- The lease (5 minutes) is longer than any SMTP session: `SMTP_TOTAL_TIMEOUT` must be below
+  it (see [architecture/configuration.md](../architecture/configuration.md#smtp-transport)).
 
 ## Send-time checks
 
@@ -292,6 +338,7 @@ when the message was sent, `warning` when the attempt failed (send-time checks i
 | `replyCode` | The SMTP reply code, when a reply was received. |
 | `reply` | The reply text, redacted and sanitized ([failures.md](failures.md#sanitization-and-length-cap)), when a reply was received. |
 | `tlsReason` | The OpenSSL reason of a TLS failure (log only, never in a response). |
+| `idempotency` | `none` (no `Idempotency-Key` header) or `reserved` (the key was reserved for this attempt). The raw key is never logged. A replay logs no attempt. |
 
 ### Step values
 
