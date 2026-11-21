@@ -44,7 +44,6 @@ Keys:
   as a stored `504 SMTP_TIMEOUT`. A releasing outcome deletes the row.
 - Scope is the organization, not the API token: rotating a token mid-retry still finds the
   row, and organizations never see each other's keys.
-- Times come from `Pidgey\Infra\WallClock`, so tests can drive the TTL and the lease.
 
 ## What is never stored
 

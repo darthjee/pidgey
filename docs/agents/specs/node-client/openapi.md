@@ -10,6 +10,10 @@ backwards compatible.
   - `POST /v1/messages`: request body (`to`, `subject`, `text`, `html`), the `200` body
     (`{ status, smtp }`) and every documented error status
     ([api/endpoints/sending.md](../../api/endpoints/sending.md#errors));
+  - the optional `Idempotency-Key` request header (1 to 255 printable ASCII characters), the
+    `Idempotent-Replayed: true` response header, and the codes `422 IDEMPOTENCY_KEY_REUSED`
+    and `409 IDEMPOTENCY_KEY_IN_USE`
+    ([api/endpoints/sending.md](../../api/endpoints/sending.md#idempotency-key));
   - the error envelope, with `error.details` and `error.smtp`
     ([api/conventions/errors.md](../../api/conventions/errors.md#envelope));
   - the Bearer security scheme with the `send` scope

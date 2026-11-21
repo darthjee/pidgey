@@ -106,6 +106,9 @@ state that codes may be added); a case that becomes **not** retried; a new opt-i
 - The README states that the client works with **any Pidgey serving `POST /v1/messages`**.
   The client never calls `GET /v1/openapi.json` at runtime, so servers older than that route
   are supported.
+- The client always sends an `Idempotency-Key` header
+  ([library.md](library.md#idempotency-key)). A Pidgey predating it ignores the header, so the
+  promise above holds; only the duplicate-free retry needs a Pidgey that supports keys.
 - The client tolerates API growth
   ([errors-and-retry.md](errors-and-retry.md#forward-compatibility)); a new request field
   needs a client release, because the request payload is a whitelist

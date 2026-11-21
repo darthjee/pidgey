@@ -38,6 +38,7 @@ without breaking the flags.
 | `--html` | HTML body | `message.html` |
 | `--token-file` | Path to a file holding the API token | `token` option; `PIDGEY_TOKEN` when absent ([Credentials and URL](#credentials-and-url)) |
 | `--url` | Pidgey base URL | `baseUrl` option; falls back to `PIDGEY_URL` |
+| `--idempotency-key` | Key (1 to 255 printable ASCII characters) | `idempotencyKey` option of `send()`; without it the library generates one per call ([library.md](library.md#idempotency-key)) |
 | `--retry-ambiguous` | Boolean | `retryAmbiguous: true` ([errors-and-retry.md](errors-and-retry.md#retryambiguous)) |
 | `--allow-insecure-http` | Boolean | `allowInsecureHttp: true`: allows an `http://` `--url` on a non-loopback host ([library.md](library.md#cleartext-transport)) |
 | `--verbose` | Boolean | Prints the result on success ([Output](#output)) |
@@ -48,6 +49,8 @@ without breaking the flags.
   (exit `2`). No argument-parsing dependency.
 - A **repeated** flag (`--to a --to b`) is a usage error (exit `2`), not "last wins": it must
   not suggest multiple recipients.
+- `--idempotency-key` is forwarded as given; an invalid value is the library's
+  `CLIENT_CONFIGURATION` (exit `2`). The key is not printed.
 - Values are forwarded as given: `--text ''` is sent, and the API decides whether an empty
   body is valid. The CLI validates no value; the API is the validator.
 - `--allow-insecure-http` has no environment variable; one can be added later without a
