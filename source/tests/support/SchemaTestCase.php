@@ -20,6 +20,7 @@ abstract class SchemaTestCase extends IntegrationTestCase
         'account_edit_lockouts',
         'api_tokens',
         'authorization_requests',
+        'idempotency_keys',
         'organizations',
         'password_reset_tokens',
         'refresh_tokens',

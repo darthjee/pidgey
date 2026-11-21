@@ -59,6 +59,10 @@ final class SchemaKeysTest extends SchemaTestCase
                 'smtp_test_limits',
                 ['uq_smtp_test_limits_organization_id' => ['organization_id']],
             ],
+            'idempotency_keys' => [
+                'idempotency_keys',
+                ['uq_idempotency_keys_organization_id_key_hash' => ['organization_id', 'key_hash']],
+            ],
         ];
     }
 
@@ -119,6 +123,10 @@ final class SchemaKeysTest extends SchemaTestCase
                 'smtp_test_limits',
                 [],
             ],
+            'idempotency_keys' => [
+                'idempotency_keys',
+                ['idx_idempotency_keys_organization_id_expires_at' => ['organization_id', 'expires_at']],
+            ],
         ];
     }
 
@@ -177,6 +185,10 @@ final class SchemaKeysTest extends SchemaTestCase
             'smtp_test_limits' => [
                 'smtp_test_limits',
                 ['fk_smtp_test_limits_organization_id' => self::ORGANIZATION_FK],
+            ],
+            'idempotency_keys' => [
+                'idempotency_keys',
+                ['fk_idempotency_keys_organization_id' => self::ORGANIZATION_FK],
             ],
         ];
     }
