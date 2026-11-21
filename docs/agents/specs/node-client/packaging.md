@@ -33,7 +33,58 @@ During development `pidgey-cli` depends on the library by path (`file:../nodejs`
 keeps the CLI buildable without a workspace. A published CLI release depends on a published
 `pidgey-client` version instead.
 
-**Pending decision** (#222): caret range, exact pin or lockstep versions for the published dependency, how `file:../nodejs` is swapped for it at release time, and how that changes at `1.0.0`.
+- **Range.** A published `pidgey-cli` declares `"pidgey-client": "^x.y.z"`.
+  - **Why:** the CLI is a thin layer, and all HTTP and retry logic lives in the library, so
+    library patch fixes reach CLI users without a CLI release. The library has zero runtime
+    dependencies and only this project publishes it, so the range pulls in nothing but our own
+    releases.
+- **The floor is derived, never bumped by hand.** `x.y.z` is the library version on the
+  branch being released, read from `clients/nodejs/package.json`. There is no hand-edited
+  floor field.
+  - **Rejected:** a hand-edited floor, one more manual step that can drift from the real
+    library version.
+- **On `0.x`.** `^0.1.0` means `>=0.1.0 <0.2.0`: a library minor, which is breaking on `0.x`,
+  is not accepted. It needs a CLI release that raises the floor.
+- **From `1.0.0`.**
+  - The caret stays: `^1.y.z` also accepts library minors, which are additive.
+  - A CLI release raises the floor when it starts using a newer library feature.
+  - A library major needs a CLI release.
+- **Rejected ranges:**
+  - **Exact pin:** every library fix would need a CLI release. npm ignores the CLI's lockfile
+    for consumers, so the pin buys little reproducibility.
+  - **Tilde:** identical to caret on `0.x`; after `1.0` it would force a CLI release for
+    every additive library minor.
+  - **Lockstep versions:** couples two independent release cycles and forces empty CLI
+    releases.
+- **Swap at release time: staging-copy pack script.**
+  - The committed `clients/cli/package.json` keeps `file:../nodejs`. A committed `^0.1.0`
+    could not install before `0.1.0` is on npm, and it would need `yarn link` or resolutions
+    in development and CI.
+  - A script in `clients/scripts/` (owner `infra`):
+    1. copies `clients/cli/` into a temporary directory;
+    2. rewrites `dependencies["pidgey-client"]` to `^<floor>`, the version read from
+       `clients/nodejs/package.json`;
+    3. runs `npm pack` there.
+  - The working tree is never modified. The pack smoke test
+    ([testing.md](testing.md#pack-smoke-test-adopted)) and the publish step use this same
+    script, so CI tests the exact tarball shape that gets published.
+  - **Rejected:** a `prepack`/`postpack` hook rewriting the committed file in place, because a
+    failed pack leaves it dirty.
+- **Release order: library first.**
+  - A release that changes both packages publishes `pidgey-client` first, then `pidgey-cli`.
+  - A CLI-only release keeps the current library version as its floor.
+  - **Registry check:** before a CLI publish, `npm view pidgey-client@<floor>` must succeed,
+    or the publish aborts. It catches a library version bumped in the repository but never
+    published. The check runs at publish time only, never in the smoke test.
+- **Edge cases.**
+  - **A library patch breaks the CLI.** Every CLI install accepts it through the caret, so
+    the fix goes forward: a library patch release reverts or fixes the change, and the bad
+    version is deprecated through #223's rollback procedure. There are no range exclusions
+    in the CLI (for example `^0.1.0 !0.1.3`) and no emergency CLI pin.
+  - **No backports on `0.x`.** A CLI still on `^0.1.x` gets no fixes made in `0.2.x`; users
+    upgrade the CLI.
+- **What the publish procedure must do.** The procedure decided in #223 must apply
+  library-first order, the staging-copy pack and the registry check. The mechanism, tags, credential, gate and rollback are #223's.
 
 ## Stack
 
@@ -87,8 +138,10 @@ a number yet.
   (`0.1.x` → `0.2.0`), everything else bumps the patch. Moving to `1.0.0` is a later,
   explicit decision.
 - Each package keeps a `CHANGELOG.md`.
-- Package versions are independent from each other (subject to #222) and from the backend
-  version.
+- Package versions are independent from each other and from the backend version. The only
+  link is the CLI's dependency range, whose floor rule is in
+  [CLI to library dependency](#cli-to-library-dependency): a CLI release raises the floor
+  when it needs a newer library.
 
 ### What is breaking
 
@@ -97,7 +150,8 @@ a number yet.
 | Library | Removing or renaming an export, an option or a `PidgeyError` field; changing a default (`maxRetries`, `retryAmbiguous`, `timeoutMs`, `retryDelayMs`); making the retry table retry **more** cases; changing a client-local code; narrowing or removing the loopback exemption for `http://`; dropping a Node.js major. |
 | CLI | Removing or renaming a flag; changing an exit code or its meaning; changing what is printed on success; lowering the stdin cap; dropping a Node.js major. |
 
-Not breaking: a new option, flag or `PidgeyError` field; a new client-local code (the docs
+Not breaking: raising the floor of the CLI's `pidgey-client` range; a new library export
+(such as `VERSION`); a new option, flag or `PidgeyError` field; a new client-local code (the docs
 state that codes may be added); a case that becomes **not** retried; a new opt-in (such as an environment variable for
 `--allow-insecure-http`, or a `--max-body-size` flag); documentation.
 
@@ -159,6 +213,15 @@ the pack check and the hardened publishing token that navi lacks.
   npm trusted publishing (OIDC), whenever the mechanism chosen in #223 supports it. If that
   mechanism cannot attest, the spec records the gap explicitly instead of dropping the goal
   silently; #223 confirms feasibility.
+- **Committed-file lint.** `clients/scripts/checks.sh` fails if the committed
+  `clients/cli/package.json` declares `pidgey-client` as anything other than `file:../nodejs`,
+  so the published range only ever comes from the staging-copy pack
+  ([CLI to library dependency](#cli-to-library-dependency)).
+- **Range versus pin.** The range admits only this project's own releases, published under
+  the token, 2FA and provenance rules above and in #223. The one added risk is that a
+  compromised `pidgey-client` publish reaches CLI installs without a CLI release; a pin would
+  not protect library consumers from the same publish, so the publishing controls remain the
+  defence.
 - **Frozen installs.** CI installs with the committed lockfile frozen
   (`yarn install --frozen-lockfile`, matching the Yarn tooling in [Stack](#stack)), so a
   release never resolves new dependency versions.

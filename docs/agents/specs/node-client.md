@@ -79,7 +79,6 @@ will land. Each enhancement sub-issue replaces its own markers.
 
 | Issue | Topic | Markers in |
 | --- | --- | --- |
-| #222 | How `pidgey-cli` depends on a published `pidgey-client` (caret, exact pin, lockstep). | [packaging.md](node-client/packaging.md), [cli.md](node-client/cli.md) |
 | #223 | Publishing mechanism, credential and release procedure. | [packaging.md](node-client/packaging.md) |
 | #226 | Node.js version and supported `engines` range. | [packaging.md](node-client/packaging.md) |
 
