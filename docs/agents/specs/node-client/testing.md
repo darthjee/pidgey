@@ -173,9 +173,7 @@ indicative: the rule is that the `Makefile` target and the CI job call the same 
   - `npx pidgey --version` prints `pidgey-cli <version> (pidgey-client <version>)`, the CLI
     version matching its `package.json` and the library version matching the packed library
     tarball; `npx pidgey --help` exits `0`;
-  - `require('pidgey-client')` works through `require(esm)`. This assertion is dropped,
-    together with the CommonJS claim of [packaging.md](packaging.md), if #226 picks a
-    Node.js version without `require(esm)`.
+  - `require('pidgey-client')` works through `require(esm)`.
 - **Not adopted:** a deep-import assertion.
 - **CLI tarball:** the CLI is installed together with the packed library tarball. The
   committed `clients/cli/package.json` declares `file:../nodejs`, whose tarball would not
@@ -234,10 +232,12 @@ indicative: the rule is that the `Makefile` target and the CI job call the same 
 
 - `clients_checks` is a CircleCI matrix over the **lowest** `engines` version and the
   version of `dockerfiles/vite_pidgey-base/`; it is one job when they are equal. Each job
-  runs the full `checks.sh`. The version numbers come from #226.
+  runs the full `checks.sh`. The jobs: floor on `cimg/node:22.12.0` (Node.js 22.12.0) and
+  current on `darthjee/circleci_node:0.2.1` (Node.js 22.14.0); see
+  [packaging.md](packaging.md#nodejs-version). No latest-LTS job is added.
 - The current-version job keeps `darthjee/circleci_node`; the floor job uses a stock
   `cimg/node:<floor>` image.
 - `clients_integration` and the Codacy coverage upload run on the current version only.
 - `make clients-checks` runs on the development version only. Accepted gap: the floor is
   checked in CI only.
-- Rejected: one job per supported major; deferring the matrix to #226; a single version.
+- Rejected: one job per supported major (so no latest-LTS job); deferring the matrix; a single version.

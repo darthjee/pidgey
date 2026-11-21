@@ -92,7 +92,7 @@ keeps the CLI buildable without a workspace. A published CLI release depends on 
 ## Stack
 
 - **Plain JavaScript, ESM only:** `"type": "module"`, an `exports` map, no CommonJS build.
-  CommonJS consumers use `require(esm)` on a supported Node.js. No TypeScript source and no
+  CommonJS consumers use `require(esm)` on a supported Node.js (see [Node.js version](#nodejs-version)). No TypeScript source and no
   build step for the library code; the only pack-time step generates the `.d.ts`
   declarations ([openapi.md](openapi.md#generated-types)).
 - **Zero runtime dependencies** for the library: the Node.js standard library only (`fetch`,
@@ -111,10 +111,33 @@ keeps the CLI buildable without a workspace. A published CLI release depends on 
 
 The Node.js version is the one used by the frontend images under
 `dockerfiles/vite_pidgey-base/`, declared once per package in `package.json` (`engines`) and
-in the package README, so every JavaScript area runs one Node version. The specs do not pin
-a number yet.
+in the package README, so every JavaScript area runs one Node major.
 
-**Pending decision** (#226): which Node.js version and supported `engines` range, and whether every API the specs rely on (`fetch`, `AbortSignal` helpers, `parseArgs` strict mode, `require(esm)` for CommonJS consumers) exists on the lowest supported version.
+- **Supported range:** `"engines": { "node": ">=22.12.0" }` in both packages; the READMEs say
+  "Node.js 22.12 or later". No upper bound: newer majors are expected to work but are not
+  tested. `engine-strict` is not set.
+- **Why 22.12.0:** the lowest 22.x where `require(esm)` works unflagged (no experimental
+  warning for modules under `node_modules`). Node.js 20 is end-of-life (April 2026) and
+  unsupported.
+- **API check:** every API the specs rely on exists on the floor, so no alternative is needed.
+
+  | API | Available since |
+  | --- | --- |
+  | Global `fetch` | 18 (stable in 21) |
+  | `AbortSignal.timeout` | 17.3 |
+  | `AbortSignal.any` | 20.3 |
+  | `parseArgs` (strict mode) | 18.3 (stable in 20) |
+  | `require(esm)` | 22.12.0 |
+
+- **Image versions:** `dockerfiles/vite_pidgey-base/` (`darthjee/node:0.2.1`) runs 22.21.1;
+  the CI image `darthjee/circleci_node:0.2.1` runs 22.14.0. Accepted mismatch (both 22.x,
+  above the floor); the spec follows `darthjee/circleci_node` when it moves.
+- **Raising the floor:** follows the major of `dockerfiles/vite_pidgey-base/`; at the latest
+  when Node.js 22 reaches end of life (30 April 2027) the floor moves to the lowest release
+  of the new major that keeps every API above. A floor raise is breaking: a `0.x` minor with a
+  `CHANGELOG.md` entry (see [What is breaking](#what-is-breaking)).
+- **Rejected:** `>=22` (22.0 to 22.11 need `--experimental-require-module`); `>=24` (drops
+  Node.js 22 users while the repository runs 22).
 
 ## Ownership
 
