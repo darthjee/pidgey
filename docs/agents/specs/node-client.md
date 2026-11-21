@@ -75,11 +75,7 @@ Out of scope (non-goals of the epic):
 ## Pending decisions
 
 Every open item is marked `**Pending decision** (#<issue>)` in the file where the decision
-will land. Each enhancement sub-issue replaces its own markers.
-
-| Issue | Topic | Markers in |
-| --- | --- | --- |
-| #226 | Node.js version and supported `engines` range. | [packaging.md](node-client/packaging.md) |
+will land. Each enhancement sub-issue replaces its own markers. No decision is pending.
 
 ## Lifecycle
 
