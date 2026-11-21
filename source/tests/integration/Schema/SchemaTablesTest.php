@@ -67,6 +67,10 @@ final class SchemaTablesTest extends SchemaTestCase
                 'smtp_test_limits',
                 self::COLLATION,
             ],
+            'idempotency_keys' => [
+                'idempotency_keys',
+                self::COLLATION,
+            ],
         ];
     }
 

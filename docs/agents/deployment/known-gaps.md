@@ -43,7 +43,10 @@ on this shared host, and whether a proxy with its own shorter timeout exists (se
 [`TRUSTED_PROXY_HOPS` not verified](#trusted_proxy_hops-not-verified)), are not verified. If
 either is shorter, a slow SMTP server makes the request die with a gateway error instead of a
 `504 SMTP_TIMEOUT` envelope, and no attempt is logged. Lower `SMTP_TOTAL_TIMEOUT` if that is
-seen.
+seen. A client that retries `POST /v1/messages` with the same `Idempotency-Key` gets the stored
+outcome replayed instead of a second delivery (see
+[sending.md](../api/endpoints/sending.md#idempotency-key)); only a request that died before the
+key was reserved is sent again.
 
 ## DNS resolution is not bounded by the SMTP timeouts
 

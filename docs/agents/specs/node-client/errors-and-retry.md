@@ -152,11 +152,14 @@ rule to implement: the status is not consulted once the abort fires.
 | Unknown `SMTP_*` code | 503 | yes | Forward compatibility: follows the status meaning (temporary). |
 | Unknown `SMTP_*` code | 504 | only with `retryAmbiguous: true` | A timeout: delivery state unknown. |
 | Unknown `SMTP_*` code | 502 | no | `502` means the upstream rejected the request or is broken. |
+| `IDEMPOTENCY_KEY_IN_USE` | 409 | no | The first request with this key is still in progress; `possiblySent: true`. |
+| `IDEMPOTENCY_KEY_REUSED` | 422 | no | The key was already used with a different payload; `possiblySent: false`. |
 
 **Never retried**, whatever the options: `400` (`VALIDATION_FAILED`, `BAD_REQUEST`), `401`,
 `403`, `409` (every code: `NO_SMTP_CONNECTION`, `SMTP_INSECURE_CREDENTIALS`,
-`SMTP_HOST_NOT_ALLOWED`, `SMTP_PASSWORD_UNREADABLE`), `413` (`HTTP_413`, body over the API's
+`SMTP_HOST_NOT_ALLOWED`, `SMTP_PASSWORD_UNREADABLE`, `IDEMPOTENCY_KEY_IN_USE`), `413` (`HTTP_413`, body over the API's
 1 MiB limit), `415`, `429`, `500`, any 3xx, any other
+`422` (`IDEMPOTENCY_KEY_REUSED`), any other
 status, any other unknown code, `INVALID_RESPONSE` (including on a 2xx),
 `CLIENT_CONFIGURATION` and `ABORTED`. A validation error, a bad token, a missing SMTP
 connection or a refused credential will not fix itself, and retrying multiplies the load.
@@ -172,9 +175,18 @@ retried.
   an occasional duplicate over a lost send. The duplicate risk is documented on the option.
 - `SMTP_PROTOCOL_ERROR` and an `INVALID_RESPONSE` on a 2xx are never retried, even with the
   option.
-- Removing the client-to-Pidgey duplicate case with an `Idempotency-Key` header is tracked
-  separately in #221 (see also [api/pending.md](../../api/pending.md)) and is not part of
-  this epic. SMTP has no idempotency, so even a backend key cannot cover `SMTP_TIMEOUT`.
+- The default is **unchanged** by the `Idempotency-Key` header
+  ([library.md](library.md#idempotency-key)): the client cannot detect whether the server
+  supports keys, so it stays `false`. With the option on:
+  - an ambiguous `NETWORK_ERROR` retry (same key) is duplicate-free on a server that supports
+    keys: the server replays the stored answer instead of sending again, or answers
+    `409 IDEMPOTENCY_KEY_IN_USE` while the first request is still running;
+  - a retry after `SMTP_TIMEOUT` gets the **stored `504` replayed**, not a second send: SMTP
+    has no idempotency, so a key cannot make a timeout after the final `.` safe to re-send.
+- `409 IDEMPOTENCY_KEY_IN_USE` and `422 IDEMPOTENCY_KEY_REUSED` are never retried, even with
+  the option ([Retry table](#retry-table)). `IDEMPOTENCY_KEY_IN_USE` carries
+  `possiblySent: true` (the first request may deliver the message);
+  `IDEMPOTENCY_KEY_REUSED` carries `possiblySent: false` (nothing was sent for this call).
 
 ### Backoff
 

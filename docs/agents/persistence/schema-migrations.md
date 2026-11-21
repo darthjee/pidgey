@@ -72,4 +72,6 @@ None. The database-level "at most one active SMTP connection" constraint is a la
 migration (`0010`, see
 [organizations/data-model/smtp-connections.md](../organizations/data-model/smtp-connections.md#migrations)),
 not a change to `0008`; `smtp_test_limits` is created by `0011` (see
-[organizations/data-model/smtp-test-limits.md](../organizations/data-model/smtp-test-limits.md)).
+[organizations/data-model/smtp-test-limits.md](../organizations/data-model/smtp-test-limits.md));
+`idempotency_keys` is created by `0012_create_idempotency_keys.sql` (see
+[organizations/data-model/idempotency-keys.md](../organizations/data-model/idempotency-keys.md)).

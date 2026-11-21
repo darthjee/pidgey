@@ -165,6 +165,27 @@ final class SchemaColumnsTest extends SchemaTestCase
                     'updated_at' => self::UPDATED_AT,
                 ],
             ],
+            'idempotency_keys' => [
+                'idempotency_keys',
+                [
+                    'id' => self::ID,
+                    'organization_id' => self::BIGINT,
+                    'key_hash' => self::CHAR_64,
+                    'request_hash' => self::CHAR_64,
+                    'state' => [
+                        'type' => "enum('in_flight','completed')",
+                        'nullable' => false,
+                        'default' => null,
+                        'extra' => '',
+                    ],
+                    'response_status' => ['type' => 'smallint', 'nullable' => true, 'default' => null, 'extra' => ''],
+                    'response_body' => ['type' => 'mediumtext', 'nullable' => true, 'default' => null, 'extra' => ''],
+                    'lease_until' => self::DATETIME,
+                    'expires_at' => self::DATETIME,
+                    'created_at' => self::CREATED_AT,
+                    'updated_at' => self::UPDATED_AT,
+                ],
+            ],
         ];
     }
 

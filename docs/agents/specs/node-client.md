@@ -48,11 +48,15 @@ Out of scope (non-goals of the epic):
   [email/message-scope.md](../email/message-scope.md#pending-decisions-future-scope)). The
   client sends only the v1 fields; supporting a new API field is a client release.
 - **Backend changes beyond the OpenAPI route.** `GET /v1/openapi.json` is the only backend
-  addition; every existing endpoint, payload, response, error code and header stays
-  unchanged.
+  addition of the epic; every existing endpoint, payload, response, error code and header
+  stays unchanged. (The optional `Idempotency-Key` header of #221 is a separate, additive
+  backend change, see below.)
 - **OpenAPI for the admin API.** The document covers `/v1` only.
-- **Idempotency.** Removing the client-to-Pidgey duplicate case with an `Idempotency-Key`
-  is tracked separately in #221.
+- **Idempotency.** Decided in #221: `POST /v1/messages` accepts an optional
+  `Idempotency-Key` header and replays a stored answer
+  ([api/endpoints/sending.md](../api/endpoints/sending.md#idempotency-key)). The client sends
+  one key per `send()` ([library.md](node-client/library.md#idempotency-key)); its default
+  retry policy is unchanged.
 - **API request size limits.** Decided in #233: a 1 MiB request body limit and a 255-character
   `subject` cap ([api/endpoints/sending.md](../api/endpoints/sending.md#size-limits)). The CLI
   stdin cap equals the body limit ([node-client/cli.md](node-client/cli.md#stdin-size-cap)).
@@ -61,7 +65,7 @@ Out of scope (non-goals of the epic):
 
 | File | Content |
 | --- | --- |
-| [library.md](node-client/library.md) | `PidgeyClient`, its options, `send(message, { signal })`, the v1 field whitelist, headers, success passthrough, redirects, abort, timeout, connections, the cleartext rule. |
+| [library.md](node-client/library.md) | `PidgeyClient`, its options, `send(message, { signal, idempotencyKey })`, the v1 field whitelist, headers, success passthrough, redirects, abort, timeout, connections, the cleartext rule. |
 | [errors-and-retry.md](node-client/errors-and-retry.md) | `PidgeyError`, client-local codes, `possiblySent`, the retry table by `error.code`, `retryAmbiguous`, backoff, the retained response body. |
 | [cli.md](node-client/cli.md) | The `pidgey` command: flags, token sources (`--token-file`, `PIDGEY_TOKEN`), environment fallbacks, stdin and its size cap, exit codes, output. |
 | [openapi.md](node-client/openapi.md) | The `/v1` OpenAPI document, `GET /v1/openapi.json`, generated types and `.d.ts`, contract tests, the additive-only rule and its CI diff. |

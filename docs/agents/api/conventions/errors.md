@@ -103,6 +103,8 @@ here.
 | `USER_DENIED` | 403 | `This account has been denied access` | login |
 | `USER_NOT_PENDING` | 422 | `Only pending users can be approved` | admin approve |
 | `CANNOT_DENY_SELF` | 422 | `You cannot deny your own account` | admin deny |
+| `IDEMPOTENCY_KEY_REUSED` | 422 | `Idempotency-Key was already used with a different payload` | `POST /v1/messages` ([endpoints/sending.md](../endpoints/sending.md#idempotency-key)) |
+| `IDEMPOTENCY_KEY_IN_USE` | 409 | `A request with this Idempotency-Key is still in progress` | `POST /v1/messages` ([endpoints/sending.md](../endpoints/sending.md#idempotency-key)) |
 | `NO_SMTP_CONNECTION`, `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED`, `SMTP_PASSWORD_UNREADABLE`, `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED`, `SMTP_TEMPORARY_FAILURE`, `SMTP_PROTOCOL_ERROR`, `SMTP_TIMEOUT` | 409 / 502 / 503 / 504 | Fixed messages in [email/failures.md](../../email/failures.md#fixed-messages). | `POST /v1/messages` and authenticated endpoints that send email (the SMTP connection test email, which never answers `NO_SMTP_CONNECTION`); never endpoints reachable without login (see [SMTP send failures](#smtp-send-failures)) |
 
 ## Generic errors

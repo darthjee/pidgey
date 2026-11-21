@@ -38,6 +38,9 @@ try {
     error.possiblySent; // true when the message may have been delivered
   }
 }
+
+// An optional caller key (same format as the server's), see Idempotency key below.
+await client.send({ to: 'user@example.com', subject: 'Hello', text: 'Hi!' }, { idempotencyKey: 'order-1234' });
 ```
 
 ## Exports
@@ -72,6 +75,9 @@ request is made**:
   ([Cleartext transport](#cleartext-transport));
 - `maxRetries` negative or not an integer;
 - an invalid `timeoutMs`.
+
+A per-call `idempotencyKey` outside the server's format also rejects with
+`CLIENT_CONFIGURATION` ([Idempotency key](#idempotency-key)).
 
 `baseUrl` normalization: `https://pidgey.example.com`, `https://pidgey.example.com/`
 both send to `https://pidgey.example.com/v1/messages`; a prefix is kept, so
@@ -134,11 +140,33 @@ Performs `POST /v1/messages` and returns a promise.
 | `Authorization` | `Bearer <token>` |
 | `Content-Type` | `application/json` |
 | `Accept` | `application/json` |
+| `Idempotency-Key` | Always sent: the caller's `idempotencyKey`, or a `crypto.randomUUID()` generated once per `send()` ([Idempotency key](#idempotency-key)). |
 | `Origin` | Not sent, so the API's [origin check](../../api/conventions/origin-check.md) passes for a server-side caller. |
 | Redirects | Not followed (`redirect: 'error'`). |
 
-Every attempt is a normal, independent request: the client caches nothing about the token
-and does not pre-check the SMTP connection.
+Every attempt is a normal, independent request, except that all the attempts of one `send()`
+carry the **same** `Idempotency-Key`: the client caches nothing about the token and does not
+pre-check the SMTP connection.
+
+### Idempotency key
+
+Pidgey accepts an optional `Idempotency-Key` header on `POST /v1/messages` and replays the
+stored answer of a repeat within 24 hours ([api/endpoints/sending.md](../../api/endpoints/sending.md#idempotency-key)).
+
+- `send()` **always** sends `Idempotency-Key: <crypto.randomUUID()>`, generated **once per
+  `send()` call** and reused on every retry of that call, so an ambiguous retry (only with
+  `retryAmbiguous: true`) is duplicate-free on a server that supports keys. A new `send()`
+  call gets a new key.
+- A server predating the header ignores it, so the promise that the client works with any
+  Pidgey serving `POST /v1/messages` holds ([packaging.md](packaging.md#compatibility)).
+- Option `idempotencyKey` on `send(message, { signal, idempotencyKey })`: the caller's own
+  key, used instead of the generated one, for example to make two separate `send()` calls (or
+  two processes) deduplicate. Its format is the server's: 1 to 255 characters, each in
+  `0x21`-`0x7E`; any other value rejects with `CLIENT_CONFIGURATION` before any request.
+  The key is never echoed in a message beyond that reason.
+- The default retry policy is **unchanged**: `retryAmbiguous` stays `false`, because the
+  client cannot detect server support
+  ([errors-and-retry.md](errors-and-retry.md#retryambiguous)).
 
 ### Success
 
@@ -146,6 +174,10 @@ On `200` the promise resolves with the parsed body **exactly as returned**
 (`{ status, smtp }`). The client does not reshape it, so a field added by the API reaches
 the consumer without a client release. A `200` whose body lacks `smtp` is resolved unchanged:
 the client does not require fields the API does not promise to keep.
+
+The one addition is `replayed: boolean`, set by the client from the response headers (not part
+of the body): `true` when the response carries `Idempotent-Replayed: true` (the answer is a
+replay of a stored one, and nothing was sent by this call), `false` otherwise.
 
 A `200` (or other 2xx) whose body is not JSON rejects with `INVALID_RESPONSE`, is never
 retried and is "possibly sent" ([errors-and-retry.md](errors-and-retry.md#client-local-codes)).
