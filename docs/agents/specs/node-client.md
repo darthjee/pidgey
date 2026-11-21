@@ -79,7 +79,6 @@ will land. Each enhancement sub-issue replaces its own markers.
 
 | Issue | Topic | Markers in |
 | --- | --- | --- |
-| #223 | Publishing mechanism, credential and release procedure. | [packaging.md](node-client/packaging.md) |
 | #226 | Node.js version and supported `engines` range. | [packaging.md](node-client/packaging.md) |
 
 ## Lifecycle

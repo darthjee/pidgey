@@ -184,7 +184,9 @@ indicative: the rule is that the `Makefile` target and the CI job call the same 
   form and the working tree is never modified.
 - **Registry check not run here:** `npm view pidgey-client@<floor>` runs at publish time
   only, so the smoke test works before the first publish.
-- **Publish gate:** the gate itself belongs to #223.
+- **Publish gate:** specified in
+  [packaging.md](packaging.md#pre-publish-gate). The publish job re-uses the tarball the pack
+  job built and checked; it never re-packs.
 
 ### `.d.ts` type check: adopted
 
