@@ -45,13 +45,14 @@ Spec of how `pidgey-client` and `pidgey-cli` are tested and which CI jobs run th
 | `specs/client/PidgeyClientSend_spec.js` | Body mapping for `to`/`subject`/`text`/`html`; unknown keys not sent; `undefined` fields omitted; the request path; the resolved `{ status, smtp }` passthrough; a `200` body without `smtp`; the [idempotency key](library.md#idempotency-key): a `crypto.randomUUID()` sent on every `send()`, one key reused across the retries of a call and a new one for the next call, the `idempotencyKey` option passed through, an invalid caller key (empty, over 255 characters, a non-printable character) rejected locally with `CLIENT_CONFIGURATION` and no request made, and `replayed` mapped from `Idempotent-Replayed: true` (`false` when absent). |
 | `specs/client/PidgeyError_spec.js` | Envelope mapping to `statusCode`/`code`/`message`/`details`/`smtp`; the fallback to the HTTP status; `INVALID_RESPONSE` for a non-JSON body; the retained response body ([errors-and-retry.md](errors-and-retry.md#response-body)): the 64 KiB read cap (by bytes after decompression, and by `Content-Length` without reading), the 4 KiB cut and `bodyTruncated`, no split character, token redaction including a token straddling the 4 KiB boundary, a reflected token (as sent, trimmed and configured forms) redacted from `message`, `details` and `smtp.message` as well as `body`, `body` and `bodyTruncated` absent from `JSON.stringify` and `util.inspect`, and `body` absent on the no-response codes. |
 | `specs/client/RetryPolicy_spec.js` | One case per row of the [retry table](errors-and-retry.md#retry-table) (each `SMTP_*` code, unknown `SMTP_*` on `502`/`503`/`504`, network errors); no retry on `400`/`401`/`403`/`409`/`422`/`429`/`500`, 3xx and a non-JSON `200`; `ABORTED` from a caller signal during an attempt and during the backoff wait; attempt count for `maxRetries` `0`, `1` and `2`; backoff growing and capped; the last error surfacing when retries are exhausted; a timeout classified as an ambiguous `NETWORK_ERROR`; `retryAmbiguous` off and on; `possiblySent` for every code, including the "any attempt was ambiguous" rule; `possiblySent` for `ABORTED`: before any request, in flight (including while the body is being read), during the backoff after unambiguous failures, after an earlier ambiguous attempt, and an abort while reading the body of an already-received `400`/`401`/`403`/`409` (`true`); `409 IDEMPOTENCY_KEY_IN_USE` never retried with `possiblySent: true` and `422 IDEMPOTENCY_KEY_REUSED` never retried with `possiblySent: false`, also with `retryAmbiguous: true`. |
+| `specs/Version_spec.js` | The `VERSION` export ([library.md](library.md#exports)) equals the `version` in the library's `package.json`; there is no build step to inject it, so this spec keeps the two from drifting. |
 | `specs/contract/OpenApi_spec.js` | Request bodies built by `send` and the response fixtures used by the specs validate against the OpenAPI document; the generated `types/` file is up to date with it ([openapi.md](openapi.md#contract-tests)). |
 
 ## CLI (`clients/cli/specs/`)
 
 | Spec | Covers |
 | --- | --- |
-| `specs/cli/Arguments_spec.js` | Parsing of every flag; `--token-file`/`--url` versus `PIDGEY_TOKEN`/`PIDGEY_URL` precedence; one trailing newline (`\n` or `\r\n`) trimmed from the token file; missing, unreadable and empty token file → exit `2`; a token file over 4 KiB → exit `2`; a non-regular file (`/dev/stdin`, a FIFO, a directory; a symlink to a regular file is accepted) → exit `2`; a control character (CR, LF, NUL, tab) left after the trim → exit `2`, with a message naming the path only; the mode warning taken from `fstat` of the descriptor read; the group/other-readable token file warning; `--token` rejected as an unknown flag; `--idempotency-key` parsed and passed to `send()`; `--allow-insecure-http` parsed, and exit `2` for a non-loopback `http://` `--url` without it; `--help` and `--version`; unknown flag; repeated flag; missing token or URL. |
+| `specs/cli/Arguments_spec.js` | Parsing of every flag; `--token-file`/`--url` versus `PIDGEY_TOKEN`/`PIDGEY_URL` precedence; one trailing newline (`\n` or `\r\n`) trimmed from the token file; missing, unreadable and empty token file → exit `2`; a token file over 4 KiB → exit `2`; a non-regular file (`/dev/stdin`, a FIFO, a directory; a symlink to a regular file is accepted) → exit `2`; a control character (CR, LF, NUL, tab) left after the trim → exit `2`, with a message naming the path only; the mode warning taken from `fstat` of the descriptor read; the group/other-readable token file warning; `--token` rejected as an unknown flag; `--idempotency-key` parsed and passed to `send()`; `--allow-insecure-http` parsed, and exit `2` for a non-loopback `http://` `--url` without it; `--help`; `--version` printing `pidgey-cli <version> (pidgey-client <version>)` with both versions (the library one from `VERSION`); unknown flag; repeated flag; missing token or URL. |
 | `specs/cli/Body_spec.js` | Stdin read when neither body flag is given and stdin is not a TTY; no stdin read when `--html` is present; unreadable stdin; the stdin cap ([cli.md](cli.md#stdin-size-cap)): exactly 1 MiB accepted, 1 MiB + 1 byte → exit `2` with a message naming the limit and nothing sent, reading stopped at the cap, and the cap counted in bytes before decoding. |
 | `specs/cli/ExitCode_spec.js` | `0` on a sent message, `1` on a `PidgeyError`, `2` on a usage error and on `CLIENT_CONFIGURATION`, `130` on SIGINT, with nothing printed on success. |
 | `specs/bin/Pidgey_spec.js` | The real `bin/pidgey` spawned against the in-process server ([Extra checks](#cli-subprocess-tests-adopted-thin-layer)), covering only what in-process specs cannot prove: exit `0` with empty stdout; exit `1` with the error on stderr; exit `2` on a usage error and on `CLIENT_CONFIGURATION`; a body piped through stdin reaching the server; a closed or empty stdin; the 1 MiB stdin cap through a real pipe (exit `2`, nothing sent); SIGINT while the request is in flight → exit `130` with the connection aborted; and the [no-hang case](#no-hang-expectation). Parsing, token sources, body selection and the exit-code mapping stay in the three in-process specs above. |
@@ -69,6 +70,9 @@ Spec of how `pidgey-client` and `pidgey-cli` are tested and which CI jobs run th
 - **Contract:** `specs/contract/OpenApi_spec.js` in the library (above).
 - **Pack check:** `npm pack --dry-run` in both packages, compared against an explicit
   expected file list committed per package; any added or missing file fails
+  ([packaging.md](packaging.md#supply-chain)).
+- **Committed-file lint:** `checks.sh` fails if the committed `clients/cli/package.json`
+  declares `pidgey-client` as anything other than `file:../nodejs`
   ([packaging.md](packaging.md#supply-chain)).
 - **Lint:** `yarn lint` in both packages, with the same rules as `frontend/`, green.
 
@@ -116,7 +120,7 @@ script):
 
 | Script | Runs |
 | --- | --- |
-| `clients/scripts/checks.sh` | Per package: `yarn install --frozen-lockfile`, `yarn lint`, `yarn typecheck`, `yarn coverage` (including the CLI subprocess spec and the 100 % threshold); then the pack file-list check and the [smoke test](#pack-smoke-test-adopted) with the `.d.ts` check. |
+| `clients/scripts/checks.sh` | Per package: `yarn install --frozen-lockfile`, `yarn lint`, `yarn typecheck`, `yarn coverage` (including the CLI subprocess spec and the 100 % threshold); then the committed-file lint of the CLI's `pidgey-client` dependency, the pack file-list check and the [smoke test](#pack-smoke-test-adopted) (CLI packed through the staging-copy script, range assertion, offline install) with the `.d.ts` check. |
 | `clients/scripts/integration.sh` | The [integration](#integration) spec, with the "required" flag set. |
 
 | Job | Runs |
@@ -155,21 +159,31 @@ indicative: the rule is that the `Makefile` target and the CI job call the same 
   `checks.sh` right after the `npm pack --dry-run` file-list check
   ([Pack check](#cross-cutting)). Rejected: running only before publish, which would find a
   broken tarball only at release.
-- **Command:** `npm pack` both packages; in a fresh temporary project,
-  `npm install --ignore-scripts --no-audit --no-fund ./pidgey-client-*.tgz ./pidgey-cli-*.tgz`.
-  No registry access is needed, because both packages have zero runtime dependencies.
+- **Command:** `npm pack` the library, and pack the CLI through the staging-copy script
+  ([packaging.md](packaging.md#cli-to-library-dependency)); in a fresh temporary project,
+  `npm install --offline --ignore-scripts --no-audit --no-fund ./pidgey-client-*.tgz ./pidgey-cli-*.tgz`.
+  The install is offline: the library has no runtime dependencies, and the packed CLI's
+  `^<floor>` range is satisfied by the packed library tarball, so nothing is fetched and
+  `pidgey-client` need not be on the registry yet.
 - **Asserts:**
+  - the `package.json` inside the packed CLI tarball declares
+    `dependencies["pidgey-client"]` as exactly `^<version in clients/nodejs/package.json>`;
   - `import { PidgeyClient, PidgeyError } from 'pidgey-client'` resolves through the
     `exports` map;
-  - `npx pidgey --version` prints the CLI version and `npx pidgey --help` exits `0`;
+  - `npx pidgey --version` prints `pidgey-cli <version> (pidgey-client <version>)`, the CLI
+    version matching its `package.json` and the library version matching the packed library
+    tarball; `npx pidgey --help` exits `0`;
   - `require('pidgey-client')` works through `require(esm)`. This assertion is dropped,
     together with the CommonJS claim of [packaging.md](packaging.md), if #226 picks a
     Node.js version without `require(esm)`.
 - **Not adopted:** a deep-import assertion.
-- **CLI tarball:** the CLI is installed together with the packed library tarball. While the
-  CLI's `package.json` declares `file:../nodejs`, its tarball does not resolve outside the
-  repository, so the smoke test packs the CLI with the dependency in its published form,
-  which #222 defines.
+- **CLI tarball:** the CLI is installed together with the packed library tarball. The
+  committed `clients/cli/package.json` declares `file:../nodejs`, whose tarball would not
+  resolve outside the repository, so the smoke test packs the CLI through the staging-copy
+  script, the same script the publish uses: the tarball carries the published `^<floor>`
+  form and the working tree is never modified.
+- **Registry check not run here:** `npm view pidgey-client@<floor>` runs at publish time
+  only, so the smoke test works before the first publish.
 - **Publish gate:** the gate itself belongs to #223.
 
 ### `.d.ts` type check: adopted

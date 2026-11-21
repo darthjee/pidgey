@@ -49,6 +49,7 @@ await client.send({ to: 'user@example.com', subject: 'Hello', text: 'Hi!' }, { i
 | --- | --- |
 | `PidgeyClient` | The client class. |
 | `PidgeyError` | The single error class of every failure ([errors-and-retry.md](errors-and-retry.md#pidgeyerror)). |
+| `VERSION` | The library version string, equal to the `version` in its `package.json`. The CLI prints it in `--version` ([cli.md](cli.md#flags)). Adding it is not breaking ([packaging.md](packaging.md#what-is-breaking)). |
 
 Every public export carries accurate JSDoc, which references the OpenAPI-generated schema
 types ([openapi.md](openapi.md#generated-types)).

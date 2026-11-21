@@ -23,7 +23,9 @@ The CLI parses flags, reads stdin, calls `client.send(...)` of
 code and no retry logic** of its own; both come from the library. If a CLI change needs to
 know what a status or code means, the classification belongs in the library.
 
-**Pending decision** (#222): which `pidgey-client` version range a published `pidgey-cli` depends on (see [packaging.md](packaging.md#cli-to-library-dependency)).
+A published `pidgey-cli` depends on `pidgey-client` through a caret range with a derived
+floor, swapped in at pack time; the rules are in
+[packaging.md](packaging.md#cli-to-library-dependency).
 
 ## Flags
 
@@ -43,10 +45,12 @@ without breaking the flags.
 | `--allow-insecure-http` | Boolean | `allowInsecureHttp: true`: allows an `http://` `--url` on a non-loopback host ([library.md](library.md#cleartext-transport)) |
 | `--verbose` | Boolean | Prints the result on success ([Output](#output)) |
 | `--help` | Boolean | Prints the usage |
-| `--version` | Boolean | Prints the CLI version |
+| `--version` | Boolean | Prints `pidgey-cli <version> (pidgey-client <version>)`, for example `pidgey-cli 0.1.0 (pidgey-client 0.1.3)`; the library version is its `VERSION` export ([library.md](library.md#exports)) |
 
 - Parsed with `node:util` `parseArgs` in **strict** mode: an unknown flag is a usage error
   (exit `2`). No argument-parsing dependency.
+- `--version` prints the **resolved** library version, not the declared range: under a caret
+  range, that is the version a bug report needs.
 - A **repeated** flag (`--to a --to b`) is a usage error (exit `2`), not "last wins": it must
   not suggest multiple recipients.
 - `--idempotency-key` is forwarded as given; an invalid value is the library's
