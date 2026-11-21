@@ -17,6 +17,7 @@ use Pidgey\Auth\SessionRotation;
 use Pidgey\Auth\Sessions;
 use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
+use Pidgey\Email\IdempotencyKeys;
 use Pidgey\Email\MimeBuilder;
 use Pidgey\Email\SendFlow;
 use Pidgey\Email\TestEmailLimit;
@@ -83,6 +84,8 @@ final class Container
     private ?SmtpTestLimitRepository $smtpTestLimitRepository = null;
 
     private ?IdempotencyKeyRepository $idempotencyKeyRepository = null;
+
+    private ?IdempotencyKeys $idempotencyKeys = null;
 
     private ?TestEmailLimit $testEmailLimit = null;
 
@@ -608,6 +611,18 @@ final class Container
     public function idempotencyKeyRepository(): IdempotencyKeyRepository
     {
         return $this->idempotencyKeyRepository ??= new IdempotencyKeyRepository($this->pdo());
+    }
+
+    /**
+     * Returns the `Idempotency-Key` rules of `POST /v1/messages`.
+     *
+     * @return IdempotencyKeys
+     *
+     * @throws RuntimeException When a required DB_* variable is missing or invalid.
+     */
+    public function idempotencyKeys(): IdempotencyKeys
+    {
+        return $this->idempotencyKeys ??= new IdempotencyKeys($this->idempotencyKeyRepository(), $this->wallClock());
     }
 
     /**
