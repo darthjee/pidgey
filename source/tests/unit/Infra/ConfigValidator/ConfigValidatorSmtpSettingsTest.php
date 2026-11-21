@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\UsesClass;
 use Pidgey\Crypto\EncryptionKeys;
+use Pidgey\Email\IdempotencyKeys;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\ConfigValidator;
 use Pidgey\Infra\Env;
@@ -113,7 +114,10 @@ final class ConfigValidatorSmtpSettingsTest extends ConfigValidatorTestCase
                     'SMTP_CONNECT_TIMEOUT' => '99999999999999999999',
                     'SMTP_TOTAL_TIMEOUT' => '99999999999999999998',
                 ],
-                ['SMTP_CONNECT_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT'],
+                [
+                    'SMTP_CONNECT_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT',
+                    'SMTP_TOTAL_TIMEOUT: not below the idempotency lease (300)',
+                ],
             ],
             'invalid connect skips its comparison' => [
                 ['SMTP_CONNECT_TIMEOUT' => 'x', 'SMTP_TOTAL_TIMEOUT' => '5'],
@@ -131,6 +135,40 @@ final class ConfigValidatorSmtpSettingsTest extends ConfigValidatorTestCase
                 ['SMTP_TOTAL_TIMEOUT: not a positive integer'],
             ],
         ];
+    }
+
+    /**
+     * @return array<string, array{string, list<string>}>
+     */
+    public static function totalTimeoutsAgainstTheLease(): array
+    {
+        $failure = ['SMTP_TOTAL_TIMEOUT: not below the idempotency lease (300)'];
+
+        return [
+            'just below the lease' => ['299', []],
+            'at the lease' => ['300', $failure],
+            'above the lease' => ['301', $failure],
+            'many digits' => ['3000000', $failure],
+        ];
+    }
+
+    /**
+     * @param list<string> $expected
+     */
+    #[DataProvider('totalTimeoutsAgainstTheLease')]
+    public function testTotalTimeoutMustBeBelowTheIdempotencyLease(string $total, array $expected): void
+    {
+        putenv("SMTP_TOTAL_TIMEOUT={$total}");
+        putenv('SMTP_CONNECT_TIMEOUT=5');
+        putenv('SMTP_COMMAND_TIMEOUT=30');
+
+        $this->assertSame($expected, (new ConfigValidator())->validate());
+    }
+
+    public function testTheDefaultTotalTimeoutIsBelowTheIdempotencyLease(): void
+    {
+        $this->assertLessThan(IdempotencyKeys::LEASE, ConfigValidator::DEFAULT_SMTP_TOTAL_TIMEOUT);
+        $this->assertSame([], (new ConfigValidator())->validate());
     }
 
     /**

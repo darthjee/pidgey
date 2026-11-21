@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pidgey\Infra;
 
 use Pidgey\Crypto\EncryptionKeys;
+use Pidgey\Email\IdempotencyKeys;
 use SensitiveParameter;
 
 /**
@@ -417,8 +418,9 @@ final class ConfigValidator
 
     /**
      * Checks that `SMTP_CONNECT_TIMEOUT` and `SMTP_COMMAND_TIMEOUT` do not exceed
-     * `SMTP_TOTAL_TIMEOUT`, on effective values (defaults applied); an invalid value skips the
-     * comparisons it takes part in.
+     * `SMTP_TOTAL_TIMEOUT`, and that `SMTP_TOTAL_TIMEOUT` is below the idempotency lease, on
+     * effective values (defaults applied); an invalid value skips the comparisons it takes
+     * part in.
      *
      * @return list<string>
      */
@@ -441,6 +443,10 @@ final class ConfigValidator
             ) {
                 $failures[] = "{$name}: exceeds SMTP_TOTAL_TIMEOUT";
             }
+        }
+
+        if (self::compareDigits($total, (string) IdempotencyKeys::LEASE) >= 0) {
+            $failures[] = 'SMTP_TOTAL_TIMEOUT: not below the idempotency lease (' . IdempotencyKeys::LEASE . ')';
         }
 
         return $failures;
