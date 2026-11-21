@@ -94,7 +94,10 @@ Used by the SMTP session of [email/send-flow.md](../email/send-flow.md) (test em
   `<NAME>: not a positive integer`. `SMTP_ALLOW_PRIVATE_HOSTS` is a boolean and never
   refuses boot.
   `SMTP_CONNECT_TIMEOUT` and `SMTP_COMMAND_TIMEOUT` must each be `<= SMTP_TOTAL_TIMEOUT`;
-  otherwise boot is refused.
+  otherwise boot is refused. `SMTP_TOTAL_TIMEOUT` (effective value) must also stay below
+  the idempotency lease of `300` seconds (see
+  [idempotency keys](../organizations/data-model/idempotency-keys.md)); otherwise boot is
+  refused.
 - **Timeout precedence:** a timeout that is not a positive integer reports only
   `<NAME>: not a positive integer` and is skipped by the `exceeds SMTP_TOTAL_TIMEOUT`
   check; an invalid `SMTP_TOTAL_TIMEOUT` skips both `exceeds` checks. The comparison uses
@@ -110,7 +113,8 @@ Used by the SMTP session of [email/send-flow.md](../email/send-flow.md) (test em
   otherwise boot is refused.
 - **Failure names** (each reported at most once, never with a value):
   `SMTP_CONNECT_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT`,
-  `SMTP_COMMAND_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT`, `SMTP_CA_FILE: not readable`,
+  `SMTP_COMMAND_TIMEOUT: exceeds SMTP_TOTAL_TIMEOUT`,
+  `SMTP_TOTAL_TIMEOUT: not below the idempotency lease (300)`, `SMTP_CA_FILE: not readable`,
   `SMTP_EHLO_NAME: invalid hostname`.
 - **Session settings:** the SMTP layer never reads `Env`. `Pidgey\Container::smtpSessionSettings()`
   builds a `Pidgey\Smtp\SessionSettings` once (memoized) from these keys: the connect,
