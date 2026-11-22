@@ -222,6 +222,35 @@ final class SmtpConnectionRepositoryTest extends RepositoryTestCase
         $this->assertNull($this->repository->findInOrganization($organizationId, $otherConnectionId));
     }
 
+    public function testFindActiveInOrganizationReturnsTheActiveConnectionOnly(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $this->fixtures->smtpConnection(organizationId: $organizationId, active: false);
+        $activeId = $this->fixtures->smtpConnection(organizationId: $organizationId, active: true);
+        $this->fixtures->smtpConnection(organizationId: $organizationId, active: false);
+
+        $connection = $this->repository->findActiveInOrganization($organizationId);
+
+        $this->assertSame($activeId, $connection?->id);
+        $this->assertTrue($connection->active);
+    }
+
+    public function testFindActiveInOrganizationReturnsNullWhenNoConnectionIsActive(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $this->fixtures->smtpConnection(organizationId: $organizationId, active: false);
+
+        $this->assertNull($this->repository->findActiveInOrganization($organizationId));
+        $this->assertNull($this->repository->findActiveInOrganization($this->fixtures->organization()));
+    }
+
+    public function testFindActiveInOrganizationIgnoresTheActiveConnectionOfAnotherOrganization(): void
+    {
+        $this->fixtures->smtpConnection(active: true);
+
+        $this->assertNull($this->repository->findActiveInOrganization($this->fixtures->organization()));
+    }
+
     public function testListByOrganizationReturnsTheOrganizationRowsInIdOrder(): void
     {
         $organizationId = $this->fixtures->organization();

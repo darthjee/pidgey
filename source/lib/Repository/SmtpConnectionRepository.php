@@ -107,6 +107,26 @@ final class SmtpConnectionRepository
     }
 
     /**
+     * Finds the organization's active SMTP connection, the one every send uses.
+     *
+     * At most one connection of an organization is active (a unique index guarantees it).
+     *
+     * @param integer $organizationId Organization the connection must belong to.
+     *
+     * @return SmtpConnection|null Null when the organization has no active connection.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function findActiveInOrganization(int $organizationId): ?SmtpConnection
+    {
+        return $this->fetchOne(
+            'SELECT ' . self::COLUMNS . ' FROM smtp_connections '
+            . 'WHERE organization_id = :organization_id AND active = TRUE',
+            ['organization_id' => $organizationId],
+        );
+    }
+
+    /**
      * Lists the SMTP connections of one organization, in ascending id order.
      *
      * @param integer $organizationId Organization the connections belong to.

@@ -11,6 +11,7 @@ use Pidgey\Http\Handler\HashRedirectHandler;
 use Pidgey\Http\Handler\HealthHandler;
 use Pidgey\Http\Handler\LoginHandler;
 use Pidgey\Http\Handler\RegisterHandler;
+use Pidgey\Http\Handler\SendMessageHandler;
 use Pidgey\Http\Handler\SmtpConnectionActivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionDeactivateHandler;
 use Pidgey\Http\Handler\SmtpConnectionHandler;
@@ -104,6 +105,7 @@ final class RoutesTest extends TestCase
                 SmtpConnectionTestHandler::class,
                 '/smtp-connections/:id/test.json',
             ],
+            'POST /v1/messages' => ['POST', '/v1/messages', SendMessageHandler::class, '/v1/messages'],
         ];
     }
 
@@ -164,7 +166,9 @@ final class RoutesTest extends TestCase
             'unknown json' => ['GET', '/nope.json'],
             'favicon' => ['GET', '/favicon.ico'],
             'index.php' => ['GET', '/index.php'],
-            'v1 API path' => ['GET', '/v1/messages'],
+            'GET on the v1 messages' => ['GET', '/v1/messages'],
+            'v1 API path' => ['GET', '/v1/other'],
+            'PUT on the v1 messages' => ['PUT', '/v1/messages'],
             'HEAD on the index' => ['HEAD', '/'],
             'non-GET deep link' => ['POST', '/foo'],
             'GET on the login endpoint' => ['GET', '/auth/login.json'],
