@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pidgey\Repository;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use JsonException;
 use LogicException;
 use PDO;
@@ -110,6 +112,47 @@ final class ApiTokenRepository
             'SELECT ' . self::COLUMNS . ' FROM api_tokens WHERE token_hash = :token_hash',
             ['token_hash' => $tokenHash],
         );
+    }
+
+    /**
+     * Finds an API token by digest, only when its organization has at least one `approved` user.
+     *
+     * One query (the token lookup joins the approved-user check). Revoked tokens are returned
+     * too: rejecting them is the caller's job. Unscoped on purpose, like `findByTokenHash()`.
+     *
+     * @param string $tokenHash SHA-256 hex digest of the presented token.
+     *
+     * @return ApiToken|null Null when no token has this digest or its organization has no
+     *                       approved user.
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function findByTokenHashWithApprovedUser(string $tokenHash): ?ApiToken
+    {
+        return $this->fetchOne(
+            'SELECT ' . self::COLUMNS . ' FROM api_tokens WHERE token_hash = :token_hash '
+            . "AND EXISTS (SELECT 1 FROM users WHERE users.organization_id = api_tokens.organization_id "
+            . "AND users.status = 'approved')",
+            ['token_hash' => $tokenHash],
+        );
+    }
+
+    /**
+     * Records a successful use of an API token.
+     *
+     * @param integer           $id  Primary key.
+     * @param DateTimeImmutable $now The time of the use.
+     *
+     * @return void
+     *
+     * @throws PDOException When the statement fails.
+     */
+    public function touchLastUsedAt(int $id, DateTimeImmutable $now): void
+    {
+        $this->pdo->prepare('UPDATE api_tokens SET last_used_at = :now WHERE id = :id')->execute([
+            'now' => $now->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+            'id' => $id,
+        ]);
     }
 
     /**
