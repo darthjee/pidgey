@@ -8,7 +8,9 @@ use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Pidgey\Auth\AdminCheck;
+use Pidgey\Auth\ApiTokenAuth;
 use Pidgey\Auth\Gate;
+use Pidgey\Auth\RequireSendScope;
 use Pidgey\Http\OriginCheck;
 use Pidgey\Http\Router;
 use Pidgey\Tests\Support\RouteGuards;
@@ -76,6 +78,25 @@ final class RoutesSecurityTest extends TestCase
         );
     }
 
+    public function testEveryV1RouteListsApiTokenAuthThenTheScopeAndNeverTheGate(): void
+    {
+        /** @var Router $router */
+        $router = require __DIR__ . '/../../../config/routes.php';
+        $routes = [];
+
+        foreach ($router->routes() as $route) {
+            if (str_starts_with($route->pattern(), '/v1/')) {
+                $routes[$route->method() . ' ' . $route->pattern()] = $route->middlewares();
+            }
+        }
+
+        $this->assertSame(
+            ['POST /v1/messages' => [ApiTokenAuth::class, RequireSendScope::class]],
+            $routes,
+        );
+        $this->assertNotContains(Gate::class, $router->globalMiddlewares());
+    }
+
     public function testTheFallbackIsPublicAndUnguarded(): void
     {
         $router = require __DIR__ . '/../../../config/routes.php';
@@ -138,7 +159,7 @@ final class RoutesSecurityTest extends TestCase
     {
         $router = new Router([OriginCheck::class]);
         $router->get('/me.json', StubHandler::class, [Gate::class]);
-        $router->post('/v1/messages', StubHandler::class, [RouteGuards::API_TOKEN_AUTH]);
+        $router->post('/v1/messages', StubHandler::class, [ApiTokenAuth::class]);
         $router->get('/admin/users.json', StubHandler::class, [Gate::class, AdminCheck::class]);
 
         $this->assertSame([], RouteGuards::violations($router));
@@ -147,7 +168,7 @@ final class RoutesSecurityTest extends TestCase
     public function testAdminCheckWithoutGateFails(): void
     {
         $router = new Router();
-        $router->get('/admin/users.json', StubHandler::class, [RouteGuards::API_TOKEN_AUTH, AdminCheck::class]);
+        $router->get('/admin/users.json', StubHandler::class, [ApiTokenAuth::class, AdminCheck::class]);
 
         $this->assertSame(
             ['GET /admin/users.json: AdminCheck without a Gate before it'],

@@ -23,7 +23,14 @@ use Pidgey\Crypto\EncryptionKeys;
 use Pidgey\Crypto\PasswordCipher;
 use Pidgey\Email\MimeBuilder;
 use Pidgey\Email\SendFlow;
+use Pidgey\Http\ErrorFormatter;
+use Pidgey\Http\ErrorResponse;
+use Pidgey\Http\HttpException;
+use Pidgey\Http\JsonResponse;
+use Pidgey\Http\NotFoundException;
 use Pidgey\Http\OperatorLog;
+use Pidgey\Http\Response;
+use Pidgey\Http\Timestamp;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
 use Pidgey\Infra\DatabaseConfig;
@@ -66,6 +73,13 @@ use Psr\Log\NullLogger;
 #[UsesClass(SystemWallClock::class)]
 #[UsesClass(LoggerFactory::class)]
 #[UsesClass(OperatorLog::class)]
+#[UsesClass(ErrorFormatter::class)]
+#[UsesClass(ErrorResponse::class)]
+#[UsesClass(HttpException::class)]
+#[UsesClass(JsonResponse::class)]
+#[UsesClass(NotFoundException::class)]
+#[UsesClass(Response::class)]
+#[UsesClass(Timestamp::class)]
 #[UsesClass(EncryptionKeys::class)]
 #[UsesClass(PasswordCipher::class)]
 #[UsesClass(DatabaseConfig::class)]
@@ -168,5 +182,18 @@ final class ContainerInfraTest extends ContainerTestCase
 
         $this->assertInstanceOf(OperatorLog::class, $operatorLog);
         $this->assertSame($operatorLog, $container->operatorLog());
+    }
+
+    public function testErrorFormatterIsMemoizedAndUsesTheContainerClockAndLogger(): void
+    {
+        $clock = new FrozenWallClock(1_800_000_000);
+        $container = new Container($this->unusedConnections(), $clock, logger: new NullLogger());
+
+        $formatter = $container->errorFormatter();
+        $response = $formatter->format(new NotFoundException());
+
+        $this->assertSame($formatter, $container->errorFormatter());
+        $this->assertSame(404, $response->status());
+        $this->assertStringContainsString('"timestamp":"2027-01-15T08:00:00.000Z"', $response->body());
     }
 }

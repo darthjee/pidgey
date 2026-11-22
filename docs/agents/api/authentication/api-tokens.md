@@ -39,7 +39,8 @@ session. The column stays a JSON array so scopes can be added later.
   [origin check](../conventions/origin-check.md) still runs on state-changing methods; server
   callers send no `Origin` and pass it.
 - **Revocation** sets `revoked_at`; a revoked token is rejected immediately.
-- `last_used_at` is updated on successful use only.
+- `last_used_at` is updated on a successful authentication, including when the scope check
+  then answers `403`; it is never updated for a `401`.
 - Revoking an already revoked token is idempotent (see
   [endpoints/pidgey-admin/api-tokens.md](../endpoints/pidgey-admin/api-tokens.md#delete-api-tokensidjson)).
 

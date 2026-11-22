@@ -19,6 +19,7 @@ require __DIR__ . '/routes/frontend.php';
 require __DIR__ . '/routes/operational.php';
 require __DIR__ . '/routes/auth.php';
 require __DIR__ . '/routes/organization.php';
+require __DIR__ . '/routes/v1.php';
 
 $router->fallback(HashRedirectHandler::class);
 

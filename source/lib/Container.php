@@ -21,6 +21,7 @@ use Pidgey\Email\IdempotencyKeys;
 use Pidgey\Email\MimeBuilder;
 use Pidgey\Email\SendFlow;
 use Pidgey\Email\TestEmailLimit;
+use Pidgey\Http\ErrorFormatter;
 use Pidgey\Http\OperatorLog;
 use Pidgey\Infra\AppPath;
 use Pidgey\Infra\Clock;
@@ -119,6 +120,8 @@ final class Container
 
     private ?SendFlow $sendFlow = null;
 
+    private ?ErrorFormatter $errorFormatter = null;
+
     /**
      * Creates an empty container; nothing is built yet.
      *
@@ -176,6 +179,20 @@ final class Container
     public function logger(): LoggerInterface
     {
         return $this->logger ??= LoggerFactory::fromEnv();
+    }
+
+    /**
+     * Returns the error formatter, over the wall clock and the application logger, for handlers
+     * that must render an error themselves (to store it) instead of letting it reach the front
+     * controller.
+     *
+     * @return ErrorFormatter
+     *
+     * @throws InvalidArgumentException When `LOG_LEVEL` is invalid.
+     */
+    public function errorFormatter(): ErrorFormatter
+    {
+        return $this->errorFormatter ??= new ErrorFormatter($this->wallClock(), $this->logger());
     }
 
     /**

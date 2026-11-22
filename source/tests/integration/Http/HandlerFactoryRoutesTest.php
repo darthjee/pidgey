@@ -8,7 +8,9 @@ use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Pidgey\Auth\AdminCheck;
+use Pidgey\Auth\ApiTokenAuth;
 use Pidgey\Auth\Gate;
+use Pidgey\Auth\RequireSendScope;
 use Pidgey\Container;
 use Pidgey\Http\Handler\ApiTokenHandler;
 use Pidgey\Http\Handler\ApiTokensHandler;
@@ -96,6 +98,8 @@ final class HandlerFactoryRoutesTest extends TestCase
         return [
             'Gate' => [Gate::class],
             'AdminCheck' => [AdminCheck::class],
+            'ApiTokenAuth' => [ApiTokenAuth::class],
+            'RequireSendScope' => [RequireSendScope::class],
         ];
     }
 

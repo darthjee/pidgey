@@ -35,7 +35,7 @@ Rejected:
   - `routes/auth.php`;
   - `routes/admin.php`;
   - `routes/organization.php`, covering the organization, API tokens and SMTP connections;
-  - `routes/v1.php`;
+  - `routes/v1.php`, the public API: `POST /v1/messages` to `SendMessageHandler` with `[ApiTokenAuth::class, RequireSendScope::class]`, guarded per route (no prefix-wide guard, see [middlewares.md](middlewares.md#scopes));
   - `routes/frontend.php`, covering `GET /`, `GET /assets/*` and the GET fallback ([static-files.md](static-files.md#routes)).
 - `GET /` and `GET /assets/*` are registered **before** the API routes, and the GET fallback **after every other route**, so it is always tried last. Neither overlaps an API route (API paths end in `.json` or start with `/v1/`), so the order between them and the API only matters for the fallback.
 - The exact file split is the implementer's call. The rule is **one file per area, required from a single entry file**.

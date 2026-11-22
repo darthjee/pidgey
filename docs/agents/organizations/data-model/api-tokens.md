@@ -15,7 +15,7 @@ Token format, scopes and revocation rules are defined in
 | `token_hash` | CHAR(64) | no | | SHA-256 hex of the full token; **unique** |
 | `scopes` | JSON | no | | Array of scope names, e.g. `["send"]` |
 | `created_at` | DATETIME | no | now | |
-| `last_used_at` | DATETIME | yes | null | Updated on successful use |
+| `last_used_at` | DATETIME | yes | null | Updated on a successful authentication (also when the scope check then answers 403) |
 | `revoked_at` | DATETIME | yes | null | Set on revocation; a revoked token is rejected |
 
 Indexes: unique `token_hash`, `organization_id`.

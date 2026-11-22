@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pidgey\Tests\Integration\Repository;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use PDOException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -204,5 +206,85 @@ final class ApiTokenRepositoryTest extends RepositoryTestCase
         $id = $this->fixtures->apiToken(organizationId: $organizationId);
 
         $this->assertFalse($this->repository->revoke($organizationId, $id + 1000000));
+    }
+
+    public function testFindWithApprovedUserReturnsTheTokenOfAnOrganizationWithAnApprovedUser(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $this->fixtures->user(organizationId: $organizationId, status: 'pending');
+        $this->fixtures->user(organizationId: $organizationId, status: 'approved');
+        $id = $this->fixtures->apiToken(organizationId: $organizationId, tokenHash: str_repeat('d', 64));
+
+        $token = $this->repository->findByTokenHashWithApprovedUser(str_repeat('d', 64));
+
+        $this->assertSame($id, $token?->id);
+        $this->assertSame($organizationId, $token?->organizationId);
+    }
+
+    public function testFindWithApprovedUserReturnsRevokedTokensToo(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $this->fixtures->user(organizationId: $organizationId);
+        $this->fixtures->apiToken(
+            organizationId: $organizationId,
+            tokenHash: str_repeat('e', 64),
+            revokedAt: '2026-01-01 00:00:00',
+        );
+
+        $this->assertNotNull($this->repository->findByTokenHashWithApprovedUser(str_repeat('e', 64))?->revokedAt);
+    }
+
+    public function testFindWithApprovedUserIgnoresAnOrganizationWithoutApprovedUsers(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $this->fixtures->user(organizationId: $organizationId, status: 'pending');
+        $this->fixtures->user(organizationId: $organizationId, status: 'denied');
+        $this->fixtures->apiToken(organizationId: $organizationId, tokenHash: str_repeat('f', 64));
+
+        $this->assertNull($this->repository->findByTokenHashWithApprovedUser(str_repeat('f', 64)));
+    }
+
+    public function testFindWithApprovedUserIgnoresAnApprovedUserOfAnotherOrganization(): void
+    {
+        $this->fixtures->user(status: 'approved');
+        $this->fixtures->apiToken(tokenHash: str_repeat('1', 64));
+
+        $this->assertNull($this->repository->findByTokenHashWithApprovedUser(str_repeat('1', 64)));
+    }
+
+    public function testFindWithApprovedUserReturnsNullForAnUnknownDigest(): void
+    {
+        $this->assertNull($this->repository->findByTokenHashWithApprovedUser(str_repeat('2', 64)));
+    }
+
+    public function testTouchLastUsedAtStampsOnlyThatToken(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $id = $this->fixtures->apiToken(organizationId: $organizationId);
+        $otherId = $this->fixtures->apiToken(organizationId: $organizationId);
+
+        $this->repository->touchLastUsedAt($id, new DateTimeImmutable('2026-11-22 10:30:15', new DateTimeZone('UTC')));
+
+        $this->assertSame(
+            '2026-11-22 10:30:15',
+            $this->repository->findInOrganization($organizationId, $id)?->lastUsedAt?->format('Y-m-d H:i:s'),
+        );
+        $this->assertNull($this->repository->findInOrganization($organizationId, $otherId)?->lastUsedAt);
+    }
+
+    public function testTouchLastUsedAtConvertsToUtc(): void
+    {
+        $organizationId = $this->fixtures->organization();
+        $id = $this->fixtures->apiToken(organizationId: $organizationId);
+
+        $this->repository->touchLastUsedAt(
+            $id,
+            new DateTimeImmutable('2026-11-22 10:00:00', new DateTimeZone('America/Sao_Paulo')),
+        );
+
+        $this->assertSame(
+            '2026-11-22 13:00:00',
+            $this->repository->findInOrganization($organizationId, $id)?->lastUsedAt?->format('Y-m-d H:i:s'),
+        );
     }
 }

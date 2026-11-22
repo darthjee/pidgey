@@ -147,7 +147,9 @@ final class RequireSendScope extends RequireScope
 $router->post('/v1/messages', SendMessageHandler::class, [ApiTokenAuth::class, RequireSendScope::class]);
 ```
 
-Illustrative only; the class names of handlers are not fixed here.
+This is the registration in `source/config/routes/v1.php`. The guards are listed **per route**: there is no prefix-wide guard on `/v1`. The classes are `Pidgey\Auth\ApiTokenAuth`, `Pidgey\Auth\RequireScope` (abstract), `Pidgey\Auth\RequireSendScope` (final) and the handler `Pidgey\Http\Handler\SendMessageHandler`.
+
+`ApiTokenAuth` stamps `last_used_at` as soon as the token authenticates, before the scope check, and attaches a `Pidgey\Auth\AuthenticatedApiToken` (the `Caller`, carrying the token `id`, `organizationId()` and its `scopes`). Every authentication failure throws the same `UnauthorizedException` (`Invalid or revoked API token`).
 
 **Rejected:** checking the scope in the handler. The route table would not show the requirement, and the guard order (scope before body validation) would rely on each handler.
 

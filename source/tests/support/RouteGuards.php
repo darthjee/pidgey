@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pidgey\Tests\Support;
 
 use Pidgey\Auth\AdminCheck;
+use Pidgey\Auth\ApiTokenAuth;
 use Pidgey\Auth\Gate;
 use Pidgey\Http\Router;
 
@@ -29,9 +30,6 @@ final class RouteGuards
         'POST /auth/status.json',
     ];
 
-    /** Future Bearer middleware of the /v1 API; referenced by name until it exists. */
-    public const API_TOKEN_AUTH = 'Pidgey\\Auth\\ApiTokenAuth';
-
     /**
      * Returns one line per violation, empty when the route table is safe.
      *
@@ -46,7 +44,7 @@ final class RouteGuards
             $name = $route->method() . ' ' . $route->pattern();
             $middlewares = [...$global, ...$route->middlewares()];
             $guarded = in_array(Gate::class, $middlewares, true)
-                || in_array(self::API_TOKEN_AUTH, $middlewares, true);
+                || in_array(ApiTokenAuth::class, $middlewares, true);
 
             if (!$guarded && !in_array($name, self::PUBLIC_ROUTES, true)) {
                 $violations[] = "{$name}: neither Gate nor ApiTokenAuth";
