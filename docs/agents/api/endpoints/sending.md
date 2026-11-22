@@ -7,9 +7,14 @@ The public sending API keeps its **own `/v1` contract**. These are documented ex
 
 | Convention | `POST /v1/messages` |
 | --- | --- |
-| Root-relative `*.json` path, no prefix | `/v1` prefix, **no `.json` suffix** ([format.md](../conventions/format.md#paths)) |
+| Root-relative `*.json` path, no prefix | `/v1` prefix, **no `.json` suffix** ([format.md](../conventions/format.md#paths)); the only `/v1` path with the suffix is the public [`/v1/openapi.json`](openapi.md) |
 | Cookie session through the gate | **Bearer API token** with scope `send` ([authentication/api-tokens.md](../authentication/api-tokens.md)); no gate, no admin check |
 | `201` default for `POST` | Success **`200`** |
+
+The contract of this endpoint is also published as the OpenAPI document served at
+[`GET /v1/openapi.json`](openapi.md). `/v1` is **additive-only** (see
+[openapi.md](openapi.md#v1-is-additive-only)): a change here is made in the same change set
+as the document, and a breaking change needs a `/v2`.
 
 What it shares with every other endpoint:
 

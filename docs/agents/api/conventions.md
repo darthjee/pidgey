@@ -2,7 +2,8 @@
 
 The admin frontend was copied from Citadel and calls the Citadel API contract, so every
 endpoint follows these rules. The public sending API (`POST /v1/messages`) follows them too,
-except for its `/v1` path prefix and its Bearer-token authentication.
+except for its `/v1` path prefix and its Bearer-token authentication (and, for
+`/v1/openapi.json`, its `.json` suffix and public access).
 
 | File | Content |
 | --- | --- |
