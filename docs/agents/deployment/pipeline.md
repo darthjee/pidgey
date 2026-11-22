@@ -12,7 +12,7 @@ These run on **every branch and every tag** (`tags: only: /.*/`).
 
 | Job | Image | What it does |
 | --- | --- | --- |
-| `backend_checks` | `darthjee/circleci_pidgey-base` | `composer lint`. |
+| `backend_checks` | `darthjee/circleci_pidgey-base` | `composer lint`, then the `OpenAPI breaking-change check` step: `scripts/check_openapi_breaking.sh` compares `source/openapi/v1.json` against its version at the merge-base with `main` (`oasdiff breaking --fail-on ERR`), see [`/v1` is additive-only](../api/endpoints/openapi.md#v1-is-additive-only). The job holds no context. |
 | `backend_tests` | `darthjee/circleci_pidgey-base` (which ships the Mailpit binary), plus a `mysql:9` service container | Starts the three test Mailpit instances on `localhost` and waits for them, then `composer db:prepare`, `composer coverage`, then a partial Codacy coverage upload. |
 | `frontend_checks` | `darthjee/circleci_node` | `yarn install --frozen-lockfile`, `npm run lint`, `npm run coverage`, then a partial Codacy coverage upload. |
 | `coverage_final` | `darthjee/circleci_node` | Requires `backend_tests` and `frontend_checks`; sends the Codacy `final` call. |

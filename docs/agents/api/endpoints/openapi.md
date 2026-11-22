@@ -81,9 +81,15 @@ break tooling that reads the contract.
 - The rule is stated in `info.description` of the document as well.
 - **The document is updated in the same change set as any `/v1` change**, so the document and
   these docs never disagree.
-- A CI check that diffs the document against `main` and fails on a breaking change is planned
-  (see the [spec](../../specs/node-client/openapi.md#v1-is-additive-only)); it is not part of
-  the route.
+- **Enforced in CI:** the `backend_checks` job diffs the document against its version at the
+  merge-base with `main` and fails on any `ERR`-level breaking change
+  (`oasdiff breaking --fail-on ERR`, run by `scripts/check_openapi_breaking.sh`). It runs on
+  every branch and tag, whether or not `clients/` changes (see the
+  [pipeline](../../deployment/pipeline.md#check-jobs)). `WARN` findings are printed but do not
+  fail. The check is not part of the route.
+- **Locally:** `make openapi-diff` runs the same check (see the
+  [Makefile](../../docker/makefile.md)).
+- **No override:** there is no escape hatch; a deliberate break needs a `/v2` document.
 
 ## Edge cases
 

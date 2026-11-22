@@ -116,9 +116,12 @@ are supported.
   type or the meaning of a status or code, or making an optional field required.
 - The rule is stated in [api/endpoints/openapi.md](../../api/endpoints/openapi.md#v1-is-additive-only)
   and in the document's `info.description`.
-- **Enforced in CI:** a backend CI check diffs the `/v1` document of the branch against
-  `main` (for example with `oasdiff breaking`) and fails on any breaking change. It runs in
-  the backend checks, so a `/v1` change is gated whether or not `clients/` is touched.
+- **Enforced in CI:** the `backend_checks` job diffs the `/v1` document of the branch against
+  its version at the merge-base with `main` with `oasdiff breaking --fail-on ERR` and fails
+  on any breaking change. It runs in the backend checks, so a `/v1` change is gated whether
+  or not `clients/` is touched. As built in
+  [api/endpoints/openapi.md](../../api/endpoints/openapi.md#v1-is-additive-only); there is no
+  override, a deliberate break needs a `/v2` document.
 
 ## Points to reconcile with the as-built docs
 
