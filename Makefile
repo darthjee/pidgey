@@ -15,7 +15,7 @@ FE_BASE_IMAGE=$(DOCKER_ID_USER)/vite_$(PROJECT)-base
 FE_IMAGE=$(DOCKER_ID_USER)/vite_$(PROJECT)
 FE_RELEASE_DIR?=source/static
 
-.PHONY: build-base push-base build-ci-base push-ci-base build dev dev-up tests migrate db-reset \
+.PHONY: build-base push-base build-ci-base push-ci-base build dev dev-up tests migrate db-reset openapi-diff \
 	build-fe-base push-fe-base build-fe fe-install build-fe-release
 
 build-base:
@@ -67,3 +67,7 @@ migrate:
 
 db-reset:
 	docker compose run --rm app sh -c "composer db:drop && composer db:prepare"
+
+openapi-diff:
+	git fetch --quiet origin main
+	OASDIFF_VERSION=$(OASDIFF_VERSION) scripts/check_openapi_breaking.sh source/openapi/v1.json origin/main
