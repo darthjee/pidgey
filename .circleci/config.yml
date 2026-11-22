@@ -1,6 +1,6 @@
 version: 2.1
 
-ci_base_image: &ci_base_image darthjee/circleci_pidgey-base:0.0.4
+ci_base_image: &ci_base_image darthjee/circleci_pidgey-base:0.0.5
 
 executors:
   pidgey-base:
@@ -94,6 +94,13 @@ jobs:
       - run:
           name: Run Lint
           command: composer lint
+      # Fails on any ERR-level change against the merge-base with main: /v1 is
+      # additive-only. The checkout may not have origin/main, so fetch it.
+      - run:
+          name: OpenAPI breaking-change check
+          command: |
+            git fetch --quiet origin main
+            scripts/check_openapi_breaking.sh openapi/v1.json origin/main
 
   backend_tests:
     docker:
