@@ -78,7 +78,7 @@ final class RoutesSecurityTest extends TestCase
         );
     }
 
-    public function testEveryV1RouteListsApiTokenAuthThenTheScopeAndNeverTheGate(): void
+    public function testEveryV1RouteListsApiTokenAuthThenTheScopeAndNeverTheGateExceptTheOpenApiDocument(): void
     {
         /** @var Router $router */
         $router = require __DIR__ . '/../../../config/routes.php';
@@ -91,7 +91,11 @@ final class RoutesSecurityTest extends TestCase
         }
 
         $this->assertSame(
-            ['POST /v1/messages' => [ApiTokenAuth::class, RequireSendScope::class]],
+            [
+                'POST /v1/messages' => [ApiTokenAuth::class, RequireSendScope::class],
+                'GET /v1/openapi.json' => [],
+                'HEAD /v1/openapi.json' => [],
+            ],
             $routes,
         );
         $this->assertNotContains(Gate::class, $router->globalMiddlewares());
@@ -114,6 +118,8 @@ final class RoutesSecurityTest extends TestCase
             'GET /' => ['GET', '/'],
             'GET /assets/*' => ['GET', '/assets/*'],
             'GET /health.json' => ['GET', '/health.json'],
+            'GET /v1/openapi.json' => ['GET', '/v1/openapi.json'],
+            'HEAD /v1/openapi.json' => ['HEAD', '/v1/openapi.json'],
             'POST /auth/register.json' => ['POST', '/auth/register.json'],
             'POST /auth/login.json' => ['POST', '/auth/login.json'],
             'POST /auth/refresh.json' => ['POST', '/auth/refresh.json'],
@@ -143,6 +149,9 @@ final class RoutesSecurityTest extends TestCase
             'another auth endpoint' => ['POST', '/auth/account.json'],
             'POST of the public DELETE path' => ['POST', '/auth/logoff.json'],
             'a sub-path of a public prefix' => ['GET', '/assets/x/*'],
+            'another v1 GET' => ['GET', '/v1/other.json'],
+            'POST of the public v1 path' => ['POST', '/v1/openapi.json'],
+            'a sub-path of the public v1 path' => ['GET', '/v1/openapi.json/*'],
         ];
     }
 

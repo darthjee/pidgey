@@ -22,7 +22,9 @@
   (see [architecture/backend.md](../../architecture/backend.md#entry-point) and
   [request-handler/static-files.md](../../request-handler/static-files.md)).
 - **Exception:** the public sending API keeps its own `/v1` contract, `POST /v1/messages`
-  (Bearer token with scopes, see [authentication.md](../authentication.md)).
+  (Bearer token with scopes, see [authentication.md](../authentication.md)), with **no
+  `.json` suffix**. The one `/v1` path that does end in `.json` is `GET`/`HEAD /v1/openapi.json`
+  (the OpenAPI document of `/v1`, public, see [endpoints/openapi.md](../endpoints/openapi.md)).
 - Many reads are `POST` on purpose: request bodies never go in query strings.
 - Path params are written `:name` (e.g. `/smtp-connections/:id.json`), as in the route files
   (see [request-handler/routing.md](../../request-handler/routing.md#path-patterns)).

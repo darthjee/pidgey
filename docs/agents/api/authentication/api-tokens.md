@@ -55,6 +55,15 @@ The two credentials never overlap:
 | Admin UI: `/auth/*.json`, `/admin/users/*.json`, organization, SMTP connections, API tokens, test email | Cookie session ([gate.md](gate.md)) | A Bearer header is ignored; without a valid cookie the gate answers `401`. |
 | Public API: `/v1/*` (`POST /v1/messages`) | Bearer API token | An `access_token` cookie is ignored; without a Bearer token the answer is `401`. |
 
+### Public exception
+
+The **only public `/v1` route** is `GET` and `HEAD` on exactly `/v1/openapi.json`, the OpenAPI
+document ([endpoints/openapi.md](../endpoints/openapi.md)). It is a route registered without
+`ApiTokenAuth`, **not** a prefix exception: the match is exact, so no other `/v1` path or
+method becomes public (`/v1/openapi.json/`, `/v1/openapi.jsonx` and `POST /v1/openapi.json`
+still get the routing `404`). Credentials are ignored there: a Bearer header, valid or not,
+and a cookie are neither checked nor rejected, and the document is served.
+
 ## Pending decisions
 
 - **Pending decision:** finer-grained scopes (e.g. per SMTP connection or per sender), if any.

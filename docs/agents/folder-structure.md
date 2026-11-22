@@ -35,6 +35,7 @@ Entries marked *(planned)* do not exist yet.
 | `static/` | The built frontend (`index.html` and `assets/`), git-ignored and outside the web root; served at `/` by `StaticFileHandler` (see [static files](request-handler/static-files.md)). |
 | `bin/` | Thin PHP CLI entry points (`wait-for-db`, `create-db`, `drop-db`, `migrate`), exposed as `composer db:*` scripts; logic lives in `Pidgey\Infra`. |
 | `migrations/` | Plain SQL migrations named `NNNN_description.sql`, exactly one statement per file. |
+| `openapi/` | The committed OpenAPI 3.1 document of the `/v1` API (`v1.json`), served verbatim at `GET /v1/openapi.json` (see [api](api.md)). |
 | `tests/unit/` | PHPUnit unit suite (no database, no network). |
 | `tests/integration/` | PHPUnit integration suite (against dockerized MySQL and Mailpit), run against the `pidgey_test` database prepared by `composer db:prepare`. |
 | `phpcs.xml`, `phpmd*.xml`, `phpunit.xml`, `phpdoc.dist.xml` | Lint, complexity, test and API-docs tool configuration, run via the `composer.json` scripts. |

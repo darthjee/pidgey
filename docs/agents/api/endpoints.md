@@ -1,12 +1,13 @@
 # Endpoints
 
 Admin and auth endpoints follow the Citadel contract (root-relative `*.json` paths, no `/v1`
-prefix, cookie session); the public sending API keeps its `/v1` prefix and Bearer tokens (see
+prefix, cookie session); the public sending API keeps its `/v1` prefix and Bearer tokens, and its OpenAPI document is public (see
 [conventions.md](conventions.md) and [authentication.md](authentication.md)).
 
 | File | Content |
 | --- | --- |
 | [sending.md](endpoints/sending.md) | `POST /v1/messages`: the public sending API (Bearer token, scope `send`). |
+| [openapi.md](endpoints/openapi.md) | `GET` and `HEAD /v1/openapi.json`: the OpenAPI 3.1 document of `/v1` (public), and the `/v1` additive-only rule. |
 | [auth.md](endpoints/auth.md) | `/auth/*.json`: register, login, refresh, logoff, status, password recovery, account edit, device authorization. |
 | [admin-users.md](endpoints/admin-users.md) | `/admin/users/*.json`: instance-admin user management (search, edit, approve, deny, recovery link and recovery email). |
 | [pidgey-admin.md](endpoints/pidgey-admin.md) | `/organization.json`, `/smtp-connections*.json`, `/api-tokens*.json`: the organization, SMTP connections (including activate and the test email) and API tokens of the caller's organization. |

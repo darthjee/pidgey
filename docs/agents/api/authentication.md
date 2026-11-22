@@ -21,7 +21,7 @@ Request logging must never record the `Authorization` header, the `Cookie` heade
 | [access-token.md](authentication/access-token.md) | JWT HS256 claims, strict verification rules, `access_token` cookie, key rotation, why hand-rolled. |
 | [sessions.md](authentication/sessions.md) | Refresh tokens, sessions, atomic rotation, revocation reasons, replay detection, clock rules. |
 | [gate.md](authentication/gate.md) | Guard order, the per-request gate, uniform `401`, admin check, user status at the gate, shared `user` payload. |
-| [api-tokens.md](authentication/api-tokens.md) | Bearer API tokens for `/v1`: format, the `send` scope, revocation, disjoint credentials. |
+| [api-tokens.md](authentication/api-tokens.md) | Bearer API tokens for `/v1`: format, the `send` scope, revocation, disjoint credentials, the public OpenAPI exception. |
 | [local-development.md](authentication/local-development.md) | Using the `Secure` cookie in development without TLS; production HTTPS. |
 
 ## Pending decisions

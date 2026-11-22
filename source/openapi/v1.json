@@ -1,0 +1,443 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Pidgey public API",
+    "version": "1.0.0",
+    "description": "The public sending API of Pidgey (`/v1`). The version of this document is the version of the contract, not of the running service.\n\nEvery error answers the error envelope (`error.code`, `error.message`, optional `error.details` and `error.smtp`, `statusCode`, `timestamp`). Any path or method that is not described here answers `404` with code `NOT_FOUND` and the same error envelope (never `405`).\n\nThe `/v1` contract is additive-only: new optional request fields, new response fields and new error codes may be added; removing or renaming a field, changing a type or the meaning of a status or code, or making an optional field required needs a new major version (`/v2`). Clients must therefore ignore unknown response fields and handle unknown error codes by their HTTP status."
+  },
+  "paths": {
+    "/v1/messages": {
+      "post": {
+        "operationId": "sendMessage",
+        "summary": "Send an email",
+        "description": "Sends one email synchronously through the SMTP connection that is active for the organization of the token. The request body is limited to 1 MiB. `text` and `html` are optional individually, but at least one must be a non-empty string. An empty-string `text` or `html` counts as not sent.\n\nWith the optional `Idempotency-Key` header a caller can retry after losing the response without sending the message twice. The key is scoped to the organization and kept for 24 hours; a replayed answer is returned verbatim with the header `Idempotent-Replayed: true`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional key that makes a retry safe. 1 to 255 printable ASCII characters (a UUID fits). An invalid key answers `400 VALIDATION_FAILED`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7E]{1,255}$",
+              "examples": [
+                "0b6c1e0a-5d0e-4a5b-9d0e-3f0a2f8c1b7d"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              },
+              "example": {
+                "to": "user@example.com",
+                "subject": "Hello",
+                "text": "Hi!",
+                "html": "<p>Hi!</p>"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The message was accepted by the SMTP server.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Present, with the value `true`, only when the answer is a replay of the stored answer of a previous request with the same `Idempotency-Key`.",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendMessageResponse"
+                },
+                "example": {
+                  "status": "sent",
+                  "smtp": {
+                    "code": 250,
+                    "message": "OK: queued as 12345"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/IdempotencyKeyReused"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "502": {
+            "$ref": "#/components/responses/SmtpBadGateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/SmtpTemporaryFailure"
+          },
+          "504": {
+            "$ref": "#/components/responses/SmtpTimeout"
+          }
+        }
+      }
+    },
+    "/v1/openapi.json": {
+      "get": {
+        "operationId": "getOpenApiDocument",
+        "summary": "Get this OpenAPI document",
+        "description": "Public: no token is needed and any credentials sent are ignored. Always JSON.",
+        "security": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OpenApiDocument"
+          }
+        }
+      },
+      "head": {
+        "operationId": "headOpenApiDocument",
+        "summary": "Get the headers of this OpenAPI document",
+        "description": "Same status and headers as `GET`, with an empty body.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The headers of the OpenAPI document; the body is empty.",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token sent as `Authorization: Bearer <token>`, for example `pdg_example0123456789`. The token must carry the `send` scope; a valid token without it is refused with `403 FORBIDDEN`. A missing, malformed, unknown or revoked token is refused with `401 UNAUTHORIZED`."
+      }
+    },
+    "schemas": {
+      "SendMessageRequest": {
+        "type": "object",
+        "required": [
+          "to",
+          "subject"
+        ],
+        "properties": {
+          "to": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A single recipient address (ASCII only).",
+            "examples": [
+              "user@example.com"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Plain text, UTF-8, at most 255 characters, without control characters.",
+            "examples": [
+              "Hello"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "Plain-text body. At least one of `text` and `html` must be a non-empty string.",
+            "examples": [
+              "Hi!"
+            ]
+          },
+          "html": {
+            "type": "string",
+            "description": "HTML body. At least one of `text` and `html` must be a non-empty string.",
+            "examples": [
+              "<p>Hi!</p>"
+            ]
+          }
+        }
+      },
+      "SendMessageResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "smtp"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "sent"
+            ]
+          },
+          "smtp": {
+            "$ref": "#/components/schemas/SmtpReply"
+          }
+        }
+      },
+      "SmtpReply": {
+        "type": "object",
+        "description": "A reply of the SMTP server.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "examples": [
+              250
+            ]
+          },
+          "message": {
+            "type": "string",
+            "examples": [
+              "OK: queued as 12345"
+            ]
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "description": "The error envelope shared by every error answer.",
+        "required": [
+          "error",
+          "statusCode",
+          "timestamp"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Upper-case error code. New codes may be added, so clients must handle unknown codes by the HTTP status.",
+                "examples": [
+                  "VALIDATION_FAILED"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable message."
+              },
+              "details": {
+                "type": "array",
+                "description": "Validation errors only: one string per failed rule.",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "smtp": {
+                "$ref": "#/components/schemas/SmtpReply",
+                "description": "SMTP send failures only, when a reply of the SMTP server is available."
+              }
+            }
+          },
+          "statusCode": {
+            "type": "integer",
+            "description": "The HTTP status, repeated in the body."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 UTC with milliseconds.",
+            "examples": [
+              "2026-10-25T12:00:00.000Z"
+            ]
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "`BAD_REQUEST` for a malformed JSON body or a body that is not a JSON object, or `VALIDATION_FAILED` (with `error.details`) for an invalid payload (including a `subject` over 255 characters, neither `text` nor `html`, or an invalid `Idempotency-Key`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "VALIDATION_FAILED",
+                "message": "text or html is required",
+                "details": [
+                  "text or html is required"
+                ]
+              },
+              "statusCode": 400,
+              "timestamp": "2026-10-25T12:00:00.000Z"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "`UNAUTHORIZED`: the token is missing, malformed, unknown or revoked, or its organization has no approved user. The cause is never disclosed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "`FORBIDDEN`: the token lacks the `send` scope, or a cross-site browser request was rejected.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "`IDEMPOTENCY_KEY_IN_USE`: a request with the same `Idempotency-Key` is still in progress. Or the SMTP connection must be fixed before sending: `NO_SMTP_CONNECTION` (the organization has no active SMTP connection), `SMTP_INSECURE_CREDENTIALS`, `SMTP_HOST_NOT_ALLOWED` or `SMTP_PASSWORD_UNREADABLE`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "NO_SMTP_CONNECTION",
+                "message": "The organization has no active SMTP connection"
+              },
+              "statusCode": 409,
+              "timestamp": "2026-10-25T12:00:00.000Z"
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "`HTTP_413`: the request body is over 1 MiB.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "`HTTP_415`: the `Content-Type` is not `application/json`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "IdempotencyKeyReused": {
+        "description": "`IDEMPOTENCY_KEY_REUSED`: the `Idempotency-Key` was already used with a different payload.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "`INTERNAL_ERROR`: unexpected error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "SmtpBadGateway": {
+        "description": "The SMTP server failed or refused the message: `SMTP_CONNECTION_FAILED`, `SMTP_TLS_FAILED`, `SMTP_AUTH_FAILED`, `SMTP_REJECTED` or `SMTP_PROTOCOL_ERROR`. `error.smtp` carries the SMTP reply when one is available.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "SMTP_REJECTED",
+                "message": "The SMTP server rejected the recipient",
+                "smtp": {
+                  "code": 550,
+                  "message": "5.1.1 User unknown"
+                }
+              },
+              "statusCode": 502,
+              "timestamp": "2026-10-25T12:00:00.000Z"
+            }
+          }
+        }
+      },
+      "SmtpTemporaryFailure": {
+        "description": "`SMTP_TEMPORARY_FAILURE`: the SMTP server answered a 4xx reply; try again later.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "SmtpTimeout": {
+        "description": "`SMTP_TIMEOUT`: the SMTP server timed out; delivery is unknown.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "OpenApiDocument": {
+        "description": "This OpenAPI 3.1 document.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  }
+}
