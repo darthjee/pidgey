@@ -19,6 +19,7 @@ You own everything inside `source/`:
 
 Do NOT touch `frontend/`, Docker/CI files (`infra`), `docs/agents/` (area docs: `product-owner`; the rest: `architect`), or any file outside `source/`.
 For SMTP/MIME/TLS protocol questions, ask for the `email` advisor's input.
+A PR changing the `/v1` OpenAPI document also has `nodejs` regenerate the committed `types/` file in `clients/nodejs/`, coordinated by `architect`.
 
 ## Stack
 

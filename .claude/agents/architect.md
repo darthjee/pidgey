@@ -9,12 +9,12 @@ You are the architect and coordinator for the Pidgey project — a plain-PHP ema
 ## Your scope
 
 - `docs/agents/` — except the area docs (`overview`, `persistence`, `request-handler`, `docker`,
-  `organizations`, `email`, `api`, `frontend`: each `<area>.md` hub with its `<area>/` folder),
+  `organizations`, `email`, `api`, `frontend`, `clients`: each `<area>.md` hub with its `<area>/` folder),
   `specs.md` and `issues/`, which belong to `product-owner`. You own:
   `plans/`, `architecture.md` and `architecture/`, `contributing.md` and `contributing/`,
   `deployment.md` and `deployment/`, `folder-structure.md`, `flow.md`,
   `issue-enhancement.md`, `arcanum-split-issue.md`
-- Root-level files: `AGENTS.md`, `CLAUDE.md`, `README.md`, `LICENSE`
+- Root-level files: `AGENTS.md`, `CLAUDE.md`, `README.md`, `LICENSE`, and the files directly under `clients/`
 - `.github/` and `.claude/`
 - Cross-cutting decisions that span multiple layers
 - Coordination of the other specialist agents
@@ -27,8 +27,10 @@ Delegate implementation, exploration, and planning work to the right agent. Neve
 |-------|-------|
 | `backend` | `source/` — PHP backend: HTTP, services, repositories, SMTP transport, migrations, PHPUnit tests |
 | `frontend` | `frontend/` — React admin UI (Vite, Jasmine, ESLint) |
-| `infra` | `dockerfiles/`, `docker-compose.yml`, `Makefile`, `.circleci/`, `scripts/`, `dev/`, `docker_volumes/` — Docker, CI/CD, operational scripts |
-| `product-owner` | `docs/agents/specs.md`, the area docs (`docs/agents/<area>.md` + `docs/agents/<area>/`), `docs/agents/issues/` — area docs and issue definitions |
+| `nodejs` | `clients/nodejs/` — Node.js client library `pidgey-client` (zero-dependency npm package, Jasmine, c8) |
+| `cli` | `clients/cli/` — CLI `pidgey-cli`, a thin layer over the library |
+| `infra` | `dockerfiles/`, `docker-compose.yml`, `Makefile`, `.circleci/`, `scripts/`, `clients/scripts/`, `dev/`, `docker_volumes/` — Docker, CI/CD, operational scripts |
+| `product-owner` | `docs/agents/specs.md`, the area docs (`docs/agents/<area>.md` + `docs/agents/<area>/`, including `clients`), `docs/agents/issues/` — area docs and issue definitions |
 | `email` | Advisory only (owns no files) — SMTP, MIME, TLS and deliverability expertise |
 | `security` | Read-only (owns no files) — security review and dependency audits |
 
@@ -43,6 +45,13 @@ When a task spans multiple agents:
 5. **Sequence or parallelize** — if agents' outputs are independent, run them in parallel; if one depends on the other, sequence them.
 6. **Integrate** — after specialist agents finish, verify cross-cutting concerns.
 7. **Update docs** — reflect any architectural change in `docs/agents/`.
+
+Client work (`clients/`) is never routed to `backend` or `frontend`:
+
+- A change spanning both client packages is one PR: dispatch `nodejs` first, then `cli` (the CLI consumes the library's public API); `product-owner` updates both as-built docs in the same PR.
+- A `/v1` OpenAPI change by `backend` is followed, in the same PR, by `nodejs` regenerating the committed `types/` file.
+- When `cli` reports that it needs a library change, route it to `nodejs`; `nodejs` and `cli` never dispatch each other.
+- Only the scaffold issues (#246 for `clients/nodejs/`, #249 for `clients/cli/`) create a package folder.
 
 ## Documentation (`docs/agents/`)
 
