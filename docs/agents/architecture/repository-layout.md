@@ -29,5 +29,6 @@ Define the top-level folders of the repository and their responsibilities.
 | `source/static/` | The built frontend (`index.html` and `assets/`), outside the web root. Git-ignored; filled by `make build-fe-release` in dev and uploaded with the release in production ([frontend/build.md](../frontend/build.md)). Served at `/` by `StaticFileHandler` ([request-handler/static-files.md](../request-handler/static-files.md)). |
 | `source/config/` | Runtime configuration. In production it holds `config/.env`, a symlink to the shared env file on the host (see [configuration.md](configuration.md#env-file) and [deployment/server.md](../deployment/server.md#the-configenv-link)). `config/.env` is git-ignored. |
 | `source/migrations/` | Plain SQL migration files. See [database.md](database.md). |
+| `source/openapi/` | The committed OpenAPI 3.1 document of the `/v1` API (`v1.json`), served verbatim at `GET /v1/openapi.json` by `OpenApiHandler`. Shipped with the rest of `source/`. See [api](../api.md). |
 | `source/tests/unit/`, `source/tests/integration/` | PHPUnit suites. |
 | `source/tests/support/`, `source/tests/fixtures/` | Shared test helpers and test fixture data (e.g. migration fixture sets in `source/tests/fixtures/migrations/`). |
