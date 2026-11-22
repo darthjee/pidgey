@@ -59,7 +59,8 @@ Spec of how `pidgey-client` and `pidgey-cli` are tested and which CI jobs run th
 
 ## Cross-cutting
 
-- **Backend, OpenAPI diff:** the `/v1` breaking-change diff against `main` runs in the
+- **Backend, OpenAPI diff:** the `/v1` breaking-change diff against `main` (the `OpenAPI
+  breaking-change check` step of `backend_checks`, `scripts/check_openapi_breaking.sh`) runs in the
   backend checks and is green ([openapi.md](openapi.md#v1-is-additive-only)).
 - **Backend, OpenAPI route:** a PHPUnit test for `GET /v1/openapi.json` (`200`, JSON content
   type, no token required, valid OpenAPI 3.1); the

@@ -9,9 +9,10 @@
 | `dev-up` | `docker compose up` for app, mysql, phpmyadmin, mailpit and `frontend_dev`. Does not start the test Mailpit instances. |
 | `migrate` | Prepare the development database: `docker compose run --rm app composer db:prepare` (wait, create if missing, migrate). Runs on `app` so it targets `pidgey_development` even though `make dev`'s shell points at `pidgey_test`. |
 | `db-reset` | Drop and re-prepare the development database: `docker compose run --rm app sh -c "composer db:drop && composer db:prepare"`. |
+| `openapi-diff` | Run the `/v1` breaking-change check locally: `git fetch --quiet origin main`, then `scripts/check_openapi_breaking.sh source/openapi/v1.json origin/main` with `OASDIFF_VERSION` exported. Uses `oasdiff` from `PATH` when installed, otherwise `docker run` of the pinned `tufin/oasdiff:$(OASDIFF_VERSION)` image. Fails on any `ERR`-level breaking change, the same check as `backend_checks` (see [`/v1` is additive-only](../api/endpoints/openapi.md#v1-is-additive-only)). |
 | `tests` | Run tests and linters: backend in the `tests` container (which starts `mysql` and the three test Mailpit instances as dependencies) (`docker compose run --rm tests sh -c "composer lint && composer tests"`), then frontend in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev sh -c "yarn lint && yarn coverage"`). |
-| `build-ci-base` | Build the `circleci_pidgey-base` CI image (amd64 only) from the `source/` context, tagged `$(CI_BASE_IMAGE):$(CI_BASE_VERSION)`. |
-| `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). The deploy tooling was added in `0.0.2`; `0.0.3` moved it to `darthjee/scripts:0.12.0`; `0.0.4` added the Mailpit `v1.32.0` binary; rebuilt and pushed with a bumped `CI_BASE_VERSION` whenever the image changes. |
+| `build-ci-base` | Build the `circleci_pidgey-base` CI image (amd64 only) from the `source/` context, tagged `$(CI_BASE_IMAGE):$(CI_BASE_VERSION)`, passing `--build-arg OASDIFF_VERSION=$(OASDIFF_VERSION)`. |
+| `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). The deploy tooling was added in `0.0.2`; `0.0.3` moved it to `darthjee/scripts:0.12.0`; `0.0.4` added the Mailpit `v1.32.0` binary; `0.0.5` added the `oasdiff` binary; rebuilt and pushed with a bumped `CI_BASE_VERSION` whenever the image changes. |
 | `build-fe-base` | Build the `vite_pidgey-base` image from the repository-root context, tagged `$(FE_BASE_IMAGE):$(FE_BASE_VERSION)$(BASE_SUFFIX)`. |
 | `push-fe-base` | Push `vite_pidgey-base` to the registry (manual; there is no automated image build). |
 | `build-fe` | Build the `vite_pidgey` image on top of `vite_pidgey-base`. |
@@ -31,7 +32,8 @@ There are no `ci-*` wrapper targets: CircleCI calls composer directly inside the
 | `PROJECT` | Project name, `pidgey`; used to build image names (`dev_$(PROJECT)-base`, ...). |
 | `BASE_VERSION` | Version tag of `dev_pidgey-base` to build, push and build from. |
 | `DOCKER_ID_USER` | Docker Hub namespace for published images (`darthjee`). |
-| `CI_BASE_VERSION` | Version tag of `circleci_pidgey-base` to build and push (`0.0.4`, which ships `darthjee/scripts:0.12.0` and the Mailpit `v1.32.0` binary). |
+| `CI_BASE_VERSION` | Version tag of `circleci_pidgey-base` to build and push (`0.0.5`, which ships `darthjee/scripts:0.12.0`, the Mailpit `v1.32.0` binary and the `oasdiff` `v1.39.0` binary). |
+| `OASDIFF_VERSION` | `tufin/oasdiff` tag (`v1.39.0`), the single source of truth for the `oasdiff` version: passed to `build-ci-base` as a build argument and used by the docker fallback of `openapi-diff`. Never `latest`. |
 | `CI_BASE_IMAGE` | CI image name, `$(DOCKER_ID_USER)/circleci_$(PROJECT)-base`. |
 | `FE_BASE_VERSION` | Version tag of `vite_pidgey-base` to build, push and build from (`0.0.1`). |
 | `FE_BASE_IMAGE` | Frontend base image name, `$(DOCKER_ID_USER)/vite_$(PROJECT)-base`. |

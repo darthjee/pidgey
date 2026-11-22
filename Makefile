@@ -6,7 +6,8 @@ BASE_SUFFIX?=$(if $(filter arm64 aarch64,$(shell uname -m)),-arm64,)
 BASE_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)-base
 DEV_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)
 
-CI_BASE_VERSION=0.0.4
+CI_BASE_VERSION=0.0.5
+OASDIFF_VERSION=v1.39.0
 CI_BASE_IMAGE=$(DOCKER_ID_USER)/circleci_$(PROJECT)-base
 
 FE_BASE_VERSION=0.0.1
@@ -14,7 +15,7 @@ FE_BASE_IMAGE=$(DOCKER_ID_USER)/vite_$(PROJECT)-base
 FE_IMAGE=$(DOCKER_ID_USER)/vite_$(PROJECT)
 FE_RELEASE_DIR?=source/static
 
-.PHONY: build-base push-base build-ci-base push-ci-base build dev dev-up tests migrate db-reset \
+.PHONY: build-base push-base build-ci-base push-ci-base build dev dev-up tests migrate db-reset openapi-diff \
 	build-fe-base push-fe-base build-fe fe-install build-fe-release
 
 build-base:
@@ -24,7 +25,7 @@ push-base:
 	docker push $(BASE_IMAGE):$(BASE_VERSION)$(BASE_SUFFIX)
 
 build-ci-base:
-	docker build --platform linux/amd64 -f dockerfiles/circleci_$(PROJECT)-base/Dockerfile -t $(CI_BASE_IMAGE):$(CI_BASE_VERSION) source
+	docker build --platform linux/amd64 --build-arg OASDIFF_VERSION=$(OASDIFF_VERSION) -f dockerfiles/circleci_$(PROJECT)-base/Dockerfile -t $(CI_BASE_IMAGE):$(CI_BASE_VERSION) source
 
 push-ci-base:
 	docker push $(CI_BASE_IMAGE):$(CI_BASE_VERSION)
@@ -66,3 +67,7 @@ migrate:
 
 db-reset:
 	docker compose run --rm app sh -c "composer db:drop && composer db:prepare"
+
+openapi-diff:
+	git fetch --quiet origin main
+	OASDIFF_VERSION=$(OASDIFF_VERSION) scripts/check_openapi_breaking.sh source/openapi/v1.json origin/main

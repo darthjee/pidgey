@@ -10,7 +10,7 @@ Define the top-level folders of the repository and their responsibilities.
 | `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/`, `vite_pidgey-base/`, `vite_pidgey/`. See [docker/images.md](../docker/images.md). |
 | `docker_volumes/` | Host-side persistent data mounted into containers (mysql data, vendor, node_modules, configuration, cache). Git-ignored except placeholders. |
 | `dev/` | Development helpers (sample configuration, seed data, local scripts not used in production). |
-| `scripts/` | Host-side / CI-only operational scripts (DB scripts live in `source/bin/`, since only `source/` ships in a release). Not created until such a script is needed. |
+| `scripts/` | Host-side / CI-only operational scripts (DB scripts live in `source/bin/`, since only `source/` ships in a release). Holds `check_openapi_breaking.sh`, the `/v1` OpenAPI breaking-change check run by `backend_checks` and `make openapi-diff`. |
 | `docs/agents/` | Agent documentation, starting at `AGENTS.md`. |
 | `docker-compose.yml`, `Makefile` | Local orchestration. See [docker](../docker.md). |
 | `.circleci/` | CI configuration (owned by infra), including `.circleci/backend-exclude.txt`, the list of paths the backend upload leaves out of a release (see [deployment/pipeline.md](../deployment/pipeline.md#exclude-list)). See [deployment](../deployment.md). |
