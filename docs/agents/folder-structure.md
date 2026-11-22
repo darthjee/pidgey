@@ -14,7 +14,7 @@ Entries marked *(planned)* do not exist yet.
 | `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/` (CI image, built and pushed manually with `make build-ci-base && make push-ci-base`), `vite_pidgey-base/`, `vite_pidgey/` (frontend Node images), `mysql/`; `pidgey/` *(planned)*. |
 | `docker_volumes/` | Host-side persistent data mounted into containers. Git-ignored except placeholders. |
 | `dev/` | *(planned)* Development helpers: sample configuration, seed data, local-only scripts. |
-| `scripts/` | Host-side / CI-only operational scripts. DB scripts live in `source/bin/`, since only `source/` ships in the image. |
+| `scripts/` | Host-side / CI-only operational scripts. DB scripts live in `source/bin/`, since only `source/` ships in the image. Holds `check_openapi_breaking.sh`, the `/v1` OpenAPI breaking-change check run by `backend_checks` and `make openapi-diff`. |
 | `.circleci/` | CircleCI configuration (`config.yml`): `backend_checks`, `backend_tests` and `frontend_checks` on every branch and tag. |
 | `.codacy.yml` | Codacy analysis configuration (`exclude_paths`). |
 | `docker-compose.yml`, `Makefile` | Local orchestration and `make` targets (including `build-ci-base`/`push-ci-base` for the CI image). CI does not call `make`; its jobs run `composer` directly. |
