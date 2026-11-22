@@ -15,7 +15,9 @@ Constrain what libraries the project may depend on.
     is covered by `bin/check-config` (see [configuration.md](configuration.md#bincheck-config)),
     which runs before every release.
 - **Dev (`require-dev`)**: `phpunit/phpunit`, `squizlabs/php_codesniffer`,
-  `slevomat/coding-standard`, `phpmd/phpmd` (as used in the tent repository).
+  `slevomat/coding-standard`, `phpmd/phpmd` (as used in the tent repository), and
+  `opis/json-schema` (validates `source/openapi/v1.json` against the OpenAPI 3.1 meta-schema in
+  PHPUnit; dev only, never used by `lib/`).
 - **phpdocumentor** is the documentation tool but is **not** a Composer dependency: every
   `phpdocumentor/phpdocumentor` 3.x release requires `league/flysystem` ^1.0, and Composer
   blocks all flysystem 1.x releases due to security advisories (PKSA-w9tt-7782-78jx,
