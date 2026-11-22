@@ -32,7 +32,9 @@ Request:
 ```
 
 Payload rules (fields, required ones, multipart building) are in
-[email/message-scope.md](../../email/message-scope.md). The `From:` header and envelope sender
+[email/message-scope.md](../../email/message-scope.md). An empty-string `text` or `html`
+counts as **not sent**; when neither is sent the answer is `400 VALIDATION_FAILED` with the
+detail `text or html is required`. The `From:` header and envelope sender
 are the active connection's `fromAddress`.
 
 ### Size limits
@@ -72,9 +74,6 @@ Optional request header that lets a caller retry after losing the response witho
 the message twice. Without the header the endpoint behaves as before and touches no
 idempotency storage.
 
-> Depends on #237 (the handler of `POST /v1/messages` is not implemented yet); the key step
-> plugs into that handler.
-
 - **Format:** 1 to 255 characters, each printable ASCII (`0x21`-`0x7E`); a UUID fits. A
   present but empty, over-long or otherwise invalid value answers `400 VALIDATION_FAILED`
   with `details: ["Idempotency-Key must be 1 to 255 printable ASCII characters"]`.
@@ -111,6 +110,13 @@ Flow, after payload validation and only when the header is present:
 A concurrent request that wins the reservation race makes the loser re-read the row and
 apply step 2.
 
+What counts as "the SMTP transaction started": the send flow was entered and the answer is not
+a send-time check refusal. So a send-time `409` (`SMTP_INSECURE_CREDENTIALS`,
+`SMTP_HOST_NOT_ALLOWED`, `SMTP_PASSWORD_UNREADABLE`) is released, while an unexpected exception
+raised inside the send flow is answered and stored as `500 INTERNAL_ERROR`, because delivery
+cannot be ruled out. The error answers of a reserved key are rendered by the handler itself,
+so the stored body is exactly the body sent.
+
 Errors answered before the key step (`400` for the payload, `401`, `403`, `413`, `415`) never
 touch the stored keys.
 
@@ -140,7 +146,8 @@ revoked token), so a caller cannot tell why the token was refused.
   unset), so the tokens work again as soon as a user of the organization is approved (or a
   future reinstatement happens). This settles the "denied user vs API tokens" decision of
   [organizations/entities.md](../../organizations/entities.md#user-status-lifecycle).
-- `last_used_at` is updated only on a successful authentication.
+- `last_used_at` is updated on a successful authentication, including when the scope check
+  then answers `403`; it is never updated for a `401`.
 - An `access_token` cookie is ignored on `/v1`.
 
 Then a valid token lacking scope `send` answers `403 FORBIDDEN`.
@@ -159,7 +166,7 @@ Then a valid token lacking scope `send` answers `403 FORBIDDEN`.
 | Invalid `Idempotency-Key` (empty, over 255 characters or a non-printable-ASCII character) | `400 VALIDATION_FAILED` — `details: ["Idempotency-Key must be 1 to 255 printable ASCII characters"]` |
 | `Idempotency-Key` already used with a different payload | `422 IDEMPOTENCY_KEY_REUSED` — `Idempotency-Key was already used with a different payload` |
 | `Idempotency-Key` of a request still in progress | `409 IDEMPOTENCY_KEY_IN_USE` — `A request with this Idempotency-Key is still in progress` |
-| No active SMTP connection | `409 NO_SMTP_CONNECTION` |
+| No active SMTP connection | `409 NO_SMTP_CONNECTION` — `The organization has no active SMTP connection` |
 | Active connection with credentials and `encryption: none` | `409 SMTP_INSECURE_CREDENTIALS` |
 | Active connection's `host` resolves to a denied address (`SMTP_ALLOW_PRIVATE_HOSTS=false`) | `409 SMTP_HOST_NOT_ALLOWED` — `The SMTP host resolves to an address that is not allowed` ([email/send-flow.md](../../email/send-flow.md#host-check)) |
 | Stored password cannot be decrypted | `409 SMTP_PASSWORD_UNREADABLE` |
