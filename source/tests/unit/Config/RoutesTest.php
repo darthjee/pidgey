@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Pidgey\Http\Handler\HashRedirectHandler;
 use Pidgey\Http\Handler\HealthHandler;
 use Pidgey\Http\Handler\LoginHandler;
+use Pidgey\Http\Handler\OpenApiHandler;
 use Pidgey\Http\Handler\RegisterHandler;
 use Pidgey\Http\Handler\SendMessageHandler;
 use Pidgey\Http\Handler\SmtpConnectionActivateHandler;
@@ -106,6 +107,8 @@ final class RoutesTest extends TestCase
                 '/smtp-connections/:id/test.json',
             ],
             'POST /v1/messages' => ['POST', '/v1/messages', SendMessageHandler::class, '/v1/messages'],
+            'GET /v1/openapi.json' => ['GET', '/v1/openapi.json', OpenApiHandler::class, '/v1/openapi.json'],
+            'HEAD /v1/openapi.json' => ['HEAD', '/v1/openapi.json', OpenApiHandler::class, '/v1/openapi.json'],
         ];
     }
 
@@ -169,6 +172,9 @@ final class RoutesTest extends TestCase
             'GET on the v1 messages' => ['GET', '/v1/messages'],
             'v1 API path' => ['GET', '/v1/other'],
             'PUT on the v1 messages' => ['PUT', '/v1/messages'],
+            'POST on the OpenAPI document' => ['POST', '/v1/openapi.json'],
+            'PUT on the OpenAPI document' => ['PUT', '/v1/openapi.json'],
+            'extra suffix on the OpenAPI document' => ['GET', '/v1/openapi.jsonx'],
             'HEAD on the index' => ['HEAD', '/'],
             'non-GET deep link' => ['POST', '/foo'],
             'GET on the login endpoint' => ['GET', '/auth/login.json'],

@@ -23,6 +23,8 @@ final class RouteGuards
         'GET /',
         'GET /assets/*',
         'GET /health.json',
+        'GET /v1/openapi.json',
+        'HEAD /v1/openapi.json',
         'POST /auth/register.json',
         'POST /auth/login.json',
         'POST /auth/refresh.json',
