@@ -19,11 +19,11 @@ backwards compatible.
   - the Bearer security scheme with the `send` scope
     ([api/authentication/api-tokens.md](../../api/authentication/api-tokens.md)).
 - It does **not** describe the admin API (the cookie-session routes).
-- It is a static file in the backend source tree, owned by `backend`; its exact path is
-  decided by its implementation sub-issue ([Static committed file](#static-committed-file)).
+- It is a static file in the backend source tree, owned by `backend`, at
+  **`source/openapi/v1.json`** ([Static committed file](#static-committed-file)).
 - [api/](../../api.md) stays the narrative contract. The document is updated in the same
-  change set as any `/v1` change, so the two never disagree; the implementation sub-issue
-  that adds the document also documents the route in `docs/agents/api/`.
+  change set as any `/v1` change, so the two never disagree. The route is documented in
+  [api/endpoints/openapi.md](../../api/endpoints/openapi.md).
 
 ## `GET /v1/openapi.json`
 
@@ -37,7 +37,7 @@ The backend serves the document; it is the only backend addition of the epic.
 | Content | The public contract only, under the [content rules](#content-rules). |
 | Cache headers | None, following [api/conventions/format.md](../../api/conventions/format.md#cache-headers), like `/health.json`. |
 | Origin check | No difference from the rest of `/v1`. |
-| CORS | No CORS headers: cross-origin browser access (for example a hosted Swagger UI) is out of scope. |
+| CORS | No CORS of its own (the global `Cors` step applies as on the rest of `/v1`): cross-origin browser access from an untrusted origin (for example a hosted Swagger UI) is out of scope. |
 
 ### Why public
 
@@ -52,7 +52,8 @@ protect nothing secret and would break tooling that reads the contract.
   client's type generation ([Generated types](#generated-types)) read that same file.
 - It is never generated at runtime from the router, so no deployment-specific data (hosts,
   organizations, build info) and no non-`/v1` route can get into it.
-- Its exact location in the backend tree is left to the implementation sub-issue.
+- It lives at `source/openapi/v1.json`, never under `source/public/` (the web server would
+  serve it directly, bypassing the route).
 
 ### Content rules
 
@@ -113,34 +114,34 @@ are supported.
 - **Allowed** in `/v1`: new optional request fields, new response fields, new error codes.
 - **Needs a `/v2`** and a new client major line: removing or renaming a field, changing a
   type or the meaning of a status or code, or making an optional field required.
-- The rule is stated in `docs/agents/api/` and in the document (by the implementation
-  sub-issue that adds the document).
+- The rule is stated in [api/endpoints/openapi.md](../../api/endpoints/openapi.md#v1-is-additive-only)
+  and in the document's `info.description`.
 - **Enforced in CI:** a backend CI check diffs the `/v1` document of the branch against
   `main` (for example with `oasdiff breaking`) and fails on any breaking change. It runs in
   the backend checks, so a `/v1` change is gated whether or not `clients/` is touched.
 
 ## Points to reconcile with the as-built docs
 
-Transcribing the epic surfaced these differences with the current API docs. The as-built
-docs win for current behaviour; the implementation sub-issue of the route settles them.
+**Settled** by the route's implementation (#244). Transcribing the epic surfaced these
+differences with the API docs; each is now recorded where the rule lives, and the as-built
+docs stay the source of truth.
 
-- **Path suffix.** [api/conventions/format.md](../../api/conventions/format.md#paths) states
-  that `/v1` paths keep their own contract **without** the `.json` suffix
-  ([api/endpoints/sending.md](../../api/endpoints/sending.md#relation-to-the-conventions));
-  `GET /v1/openapi.json` carries one. The route is a documented exception to record there.
-- **Public exception to the Bearer gate.** Every `/v1/*` request needs a Bearer API token
-  ([api/authentication/api-tokens.md](../../api/authentication/api-tokens.md#disjoint-credentials)).
-  The route's implementation sub-issue adds an explicit public exception there, limited to
-  `GET` and `HEAD` on exactly `/v1/openapi.json` (an exact match, never a prefix), so no other
-  `/v1` path or method becomes public.
-- **`HEAD`.** The router never falls back from `HEAD` to `GET`
-  ([request-handler/routing.md](../../request-handler/routing.md)): answering `HEAD` needs
-  its own route. "Other methods follow the API's conventions" means the routing `404`
-  `NOT_FOUND`, never `405`.
-- **Documented statuses.** The error table of `POST /v1/messages` lists the body-parser
-  answers (`400 BAD_REQUEST`, `413 HTTP_413`, `415 HTTP_415`, see
-  [api/endpoints/sending.md](../../api/endpoints/sending.md#errors)), and the OpenAPI document
-  includes them, matching that table. The routing `404`, which
-  [api/conventions/errors.md](../../api/conventions/errors.md#generic-errors) applies to
-  every endpoint, is not part of the table; "Every documented error status" in the document
-  must state whether it is included.
+- **Path suffix — settled.** `/v1` paths have no `.json` suffix, except
+  `GET`/`HEAD /v1/openapi.json`, the one documented exception, recorded in
+  [api/conventions/format.md](../../api/conventions/format.md#paths) and
+  [api/endpoints/sending.md](../../api/endpoints/sending.md#relation-to-the-conventions).
+- **Public exception to the Bearer gate — settled.** The only public `/v1` route is `GET` and
+  `HEAD` on exactly `/v1/openapi.json`: a route registered without `ApiTokenAuth`, not a
+  prefix exception, so no other `/v1` path or method becomes public. Recorded in
+  [api/authentication/api-tokens.md](../../api/authentication/api-tokens.md#public-exception).
+- **`HEAD` — settled.** The router never falls back from `HEAD` to `GET`, so the route is
+  registered explicitly for both methods
+  ([request-handler/routing.md](../../request-handler/routing.md#edge-cases)). "Other methods
+  follow the API's conventions" means the routing `404 NOT_FOUND`, never `405`
+  ([api/endpoints/openapi.md](../../api/endpoints/openapi.md#get-and-head-v1openapijson)).
+- **Documented statuses — settled.** The document includes the body-parser statuses (`400`,
+  `413`, `415`), matching the error table of
+  [api/endpoints/sending.md](../../api/endpoints/sending.md#errors). Each operation lists only
+  its own statuses; the routing `404` is **not** listed on each operation: a single sentence
+  in `info.description` says any unmatched path or method answers `404 NOT_FOUND` with the
+  error envelope ([content rules](../../api/endpoints/openapi.md#content-rules)).
