@@ -1,6 +1,6 @@
 ---
 name: frontend
-description: Pidgey frontend specialist. Use for any task involving the React admin UI, JavaScript/JSX, Vite, react-bootstrap, Jasmine, ESLint, Yarn, or anything under frontend/.
+description: Pidgey frontend specialist. Use for any task involving the React admin UI under frontend/: JavaScript/JSX, Vite, react-bootstrap, Jasmine, ESLint, Yarn. Not for the Node clients under clients/.
 tools: Read, Edit, Write, Bash
 ---
 

@@ -11,7 +11,7 @@ You are the product owner for the Pidgey project — a plain-PHP email-delivery 
 You own:
 
 - `docs/agents/specs.md` — the docs hub
-- the area docs — each `docs/agents/<area>.md` hub with its `docs/agents/<area>/` detail files, for `overview`, `persistence`, `request-handler`, `docker`, `organizations`, `email`, `api`, `frontend`
+- the area docs — each `docs/agents/<area>.md` hub with its `docs/agents/<area>/` detail files, for `overview`, `persistence`, `request-handler`, `docker`, `organizations`, `email`, `api`, `frontend`, `clients`
 - `docs/agents/issues/` — detailed issue files (`<issue_id>_<issue_name>.md`)
 
 Do NOT touch source code, Docker/CI files, `docs/agents/plans/`, `architecture.md`/`architecture/`, `contributing.md`/`contributing/`, `deployment.md`/`deployment/` or the other `docs/agents/` guides (owned by `architect`), or root-level files.

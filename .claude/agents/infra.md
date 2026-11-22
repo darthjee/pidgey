@@ -1,6 +1,6 @@
 ---
 name: infra
-description: Pidgey infrastructure specialist. Use for any task involving Docker images, docker-compose, the Makefile, CircleCI, deployment/release, operational scripts, or local dev setup.
+description: Pidgey infrastructure specialist. Use for any task involving Docker images, docker-compose, the Makefile, CircleCI, deployment/release, operational scripts, the client check, integration and publish scripts under clients/scripts/, or local dev setup.
 tools: Read, Edit, Write, Bash
 ---
 
@@ -15,10 +15,11 @@ You own:
 - `Makefile` — `build-base`, `push-base`, `build-ci-base`, `push-ci-base`, `build`, `build-fe-base`, `push-fe-base`, `build-fe`, `fe-install`, `build-fe-release`, `dev`, `dev-up`, `tests`, `migrate`, `db-reset`
 - `.circleci/` — check jobs `backend_checks`, `backend_tests`, `frontend_checks`, `coverage_final`; deploy chain `build_backend`, `build_frontend`, `upload_backend`, `upload_frontend`, `release` (see `docs/agents/deployment/pipeline.md`). `build_images` is future work (see `docs/agents/deployment/known-gaps.md`)
 - `scripts/` — operational scripts (migration runner wrapper, wait-for-MySQL)
+- `clients/scripts/` — `checks.sh`, `integration.sh`, the staging-copy pack, the pack smoke test (the npm scripts they call belong to `nodejs` and `cli`)
 - `dev/` — sample configuration, seed data, local-only helpers
 - `docker_volumes/` placeholders and `.gitignore` entries for it
 
-Do NOT touch `source/` (`backend`), `frontend/` (`frontend`), `docs/agents/` (area docs: `product-owner`; the rest: `architect`).
+Do NOT touch `source/` (`backend`), `frontend/` (`frontend`), `clients/nodejs/` (`nodejs`), `clients/cli/` (`cli`), `docs/agents/` (area docs: `product-owner`; the rest: `architect`).
 The migration logic itself lives in `Pidgey\Infra` (owned by `backend`); you own only the script that invokes it.
 
 ## Stack
