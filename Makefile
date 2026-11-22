@@ -6,7 +6,8 @@ BASE_SUFFIX?=$(if $(filter arm64 aarch64,$(shell uname -m)),-arm64,)
 BASE_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)-base
 DEV_IMAGE=$(DOCKER_ID_USER)/dev_$(PROJECT)
 
-CI_BASE_VERSION=0.0.4
+CI_BASE_VERSION=0.0.5
+OASDIFF_VERSION=v1.39.0
 CI_BASE_IMAGE=$(DOCKER_ID_USER)/circleci_$(PROJECT)-base
 
 FE_BASE_VERSION=0.0.1
@@ -24,7 +25,7 @@ push-base:
 	docker push $(BASE_IMAGE):$(BASE_VERSION)$(BASE_SUFFIX)
 
 build-ci-base:
-	docker build --platform linux/amd64 -f dockerfiles/circleci_$(PROJECT)-base/Dockerfile -t $(CI_BASE_IMAGE):$(CI_BASE_VERSION) source
+	docker build --platform linux/amd64 --build-arg OASDIFF_VERSION=$(OASDIFF_VERSION) -f dockerfiles/circleci_$(PROJECT)-base/Dockerfile -t $(CI_BASE_IMAGE):$(CI_BASE_VERSION) source
 
 push-ci-base:
 	docker push $(CI_BASE_IMAGE):$(CI_BASE_VERSION)

@@ -5,10 +5,15 @@ ARG SCRIPTS_VERSION=0.12.0
 # the TLS fixtures into service containers). Bump MAILPIT_VERSION together with
 # the axllent/mailpit tag in docker-compose.yml.
 ARG MAILPIT_VERSION=v1.32.0
+# oasdiff binary for the OpenAPI breaking-change check (backend_checks). Bump
+# OASDIFF_VERSION together with OASDIFF_VERSION in the Makefile.
+ARG OASDIFF_VERSION=v1.39.0
 
 FROM darthjee/scripts:${SCRIPTS_VERSION} AS scripts
 
 FROM axllent/mailpit:${MAILPIT_VERSION} AS mailpit
+
+FROM tufin/oasdiff:${OASDIFF_VERSION} AS oasdiff
 
 FROM cimg/php:8.4
 
@@ -43,6 +48,10 @@ RUN chmod 0755 /usr/local/sbin/deploy_frontend.sh
 # Mailpit, started on localhost by backend_tests.
 COPY --from=mailpit /mailpit /usr/local/bin/mailpit
 RUN chmod 0755 /usr/local/bin/mailpit
+
+# oasdiff (static Go binary), run by check_openapi_breaking.sh in backend_checks.
+COPY --from=oasdiff /usr/bin/oasdiff /usr/local/bin/oasdiff
+RUN chmod 0755 /usr/local/bin/oasdiff
 
 RUN mkdir -p /home/circleci/project /home/circleci/vendor-build \
   && chown -R circleci:circleci /home/circleci
