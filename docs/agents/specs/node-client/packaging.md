@@ -23,6 +23,15 @@ publishing.
 - **Name reservation.** Both names are reserved with manual `0.0.0` placeholders (a README
   pointing at this repository, no code, no `bin`), published by the maintainer with the npm
   credential, outside CI (#227).
+  - **Placeholder fields.** The placeholder's `package.json` has `name`, version `0.0.0`,
+    `description`, `repository` (this repository) and `license` `MIT`, with no `main`, `bin`,
+    dependencies or scripts.
+  - **Locked at reservation.** Right after each `0.0.0` is published, the package's
+    publishing settings are set as in [Credential](#credential-the-pidgey-npm-context): 2FA
+    required, allowing only 2FA or a granular token.
+  - **Deprecated after `0.1.0`.** Once a package's first real release is on npm, the
+    maintainer runs `npm deprecate <pkg>@0.0.0 "placeholder; use >=0.1.0"` from their machine
+    with 2FA, never from CI, as in [Rollback](#rollback).
 - **Not consumed by `frontend/`.** The admin UI keeps its own cookie-authenticated client
   layer: the client is Bearer-token only, and mixing credentials on the admin UI's surface
   would break the disjoint-credentials rule.
