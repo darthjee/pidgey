@@ -1,19 +1,39 @@
+import { inspect } from 'node:util';
 import { PidgeyClient } from '../../lib/PidgeyClient.js';
+import { PidgeyError } from '../../lib/PidgeyError.js';
+
+const TOKEN = 'pdg_secret_token';
 
 describe('PidgeyClient', () => {
-  it('stores a copy of the options', () => {
-    const options = { baseUrl: 'http://127.0.0.1' };
-    const client = new PidgeyClient(options);
+  describe('constructor', () => {
+    it('builds a client from valid options', () => {
+      expect(new PidgeyClient({ token: TOKEN, baseUrl: 'https://pidgey.example.com' }))
+        .toBeInstanceOf(PidgeyClient);
+    });
 
-    expect(client.options).toEqual({ baseUrl: 'http://127.0.0.1' });
-    expect(client.options).not.toBe(options);
+    it('throws a CLIENT_CONFIGURATION PidgeyError synchronously', () => {
+      let caught;
+      try {
+        new PidgeyClient();
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(PidgeyError);
+      expect(caught.code).toBe('CLIENT_CONFIGURATION');
+    });
   });
 
-  it('freezes the stored options', () => {
-    expect(Object.isFrozen(new PidgeyClient({ a: 1 }).options)).toBe(true);
-  });
+  describe('inspectable state', () => {
+    const client = new PidgeyClient({ token: TOKEN, baseUrl: 'https://pidgey.example.com' });
 
-  it('defaults the options to an empty object', () => {
-    expect(new PidgeyClient().options).toEqual({});
+    it('exposes no own property', () => {
+      expect(Object.getOwnPropertyNames(client)).toEqual([]);
+    });
+
+    it('does not leak the token through inspect or JSON', () => {
+      expect(inspect(client, { showHidden: true })).not.toContain(TOKEN);
+      expect(JSON.stringify(client)).not.toContain(TOKEN);
+    });
   });
 });
