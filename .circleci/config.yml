@@ -218,6 +218,10 @@ jobs:
       - run:
           name: Client checks
           command: clients/scripts/checks.sh
+      - run:
+          name: Working tree unchanged
+          command: |
+            test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
       - when:
           condition:
             equal: [darthjee/circleci_node:0.2.1, << parameters.node_image >>]
@@ -225,6 +229,9 @@ jobs:
             - upload_codacy_coverage:
                 report: clients/nodejs/coverage/lcov.info
                 prefix: clients/nodejs
+            - upload_codacy_coverage:
+                report: clients/cli/coverage/lcov.info
+                prefix: clients/cli
 
   coverage_final:
     docker:

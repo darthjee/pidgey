@@ -126,3 +126,4 @@ services:
     volumes:
       - ./clients:/home/node/app/clients
       - ./docker_volumes/clients_nodejs_node_modules:/home/node/app/clients/nodejs/node_modules
+      - ./docker_volumes/clients_cli_node_modules:/home/node/app/clients/cli/node_modules
