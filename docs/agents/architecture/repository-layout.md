@@ -6,7 +6,7 @@ Define the top-level folders of the repository and their responsibilities.
 | --- | --- |
 | `source/` | Backend (PHP). Contains `composer.json`, `lib/` (PSR-4 code), the public web root with the front controller, migrations and tests. |
 | `frontend/` | React admin UI (Vite project). See [frontend/layout.md](../frontend/layout.md). |
-| `clients/` | Client packages: `nodejs/` (library `pidgey-client`, owner `nodejs`), `cli/` (CLI `pidgey-cli`, owner `cli`; *(planned)*, coming in #249), `scripts/` (shared check, integration and publish scripts, owner `infra`; `checks.sh` exists today). Files directly under `clients/` belong to `architect`. See [clients.md](../clients.md). |
+| `clients/` | Client packages: `nodejs/` (library `pidgey-client`, owner `nodejs`), `cli/` (CLI `pidgey-cli`, owner `cli`), `scripts/` (shared check, integration and publish scripts, owner `infra`; `checks.sh`, `pack_cli.sh` and `smoke_test.sh` exist today). Files directly under `clients/` belong to `architect`. See [clients.md](../clients.md). |
 | `dockerfiles/` | Docker image definitions: `dev_pidgey-base/`, `dev_pidgey/`, `circleci_pidgey-base/`, `vite_pidgey-base/`, `vite_pidgey/`. See [docker/images.md](../docker/images.md). |
 | `docker_volumes/` | Host-side persistent data mounted into containers (mysql data, vendor, node_modules, configuration, cache). Git-ignored except placeholders. |
 | `dev/` | Development helpers (sample configuration, seed data, local scripts not used in production). |

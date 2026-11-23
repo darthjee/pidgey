@@ -5,7 +5,7 @@
 set -euo pipefail
 
 CLIENTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PACKAGES="nodejs"
+PACKAGES="nodejs cli"
 
 check_pack() {
   local pkg="$1"
@@ -34,13 +34,30 @@ check_pack() {
   fi
 }
 
+check_committed_dependency() {
+  local found
+
+  found="$(node -p 'const pkg = require("./package.json"); (pkg.dependencies || {})["pidgey-client"] || ""')"
+  if [ "$found" != "file:../nodejs" ]; then
+    echo "clients/cli/package.json: dependencies[\"pidgey-client\"] must be exactly \"file:../nodejs\" (found \"${found}\")" >&2
+    exit 1
+  fi
+}
+
 check_package() {
   local pkg="$1"
 
   echo "== ${pkg} =="
   cd "${CLIENTS_DIR}/${pkg}"
 
-  yarn install --frozen-lockfile
+  if [ "$pkg" = "cli" ]; then
+    check_committed_dependency
+    # The node_modules volume persists between runs: drop the old library
+    # copy so Yarn copies the current clients/nodejs source again.
+    rm -rf node_modules/pidgey-client
+  fi
+
+  yarn install --frozen-lockfile --check-files
   yarn lint
   yarn typecheck
   yarn coverage
@@ -50,3 +67,5 @@ check_package() {
 for pkg in $PACKAGES; do
   (check_package "$pkg")
 done
+
+"${CLIENTS_DIR}/scripts/smoke_test.sh"

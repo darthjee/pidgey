@@ -34,7 +34,15 @@ The token never comes from argv (no `--token` flag): only `--token-file` or `PID
 
 ## Commands
 
-**Never install packages or run `yarn`/`npm` directly on the host.** The `yarn` scripts below run in the compose Node service:
+**Never install packages or run `yarn`/`npm` directly on the host.** The commands below run the checks in the compose Node service:
+
+```bash
+make clients-checks
+docker compose run --rm clients clients/scripts/checks.sh
+docker compose run --rm clients sh -c "cd clients/cli && yarn lint"       # or typecheck, test, coverage
+```
+
+The scripts, from `clients/cli/`:
 
 ```bash
 yarn lint        # ESLint
@@ -42,8 +50,6 @@ yarn typecheck   # tsc --allowJs --checkJs --noEmit
 yarn test        # Jasmine specs
 yarn coverage    # specs with c8 coverage (100 %)
 ```
-
-*(planned)* The exact `docker compose run …` lines and `make clients-checks` are filled in by #249 (the CLI scaffold); this file is updated then.
 
 ## Code conventions
 
@@ -58,7 +64,7 @@ lint → typecheck → coverage, looped until all three are clean. Never conside
 
 ## Conventions
 
-- Read `docs/agents/specs/node-client.md` and `docs/agents/specs/node-client/*.md` while they exist, then the as-built `docs/agents/clients/cli.md` (planned: #249). `product-owner` updates those docs in the same change set as the code. Never implement a **Pending decision** by guessing.
+- Read `docs/agents/specs/node-client.md` and `docs/agents/specs/node-client/*.md` while they exist, then the as-built `docs/agents/clients/cli.md`. `product-owner` updates those docs in the same change set as the code. Never implement a **Pending decision** by guessing.
 - Consult `security` before adding any (dev)dependency.
 - Follow `docs/agents/contributing.md`.
 

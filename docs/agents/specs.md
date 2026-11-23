@@ -17,7 +17,7 @@ built yet, in the [Specs](#specs) table; a spec is removed once the as-built doc
 | [email](email.md) | SMTP connections, synchronous send flow, message scope, failure handling. |
 | [api](api.md) | JSON API v1 surface, token authentication and scopes, conventions. |
 | [frontend](frontend.md) | React admin UI stack, layout, client layer, screens, build. |
-| [clients](clients.md) | Client libraries under `clients/`: the `pidgey-client` Node.js package (library core), its checks and CI job. |
+| [clients](clients.md) | Client libraries under `clients/`: the `pidgey-client` Node.js package and the `pidgey-cli` command (scaffold), their checks, the pack smoke test and CI job. |
 | [contributing](contributing.md) | Commit, PR and code-organization rules, plus testing, linting and definition of done in [contributing/testing.md](contributing/testing.md). |
 | [deployment](deployment.md) | The production deployment as implemented: pipeline, variables, server, operations, known gaps. |
 
@@ -28,7 +28,7 @@ docs of its area cover it.
 
 | Spec | Purpose |
 | --- | --- |
-| [node-client](specs/node-client.md) | Node.js library `pidgey-client`, CLI `pidgey-cli` and the `/v1` OpenAPI document (epic #219). The library core (send, errors, validation) is built and described in [clients.md](clients.md); retry (#248), the generated types (#250) and the CLI are not built yet. |
+| [node-client](specs/node-client.md) | Node.js library `pidgey-client`, CLI `pidgey-cli` and the `/v1` OpenAPI document (epic #219). The library (send, retries, errors, validation) and the CLI scaffold (`--version`, `--help`) are built and described in [clients.md](clients.md); the generated types (#250) and the CLI send flags (#251) are not built yet. |
 
 ## Conventions
 

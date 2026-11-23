@@ -1,0 +1,61 @@
+{
+  "name": "pidgey-cli",
+  "version": "0.1.0",
+  "description": "Command-line client for the Pidgey email-delivery API",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darthjee/pidgey.git",
+    "directory": "clients/cli"
+  },
+  "bin": {
+    "pidgey": "bin/pidgey.js"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "bin/",
+    "cli/"
+  ],
+  "scripts": {
+    "lint": "eslint bin cli specs",
+    "typecheck": "tsc --allowJs --checkJs --noEmit -p .",
+    "test": "jasmine \"specs/**/*_spec.js\"",
+    "coverage": "c8 jasmine \"specs/**/*_spec.js\""
+  },
+  "dependencies": {
+    "pidgey-client": "file:../nodejs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "c8": "11.0.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-jasmine": "^4.1.3",
+    "eslint-plugin-jsdoc": "61.5.0",
+    "globals": "^16.5.0",
+    "jasmine": "^5.0.0",
+    "typescript": "^5.9.3"
+  },
+  "c8": {
+    "reporter": [
+      "text",
+      "lcov"
+    ],
+    "include": [
+      "bin/**/*.js",
+      "cli/**/*.js"
+    ],
+    "exclude": [
+      "specs/**",
+      "coverage/**"
+    ],
+    "all": true,
+    "check-coverage": true,
+    "lines": 100,
+    "branches": 100,
+    "functions": 100,
+    "statements": 100
+  }
+}

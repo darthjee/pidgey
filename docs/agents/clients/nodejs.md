@@ -2,7 +2,8 @@
 
 The library for Pidgey's `/v1` API, in `clients/nodejs/`. It has the working **core**: the
 configuration, `send` with its retry policy, `PidgeyError` and the failure classification. The
-OpenAPI types and the contract spec (#250) are not built yet. The rules are specified in
+OpenAPI types and the contract spec (#250) are not built yet. The CLI that consumes it is in
+[cli.md](cli.md). The rules are specified in
 [specs/node-client/library.md](../specs/node-client/library.md) and
 [specs/node-client/errors-and-retry.md](../specs/node-client/errors-and-retry.md); this page
 records what was built and links the rules instead of copying them.
@@ -224,6 +225,25 @@ npm pack --dry-run --json \
 
 If an unexpected file appears, narrow `files` instead of accepting it in the list.
 
+## Pack smoke test
+
+`clients/scripts/smoke_test.sh` runs once per `checks.sh`, after every package has passed. It
+packs this library, packs the CLI with `pack_cli.sh` ([cli.md](cli.md#the-dependency-on-the-library))
+and installs both tarballs in an empty project, offline and with `--ignore-scripts`. For the
+library it asserts what a consumer gets from the tarball: `import { PidgeyClient, PidgeyError }
+from 'pidgey-client'` resolves through the `exports` map, and `require('pidgey-client')` works
+(`require(esm)`, available from the floor Node.js 22.12). It also asserts the CLI's packed
+dependency range and its `--version` output, which is the library's `VERSION` as installed from
+the tarball. What it checks is listed in [clients.md](../clients.md#checks).
+
+**Bumping the library `version`.** The CLI's `yarn.lock` records the `file:../nodejs` entry
+with the library version (`"pidgey-client@file:../nodejs": version "<x>"`). Checked with Yarn
+1.22: after a bump, `yarn install --frozen-lockfile` in `clients/cli/` still **passes** and
+leaves the lockfile as it was, so a stale entry does not fail the checks. Refresh it in the
+same change anyway, with a plain `yarn install` in `clients/cli/` (in the compose `clients`
+service), so the lockfile does not drift. The packed range follows `package.json` on its own,
+with no manual edit.
+
 ## Commands
 
 | Command | Does |
@@ -243,6 +263,8 @@ images:
 - the current one, `darthjee/circleci_node:0.2.1`, the image of the other check jobs.
 
 It runs on every branch and tag, in parallel with the other check jobs, and `coverage_final`
-requires it. Only the current-version instance uploads `clients/nodejs/coverage/lcov.info` to
-Codacy, with the prefix `clients/nodejs`. The clients are not deployed, so no deploy job
+requires it. Only the current-version instance uploads coverage to Codacy: `clients/nodejs/coverage/lcov.info`
+with the prefix `clients/nodejs`, then `clients/cli/coverage/lcov.info` with the prefix
+`clients/cli` ([cli.md](cli.md#ci)). The job also runs the smoke test (through `checks.sh`) and
+then asserts that the working tree is unchanged. The clients are not deployed, so no deploy job
 requires it. See [deployment/pipeline.md](../deployment/pipeline.md).

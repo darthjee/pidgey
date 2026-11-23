@@ -1,6 +1,6 @@
 # Testing
 
-Test suites, tooling and commands. The definition of done lives in [contributing.md](../contributing.md#definition-of-done-for-prs); area-specific testing docs stay with their areas: [persistence/testing.md](../persistence/testing.md), [frontend/testing.md](../frontend/testing.md), [email/testing.md](../email/testing.md), and the client packages' commands in [clients/nodejs.md](../clients/nodejs.md).
+Test suites, tooling and commands. The definition of done lives in [contributing.md](../contributing.md#definition-of-done-for-prs); area-specific testing docs stay with their areas: [persistence/testing.md](../persistence/testing.md), [frontend/testing.md](../frontend/testing.md), [email/testing.md](../email/testing.md), and the client packages' commands in [clients/nodejs.md](../clients/nodejs.md) and [clients/cli.md](../clients/cli.md).
 
 ## Backend Testing
 
@@ -172,11 +172,20 @@ Details in [frontend/testing.md](../frontend/testing.md).
 
 - `clients/nodejs/` (`pidgey-client`): Jasmine specs under `specs/`, named `*_spec.js`, run under
   c8 with a **100 %** threshold on lines, branches, functions and statements.
-- ESLint 9 flat config, and `yarn typecheck` (`tsc --allowJs --checkJs --noEmit`) over `lib/`.
+- `clients/cli/` (`pidgey-cli`): the same stack and the same 100 % threshold, over `bin/` and
+  `cli/`. In-process specs mirror the source; `specs/bin/Pidgey_spec.js` spawns the real
+  command for what only a subprocess proves (exit status, streams).
+- ESLint 9 flat config, and `yarn typecheck` (`tsc --allowJs --checkJs --noEmit`) over the
+  sources of each package.
 - A pack file-list check compares `npm pack --dry-run` with the committed `pack-files.txt`.
+- A pack smoke test installs both packed tarballs offline in an empty project and checks the
+  CLI's packed dependency range, the library's `exports` (`import` and `require(esm)`) and
+  `pidgey --version` / `--help`; `checks.sh` also lints the CLI's committed dependency
+  (`file:../nodejs`).
 - One script runs all of it: `clients/scripts/checks.sh`, called by `make clients-checks`
   (and so by `make tests`) and by the CI job `clients_checks`.
 - Commands: `make clients-checks`; one script on its own with
-  `docker compose run --rm clients sh -c "cd clients/nodejs && yarn <lint|typecheck|test|coverage>"`.
+  `docker compose run --rm clients sh -c "cd clients/nodejs && yarn <lint|typecheck|test|coverage>"`
+  (the same with `clients/cli` for the CLI).
 
-Details in [clients/nodejs.md](../clients/nodejs.md).
+Details in [clients/nodejs.md](../clients/nodejs.md) and [clients/cli.md](../clients/cli.md).
