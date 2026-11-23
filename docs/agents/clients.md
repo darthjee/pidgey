@@ -6,13 +6,13 @@ of `POST /v1/messages` only; the admin UI keeps its own cookie-authenticated cli
 
 | File | Content |
 | --- | --- |
-| [nodejs.md](clients/nodejs.md) | The `pidgey-client` package: scaffold, current surface, scripts, coverage threshold, pack check, commands, CI job. |
+| [nodejs.md](clients/nodejs.md) | The `pidgey-client` package: core (send, errors, validation), current surface, scripts, coverage threshold, pack check, commands, CI job. |
 
 The `clients/` folder:
 
 | Path | Role | Status |
 | --- | --- | --- |
-| `clients/nodejs/` | The Node.js library `pidgey-client`. | Scaffolded: stub classes only. |
+| `clients/nodejs/` | The Node.js library `pidgey-client`. | Core built (send, errors, validation); retries coming in #248. |
 | `clients/cli/` | The command-line client `pidgey-cli`. | Coming in #249. |
 | `clients/scripts/` | Shared scripts. `checks.sh` runs the checks of every package. | Built. |
 
