@@ -60,11 +60,11 @@ types ([openapi.md](openapi.md#generated-types)).
 | --- | --- | --- | --- |
 | `token` | yes | — | Non-empty string; whitespace-only counts as empty. Sent as `Authorization: Bearer <token>`. |
 | `baseUrl` | yes | — | Absolute URL with scheme `http` or `https`; a trailing slash is normalized away; a path prefix is kept. |
-| `maxRetries` | no | `2` | Non-negative integer: at most `maxRetries + 1` attempts; `0` disables retrying. |
-| `retryDelayMs` | no | `500` | Base delay of the exponential backoff ([errors-and-retry.md](errors-and-retry.md#backoff)). |
-| `retryAmbiguous` | no | `false` | When `true`, failures that may have delivered the message are retried too, at the risk of a duplicate ([errors-and-retry.md](errors-and-retry.md#retryambiguous)). |
-| `timeoutMs` | no | `30000` | Per-attempt timeout in milliseconds ([Timeout](#timeout)). |
-| `allowInsecureHttp` | no | `false` | Allows an `http://` `baseUrl` on a non-loopback host; has no effect with `https://` ([Cleartext transport](#cleartext-transport)). |
+| `maxRetries` | no | `2` | Non-negative integer (`Number.isInteger(v) && v >= 0`): at most `maxRetries + 1` attempts; `0` disables retrying. |
+| `retryDelayMs` | no | `500` | Non-negative finite integer. Base delay of the exponential backoff ([errors-and-retry.md](errors-and-retry.md#backoff)). |
+| `retryAmbiguous` | no | `false` | A boolean when given. When `true`, failures that may have delivered the message are retried too, at the risk of a duplicate ([errors-and-retry.md](errors-and-retry.md#retryambiguous)). |
+| `timeoutMs` | no | `30000` | Positive finite integer. Per-attempt timeout in milliseconds ([Timeout](#timeout)). |
+| `allowInsecureHttp` | no | `false` | A boolean when given. Allows an `http://` `baseUrl` on a non-loopback host; has no effect with `https://` ([Cleartext transport](#cleartext-transport)). |
 
 Configuration mistakes reject with the client-local code `CLIENT_CONFIGURATION` **before any
 request is made**:
@@ -75,10 +75,15 @@ request is made**:
 - an `http://` `baseUrl` on a non-loopback host without `allowInsecureHttp: true`
   ([Cleartext transport](#cleartext-transport));
 - `maxRetries` negative or not an integer;
-- an invalid `timeoutMs`.
+- `retryDelayMs` negative or not a finite integer;
+- `timeoutMs` that is not a positive finite integer (zero, negative, fractional, `NaN` or
+  `Infinity`);
+- `retryAmbiguous` or `allowInsecureHttp` given as anything but a boolean.
 
-A per-call `idempotencyKey` outside the server's format also rejects with
-`CLIENT_CONFIGURATION` ([Idempotency key](#idempotency-key)).
+`undefined` for any option means "use the default".
+
+A per-call `idempotencyKey` outside the server's format, or a per-call `signal` that is not
+an `AbortSignal`, also rejects with `CLIENT_CONFIGURATION` ([Idempotency key](#idempotency-key)).
 
 `baseUrl` normalization: `https://pidgey.example.com`, `https://pidgey.example.com/`
 both send to `https://pidgey.example.com/v1/messages`; a prefix is kept, so
@@ -143,7 +148,7 @@ Performs `POST /v1/messages` and returns a promise.
 | `Accept` | `application/json` |
 | `Idempotency-Key` | Always sent: the caller's `idempotencyKey`, or a `crypto.randomUUID()` generated once per `send()` ([Idempotency key](#idempotency-key)). |
 | `Origin` | Not sent, so the API's [origin check](../../api/conventions/origin-check.md) passes for a server-side caller. |
-| Redirects | Not followed (`redirect: 'error'`). |
+| Redirects | Not followed (`redirect: 'manual'`, see [Redirects](#redirects)). |
 
 Every attempt is a normal, independent request, except that all the attempts of one `send()`
 carry the **same** `Idempotency-Key`: the client caches nothing about the token and does not
@@ -191,9 +196,13 @@ Any other outcome rejects with a `PidgeyError`
 
 ## Redirects
 
-Redirects are not followed (`redirect: 'error'`): a 3xx would turn the `POST` into a `GET`
-and could carry the `Authorization` header to another host. Any 3xx rejects with
-`INVALID_RESPONSE`, keeping the status, and is never retried.
+Redirects are not followed: a 3xx would turn the `POST` into a `GET` and could carry the
+`Authorization` header to another host. Any 3xx rejects with `INVALID_RESPONSE`, keeping the
+status, and is never retried.
+
+The implementation calls `fetch` with `redirect: 'manual'`, which returns the 3xx response
+itself, so its status is kept. `redirect: 'error'` has the same "never followed" outcome but
+surfaces the redirect as a network `TypeError` with no status, so it was not used.
 
 ## Abort
 
