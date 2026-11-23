@@ -1,5 +1,9 @@
 README.md
 lib/PidgeyClient.js
 lib/PidgeyError.js
+lib/config.js
 lib/index.js
+lib/request.js
+lib/response.js
+lib/version.js
 package.json
