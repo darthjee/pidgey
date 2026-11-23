@@ -61,7 +61,7 @@ types ([openapi.md](openapi.md#generated-types)).
 | `token` | yes | — | Non-empty string; whitespace-only counts as empty. Sent as `Authorization: Bearer <token>`. |
 | `baseUrl` | yes | — | Absolute URL with scheme `http` or `https`; a trailing slash is normalized away; a path prefix is kept. |
 | `maxRetries` | no | `2` | Non-negative integer (`Number.isInteger(v) && v >= 0`): at most `maxRetries + 1` attempts; `0` disables retrying. |
-| `retryDelayMs` | no | `500` | Non-negative finite integer. Base delay of the exponential backoff ([errors-and-retry.md](errors-and-retry.md#backoff)). |
+| `retryDelayMs` | no | `500` | Non-negative finite integer. Base delay of the exponential backoff ([errors-and-retry.md](errors-and-retry.md#backoff)). Every wait is capped at `8000` ms, so a value above `8000` waits `8000` ms. |
 | `retryAmbiguous` | no | `false` | A boolean when given. When `true`, failures that may have delivered the message are retried too, at the risk of a duplicate ([errors-and-retry.md](errors-and-retry.md#retryambiguous)). |
 | `timeoutMs` | no | `30000` | Positive finite integer. Per-attempt timeout in milliseconds ([Timeout](#timeout)). |
 | `allowInsecureHttp` | no | `false` | A boolean when given. Allows an `http://` `baseUrl` on a non-loopback host; has no effect with `https://` ([Cleartext transport](#cleartext-transport)). |

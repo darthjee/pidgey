@@ -1,9 +1,8 @@
 # Node.js client (`pidgey-client`)
 
 The library for Pidgey's `/v1` API, in `clients/nodejs/`. It has the working **core**: the
-configuration, one `send` attempt, `PidgeyError` and the failure classification. **Retries are not
-built yet** (#248): a `send` makes exactly one attempt, whatever `maxRetries` says. The OpenAPI
-types and the contract spec (#250) are not built either. The rules are specified in
+configuration, `send` with its retry policy, `PidgeyError` and the failure classification. The
+OpenAPI types and the contract spec (#250) are not built yet. The rules are specified in
 [specs/node-client/library.md](../specs/node-client/library.md) and
 [specs/node-client/errors-and-retry.md](../specs/node-client/errors-and-retry.md); this page
 records what was built and links the rules instead of copying them.
@@ -17,7 +16,7 @@ records what was built and links the rules instead of copying them.
 | Module system | ESM (`"type": "module"`). |
 | Entry point | `exports` maps `.` to `lib/index.js`. |
 | Node.js | `engines.node` is `>=22.12.0`. |
-| Published files | The `files` allowlist holds `lib/` only (seven modules); npm adds `package.json` and `README.md`. |
+| Published files | The `files` allowlist holds `lib/` only (eight modules); npm adds `package.json` and `README.md`. |
 | Dependencies | No runtime dependency. Why: the library stays dependency-free to keep its supply chain empty. |
 | Install scripts | None (`preinstall`, `install`, `postinstall`, `prepare`). Why: nothing runs at the consumer's install. |
 | License | MIT. |
@@ -36,9 +35,10 @@ fails the checks.
 | File | Role |
 | --- | --- |
 | `lib/index.js` | The public exports. |
-| `lib/PidgeyClient.js` | The client: the `send` call and one attempt. Its configuration is in private fields, so the token never shows in `console.log(client)`, `JSON.stringify(client)` or a logger. It keeps no per-call state, so concurrent sends are independent. |
+| `lib/PidgeyClient.js` | The client: the `send` call, its retry loop and one attempt. Its configuration is in private fields, so the token never shows in `console.log(client)`, `JSON.stringify(client)` or a logger. It keeps no per-call state, so concurrent sends are independent. |
 | `lib/PidgeyError.js` | The error class. |
 | `lib/config.js` | Option validation, the defaults and the cleartext rule. |
+| `lib/retry.js` | The retry policy helpers, internal and not exported: the retry decision, the backoff delay and the abortable wait. |
 | `lib/request.js` | The request body whitelist, the idempotency key check and the classification of a `fetch` failure. |
 | `lib/response.js` | The capped body read, the redaction, the cut and the mapping of a response to a result or an error. |
 | `lib/version.js` | `VERSION`. |
@@ -55,9 +55,9 @@ sums up what was built; the rules are in
 | `token` | required | A string with a non-whitespace character. |
 | `baseUrl` | required | Parses as an absolute URL with the `http:` or `https:` scheme. The endpoint is `<baseUrl>/v1/messages`: a trailing slash is dropped and a path prefix is kept. |
 | `allowInsecureHttp` | `false` | A boolean. |
-| `maxRetries` | `2` | A non-negative integer. Validated, but unused until #248. |
-| `retryDelayMs` | `500` | A non-negative integer. Validated, but unused until #248. |
-| `retryAmbiguous` | `false` | A boolean. Validated, but unused until #248. |
+| `maxRetries` | `2` | A non-negative integer. At most `maxRetries + 1` attempts per `send`; `0` means exactly one. |
+| `retryDelayMs` | `500` | A non-negative integer. The base of the backoff; every wait is capped at 8000 ms, so a larger value waits 8000 ms. |
+| `retryAmbiguous` | `false` | A boolean. When `true`, an attempt that may have delivered the message is retried too, at the risk of a duplicate. |
 | `timeoutMs` | `30000` | A positive integer. |
 
 The error messages never include the token, the URL or the key.
@@ -87,9 +87,47 @@ has no effect ([library.md](../specs/node-client/library.md#cleartext-transport)
   is not replayed as a `GET` and the token goes to no other host. It rejects with
   `INVALID_RESPONSE`, keeping its `statusCode`, with `possiblySent: false`. `redirect: 'error'`
   was not used because it surfaces the redirect as a network error without a status.
+- **Retries.** See [Retry policy](#retry-policy).
 - **Abort and timeout.** The caller's signal and a per-attempt timer (`timeoutMs`) are combined
   with `AbortSignal.any`, and the timer is cleared when the attempt ends. See
   [Failure classification](#failure-classification).
+
+### Retry policy
+
+`send` runs the attempt in a loop of at most `maxRetries + 1` attempts. Every attempt sends the
+same body and the same `Idempotency-Key`; the next `send` call gets a new key. The rules are in
+[errors-and-retry.md](../specs/node-client/errors-and-retry.md#retry-policy).
+
+**Decision.** `lib/retry.js` decides from the error's `code`, `statusCode` and `possiblySent`,
+never from the raw `smtp` reply, in this order:
+
+1. Never retried, whatever the options: `INVALID_RESPONSE`, `ABORTED`, `CLIENT_CONFIGURATION`,
+   `SMTP_PROTOCOL_ERROR`, `IDEMPOTENCY_KEY_IN_USE` and `IDEMPOTENCY_KEY_REUSED`.
+2. An ambiguous attempt (`possiblySent: true`) is retried only when `retryAmbiguous` is on. This
+   is what keeps the default client from ever causing a duplicate.
+3. `NETWORK_ERROR`, `SMTP_CONNECTION_FAILED` and `SMTP_TEMPORARY_FAILURE` are retried.
+4. `SMTP_TIMEOUT` is retried; it is always ambiguous, so step 2 already needs `retryAmbiguous`.
+5. An unknown `SMTP_*` code (one outside the seven the specs name: `SMTP_CONNECTION_FAILED`,
+   `SMTP_TEMPORARY_FAILURE`, `SMTP_TIMEOUT`, `SMTP_REJECTED`, `SMTP_AUTH_FAILED`,
+   `SMTP_TLS_FAILED` and `SMTP_PROTOCOL_ERROR`) is retried on a `503` or a `504` (the `504` is
+   ambiguous, so step 2 gates it); a `502` or any other status is not. A known code that is not
+   in steps 3 and 4, such as `SMTP_REJECTED`, falls to step 6.
+6. Anything else is not retried.
+
+**Backoff.** Before retry *n* (1-based) the loop waits `min(retryDelayMs * 2^(n-1), 8000)` ms, so
+the defaults wait 500, 1000, 2000... ms. The cap applies to the first wait too: a `retryDelayMs`
+of `10000` waits 8000 ms. The wait is a timer the caller's signal cancels, and a signal that is
+already aborted rejects at once. No jitter is added and no `Retry-After` is read (`/v1` sends
+none).
+
+**Outcome.**
+
+- When a failure is not retried, or the retries run out, `send` rejects with the **last** error.
+  Its `possiblySent` is `true` if **any** attempt was ambiguous.
+- A caller abort during the backoff rejects with a new `ABORTED` error, with no further attempt.
+  Its `possiblySent` is `true` only when an earlier attempt was ambiguous.
+- The per-attempt timeout restarts with each attempt; a timeout is an ambiguous `NETWORK_ERROR`,
+  so it is retried only with `retryAmbiguous`.
 
 ### `PidgeyError`
 
@@ -140,10 +178,12 @@ with no code, is ambiguous. This errs on the safe side
 
 The specs mirror `lib/` under `clients/nodejs/specs/lib/`, plus a shared helper:
 
-- `config_spec.js`, `request_spec.js`, `response_spec.js` (the body read, redaction and cut),
+- `config_spec.js`, `request_spec.js`, `retry_spec.js` (the decision, the backoff delay and the
+  abortable wait), `response_spec.js` (the body read, redaction and cut),
   `response_map_spec.js` (the mapping of a response) and `Version_spec.js`;
 - `index_spec.js`, `PidgeyClient_spec.js`, `PidgeyClientSend_spec.js`,
-  `PidgeyClientSendAbort_spec.js` and `PidgeyError_spec.js`;
+  `PidgeyClientSendAbort_spec.js`, `RetryPolicy_spec.js` (the retry loop end to end against
+  `TestServer`) and `PidgeyError_spec.js`;
 - `specs/support/TestServer.js`, a scripted in-process `node:http` server on `127.0.0.1` with
   port `0`: it records the requests and answers from a script (JSON or raw bodies, gzip,
   delays, a destroyed socket, a stalled body). The specs use real `fetch` against it.

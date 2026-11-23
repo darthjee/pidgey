@@ -2,7 +2,7 @@
 
 The Node.js client for the `/v1` API of [Pidgey](https://github.com/darthjee/pidgey), an
 email-delivery service. It is in development: `0.1.0` is the first release line. It sends one
-email per `send` call; the automatic retry policy is not implemented yet.
+email per `send` call and retries the failures that are safe to retry.
 
 It has no runtime dependency: it only uses the global `fetch` and `AbortSignal`.
 
@@ -69,9 +69,9 @@ Every call sends an `Idempotency-Key`: yours, or a `crypto.randomUUID()` generat
 | `baseUrl` | yes | none | Absolute URL with scheme `http` or `https`. A trailing slash is removed and a path prefix is kept: `https://example.com/pidgey/` sends to `https://example.com/pidgey/v1/messages`. |
 | `allowInsecureHttp` | no | `false` | Allows an `http://` `baseUrl` on a non-loopback host. No effect with `https://`. |
 | `timeoutMs` | no | `30000` | Per-attempt timeout in milliseconds; a positive integer. |
-| `maxRetries` | no | `2` | Non-negative integer. Validated and stored; the retry behaviour comes in a later release. |
-| `retryDelayMs` | no | `500` | Non-negative integer. Validated and stored; the retry behaviour comes in a later release. |
-| `retryAmbiguous` | no | `false` | Boolean. Validated and stored; the retry behaviour comes in a later release. |
+| `maxRetries` | no | `2` | Non-negative integer: retries after the first attempt, so a call makes at most `maxRetries + 1` attempts. `0` makes exactly one. |
+| `retryDelayMs` | no | `500` | Non-negative integer: base of the exponential backoff, in milliseconds. Each wait is capped at `8000`. |
+| `retryAmbiguous` | no | `false` | Boolean: also retry failures that may have delivered the message. Risks a duplicate email; see [Retries](#retries). |
 
 An invalid option rejects with the code `CLIENT_CONFIGURATION` before any request, and the
 message never contains the token. The token is kept in private fields, so
@@ -117,6 +117,43 @@ delivered although the call failed: a timeout, a reset connection, an SMTP timeo
 unreadable `2xx` answer, or an abort after the request was dispatched. Treat `true` as "do not
 resend without an idempotency key".
 
+## Retries
+
+`send` retries a failed attempt when the failure is transient, up to `maxRetries` times. The
+decision uses the error `code`, never the SMTP reply.
+
+Retried by default:
+
+- `NETWORK_ERROR` when the request provably never reached Pidgey (DNS failure, refused
+  connection, TLS failure before the request was written);
+- `SMTP_CONNECTION_FAILED` and `SMTP_TEMPORARY_FAILURE`;
+- an unknown `SMTP_*` code on `503`.
+
+Never retried, whatever the options: validation and authorization failures (`400`, `401`,
+`403`), `409` (including `IDEMPOTENCY_KEY_IN_USE`), `413`, `415`, `422` (including
+`IDEMPOTENCY_KEY_REUSED`), `429`, `500`, `SMTP_REJECTED`, `SMTP_AUTH_FAILED`,
+`SMTP_TLS_FAILED`, `SMTP_PROTOCOL_ERROR`, an unknown `SMTP_*` code on `502`, any other unknown
+code, `INVALID_RESPONSE`, `CLIENT_CONFIGURATION` and `ABORTED`.
+
+Failures that may have delivered the message (`possiblySent: true`) are not retried by
+default, so the default client never causes a duplicate. They are an ambiguous
+`NETWORK_ERROR` (a timeout, a connection reset after the request was written), `SMTP_TIMEOUT`
+and an unknown `SMTP_*` code on `504`. `retryAmbiguous: true` retries them too, which can
+send the same email twice: use it only when an occasional duplicate is better than a lost
+send. `SMTP_PROTOCOL_ERROR` and `INVALID_RESPONSE` are never retried, even with it.
+
+The wait before a retry is `retryDelayMs`, then twice that, and so on, each capped at 8000 ms.
+The cap also applies to the first wait: `retryDelayMs: 10000` waits 8000 ms.
+
+Every attempt of a call sends the same body and the same `Idempotency-Key`. When the retries
+run out, the call rejects with the last error; its `possiblySent` is `true` if any attempt
+was ambiguous, not only the last one.
+
+With the defaults the worst case is about 91.5 s: three attempts of 30 s each plus the waits
+of 0.5 s and 1 s. To bound the whole call, pass a signal of your own:
+`send(message, { signal: AbortSignal.timeout(ms) })`. An abort is never retried and also
+cancels the wait between two attempts.
+
 ## Abort and timeout
 
 ```js
@@ -127,7 +164,9 @@ await pending; // rejects with code 'ABORTED'
 ```
 
 A signal that is already aborted rejects with `ABORTED` and `possiblySent: false`. Aborted after
-the request was dispatched, the call rejects with `ABORTED` and `possiblySent: true`.
+the request was dispatched, or during the wait that follows an ambiguous attempt, the call
+rejects with `ABORTED` and `possiblySent: true`; aborted during the wait that follows only
+unambiguous failures, it rejects with `possiblySent: false`.
 
 `timeoutMs` bounds each attempt. To bound the whole call, pass a signal of your own:
 

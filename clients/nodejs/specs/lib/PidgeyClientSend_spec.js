@@ -203,7 +203,7 @@ describe('PidgeyClient#send', () => {
   describe('network failures', () => {
     it('reports a refused connection as an unambiguous NETWORK_ERROR', async () => {
       await start();
-      const client = clientFor();
+      const client = clientFor({ maxRetries: 0 });
       await server.stop();
       server = await TestServer.start();
       const error = await failureOf(client.send(MESSAGE));

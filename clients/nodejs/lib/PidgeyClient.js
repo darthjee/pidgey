@@ -4,6 +4,7 @@ import {
   buildBody, failArgument, isUnambiguousNetworkError, isValidIdempotencyKey, tooLargeError,
 } from './request.js';
 import { mapResponse, readText } from './response.js';
+import { backoffDelay, shouldRetry, wait } from './retry.js';
 
 /**
  * Client for the Pidgey `/v1` API.
@@ -22,9 +23,15 @@ export class PidgeyClient {
    * @param {string} [options.token] - The API token (required).
    * @param {string} [options.baseUrl] - Absolute `http(s)` URL of the Pidgey server (required).
    * @param {boolean} [options.allowInsecureHttp] - Allow `http://` on a non-loopback host (default `false`).
-   * @param {number} [options.maxRetries] - Retries after the first attempt (default `2`).
-   * @param {number} [options.retryDelayMs] - Base backoff delay in milliseconds (default `500`).
-   * @param {boolean} [options.retryAmbiguous] - Retry failures that may have delivered (default `false`).
+   * @param {number} [options.maxRetries] - Retries after the first attempt (default `2`), so a
+   *   call is attempted at most `maxRetries + 1` times. `0` performs exactly one attempt.
+   * @param {number} [options.retryDelayMs] - Base of the exponential backoff in milliseconds
+   *   (default `500`): the waits are `retryDelayMs`, twice that, and so on, each capped at
+   *   `8000` ms (a base above `8000` waits `8000` ms from the first retry).
+   * @param {boolean} [options.retryAmbiguous] - Also retry the failures that may have delivered
+   *   the message: an ambiguous `NETWORK_ERROR`, `SMTP_TIMEOUT` and an unknown `SMTP_*` on `504`
+   *   (default `false`). Turning it on risks a duplicate email, so it stays off unless an
+   *   occasional duplicate is preferred to a lost send.
    * @param {number} [options.timeoutMs] - Per-attempt timeout in milliseconds (default `30000`).
    * @throws {PidgeyError} `CLIENT_CONFIGURATION` when an option is invalid.
    */
@@ -40,6 +47,13 @@ export class PidgeyClient {
    * was replayed and this call sent nothing). Rejects with a {@link PidgeyError} for every
    * failure, never with another error type; a mistake in the arguments rejects with
    * `CLIENT_CONFIGURATION` before any request.
+   *
+   * A failed attempt is retried when the retry policy allows it (see the `maxRetries`,
+   * `retryDelayMs` and `retryAmbiguous` options): at most `maxRetries + 1` attempts, all with the
+   * same body and the same `Idempotency-Key`, separated by an exponential backoff capped at
+   * `8000` ms. When the retries run out, the last error is the one rejected, with
+   * `possiblySent` `true` if any attempt was ambiguous. An abort is never retried and also
+   * cancels the backoff wait.
    *
    * Only `to`, `subject`, `text` and `html` are sent. The values are not validated here: the
    * API is the only validator. Every call sends an `Idempotency-Key`: the caller's, or a
@@ -64,7 +78,41 @@ export class PidgeyClient {
         code: 'ABORTED', possiblySent: false,
       });
     }
-    return this.#attempt(body, idempotencyKey ?? crypto.randomUUID(), signal);
+    return this.#run(body, idempotencyKey ?? crypto.randomUUID(), signal);
+  }
+
+  /**
+   * Runs the attempts of a send: the retry loop around `#attempt`.
+   *
+   * It keeps `anyAmbiguous`, the OR of the `possiblySent` of every failed attempt, so the
+   * error it rejects with (the last one, or `ABORTED` during a backoff) reports it.
+   * @param {string} body - The JSON request body.
+   * @param {string} key - The `Idempotency-Key` of the whole `send` call.
+   * @param {AbortSignal | undefined} signal - The caller's signal.
+   * @returns {Promise<Record<string, any>>} The parsed success body, plus `replayed`.
+   */
+  async #run(body, key, signal) {
+    const { maxRetries, retryDelayMs, retryAmbiguous } = this.#config;
+    let anyAmbiguous = false;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.#attempt(body, key, signal);
+      } catch (failure) {
+        // `#attempt` rejects only with a PidgeyError.
+        const error = /** @type {PidgeyError} */ (failure);
+        anyAmbiguous ||= error.possiblySent;
+        if (attempt >= maxRetries || !shouldRetry(error, retryAmbiguous)) {
+          error.possiblySent = anyAmbiguous;
+          throw error;
+        }
+      }
+      try {
+        await wait(backoffDelay(retryDelayMs, attempt + 1), signal);
+      } catch {
+        throw new PidgeyError('The call was aborted.', { code: 'ABORTED', possiblySent: anyAmbiguous });
+      }
+    }
+    /* c8 ignore next -- V8 reports the implicit end of the method, which the endless loop never reaches */
   }
 
   /**
