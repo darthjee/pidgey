@@ -4,3 +4,4 @@
  */
 export { PidgeyClient } from './PidgeyClient.js';
 export { PidgeyError } from './PidgeyError.js';
+export { VERSION } from './version.js';
