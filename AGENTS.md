@@ -35,7 +35,7 @@ All project documentation lives under [`docs/agents/`](docs/agents/):
 | [Email](docs/agents/email.md) | SMTP connections, synchronous send flow, message scope, failure handling. |
 | [API](docs/agents/api.md) | JSON API v1 surface, token authentication and scopes, conventions. |
 | [Frontend](docs/agents/frontend.md) | React admin UI stack, layout, client layer, screens, build. |
-| [Clients](docs/agents/clients.md) | Client libraries under `clients/`: the `pidgey-client` Node.js package, its checks and CI job. |
+| [Clients](docs/agents/clients.md) | Client packages under `clients/`: the `pidgey-client` Node.js library and the `pidgey-cli` command-line client, their checks and CI job. |
 | [Folder Structure](docs/agents/folder-structure.md) | Top-level directory layout and the role of each folder. |
 | [Architecture](docs/agents/architecture.md) | Source layout, modules, code style, and implementation guidelines. |
 | [Flow](docs/agents/flow.md) | Main runtime flow of the application. |
