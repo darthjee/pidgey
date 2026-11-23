@@ -192,6 +192,8 @@ retried.
 
 - Exponential, starting at `retryDelayMs` (default `500` ms) and doubling: `500`, `1000`,
   `2000`, … ms, capped at `8000` ms.
+- The cap applies to every wait, the first one included: a `retryDelayMs` above `8000` waits
+  `8000` ms before each retry (decided in #248).
 - The wait is cancelled by the caller's `AbortSignal` ([library.md](library.md#abort)).
 
 ## Forward compatibility
