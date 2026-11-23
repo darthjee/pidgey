@@ -7,6 +7,8 @@
 | `./docker_volumes/vendor` | `<app>/vendor` | Composer vendor, kept out of the source tree. |
 | `./frontend` | `/home/node/app` (frontend working dir) | Frontend source, live-edited (`frontend_dev`). |
 | `./docker_volumes/node_modules` | `/home/node/app/node_modules` | Yarn dependencies (`frontend_dev`), installed by `make fe-install`; hides the image's install. |
+| `./clients` | `/home/node/app/clients` | Client packages and `clients/scripts/`, live-edited (`clients`). |
+| `./docker_volumes/clients_nodejs_node_modules` | `/home/node/app/clients/nodejs/node_modules` | Yarn dependencies of `clients/nodejs/` (`clients`), installed by `checks.sh`; keeps them out of the source tree. |
 | `./docker_volumes/configuration` | configuration dir | Future work. Local env/config files. |
 | `./docker_volumes/cache` | cache dir | Future work. Composer/Yarn caches. |
 

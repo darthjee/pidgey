@@ -117,3 +117,12 @@ services:
     depends_on:
       - app
     command: yarn server
+
+  # One-off service for the client packages under clients/ (see
+  # docs/agents/specs/node-client/testing.md). Run it with `make clients-checks`.
+  clients:
+    image: darthjee/node:0.2.1
+    working_dir: /home/node/app
+    volumes:
+      - ./clients:/home/node/app/clients
+      - ./docker_volumes/clients_nodejs_node_modules:/home/node/app/clients/nodejs/node_modules

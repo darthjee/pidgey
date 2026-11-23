@@ -10,7 +10,8 @@
 | `migrate` | Prepare the development database: `docker compose run --rm app composer db:prepare` (wait, create if missing, migrate). Runs on `app` so it targets `pidgey_development` even though `make dev`'s shell points at `pidgey_test`. |
 | `db-reset` | Drop and re-prepare the development database: `docker compose run --rm app sh -c "composer db:drop && composer db:prepare"`. |
 | `openapi-diff` | Run the `/v1` breaking-change check locally: `git fetch --quiet origin main`, then `scripts/check_openapi_breaking.sh source/openapi/v1.json origin/main` with `OASDIFF_VERSION` exported. Uses `oasdiff` from `PATH` when installed, otherwise `docker run` of the pinned `tufin/oasdiff:$(OASDIFF_VERSION)` image. Fails on any `ERR`-level breaking change, the same check as `backend_checks` (see [`/v1` is additive-only](../api/endpoints/openapi.md#v1-is-additive-only)). |
-| `tests` | Run tests and linters: backend in the `tests` container (which starts `mysql` and the three test Mailpit instances as dependencies) (`docker compose run --rm tests sh -c "composer lint && composer tests"`), then frontend in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev sh -c "yarn lint && yarn coverage"`). |
+| `tests` | Run tests and linters: backend in the `tests` container (which starts `mysql` and the three test Mailpit instances as dependencies) (`docker compose run --rm tests sh -c "composer lint && composer tests"`), then frontend in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev sh -c "yarn lint && yarn coverage"`), then `make clients-checks`. |
+| `clients-checks` | Run the client checks: `docker compose run --rm clients clients/scripts/checks.sh`. The same script as the CI job `clients_checks`, on the development Node.js version only (CI also runs the floor version). Called by `tests`. See [clients/nodejs.md](../clients/nodejs.md#commands). |
 | `build-ci-base` | Build the `circleci_pidgey-base` CI image (amd64 only) from the `source/` context, tagged `$(CI_BASE_IMAGE):$(CI_BASE_VERSION)`, passing `--build-arg OASDIFF_VERSION=$(OASDIFF_VERSION)`. |
 | `push-ci-base` | Push `circleci_pidgey-base` to the registry (manual; there is no automated image build). The deploy tooling was added in `0.0.2`; `0.0.3` moved it to `darthjee/scripts:0.12.0`; `0.0.4` added the Mailpit `v1.32.0` binary; `0.0.5` added the `oasdiff` binary; rebuilt and pushed with a bumped `CI_BASE_VERSION` whenever the image changes. |
 | `build-fe-base` | Build the `vite_pidgey-base` image from the repository-root context, tagged `$(FE_BASE_IMAGE):$(FE_BASE_VERSION)$(BASE_SUFFIX)`. |
@@ -20,7 +21,8 @@
 | `build-fe-release` | Run `yarn build` in `frontend_dev` (`docker compose run --rm --no-deps frontend_dev yarn build`), then replace `$(FE_RELEASE_DIR)` with the contents of `frontend/dist/` (see [frontend/build.md](../frontend/build.md)). |
 
 One-off frontend commands (`tests` frontend half, `fe-install`, `build-fe-release`) run
-`frontend_dev` with `--no-deps`, so they don't start `app`/`mysql`.
+`frontend_dev` with `--no-deps`, so they don't start `app`/`mysql`. The `clients` service has
+no dependencies, so `clients-checks` starts nothing else.
 
 There are no `ci-*` wrapper targets: CircleCI calls composer directly inside the CI image
 (see [pipeline](../deployment/pipeline.md)).

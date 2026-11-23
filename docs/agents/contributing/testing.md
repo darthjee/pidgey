@@ -1,6 +1,6 @@
 # Testing
 
-Test suites, tooling and commands. The definition of done lives in [contributing.md](../contributing.md#definition-of-done-for-prs); area-specific testing docs stay with their areas: [persistence/testing.md](../persistence/testing.md), [frontend/testing.md](../frontend/testing.md), [email/testing.md](../email/testing.md).
+Test suites, tooling and commands. The definition of done lives in [contributing.md](../contributing.md#definition-of-done-for-prs); area-specific testing docs stay with their areas: [persistence/testing.md](../persistence/testing.md), [frontend/testing.md](../frontend/testing.md), [email/testing.md](../email/testing.md), and the client packages' commands in [clients/nodejs.md](../clients/nodejs.md).
 
 ## Backend Testing
 
@@ -167,3 +167,16 @@ There is no automated test of the deploy workflow itself; how a release is verif
 - Commands: `yarn test`, `yarn coverage`, `yarn lint`, `yarn lint_fix`.
 
 Details in [frontend/testing.md](../frontend/testing.md).
+
+## Clients Testing
+
+- `clients/nodejs/` (`pidgey-client`): Jasmine specs under `specs/`, named `*_spec.js`, run under
+  c8 with a **100 %** threshold on lines, branches, functions and statements.
+- ESLint 9 flat config, and `yarn typecheck` (`tsc --allowJs --checkJs --noEmit`) over `lib/`.
+- A pack file-list check compares `npm pack --dry-run` with the committed `pack-files.txt`.
+- One script runs all of it: `clients/scripts/checks.sh`, called by `make clients-checks`
+  (and so by `make tests`) and by the CI job `clients_checks`.
+- Commands: `make clients-checks`; one script on its own with
+  `docker compose run --rm clients sh -c "cd clients/nodejs && yarn <lint|typecheck|test|coverage>"`.
+
+Details in [clients/nodejs.md](../clients/nodejs.md).

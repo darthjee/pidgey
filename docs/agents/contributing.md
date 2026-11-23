@@ -30,7 +30,7 @@ A PR is considered complete when:
 - Relevant docs in `docs/agents/` were read, and updated first if the change alters a decision.
 - New behavior is covered by tests (unit, and integration where DB/SMTP is involved).
 - All tests are passing (unit, and integration where DB/SMTP is involved) — `make tests` is green.
-- Linting passes without errors (`composer lint` for the backend, `yarn lint` for the frontend).
+- Linting passes without errors (`composer lint` for the backend, `yarn lint` for the frontend and for each client package).
 - CI is green.
 - Code coverage is as high as reasonably possible.
 - Code is not overly complex:
@@ -83,6 +83,7 @@ The deploy jobs run only on semver tags, after the check jobs pass, and have no 
 | `source/` | `backend_checks` | `composer lint` (in the `tests` container) |
 | `source/` | `backend_tests` | `composer db:prepare && composer coverage` (in the `tests` container) |
 | `frontend/` | `frontend_checks` | `cd frontend && yarn lint && yarn test && yarn coverage` |
+| `clients/` | `clients_checks` | `make clients-checks` |
 | `dockerfiles/` | `build_images` *(planned)* | `make build` (and `make build-base` / `make build-ci-base` when a base image changes) |
 | — | `build_backend` | none (tag-triggered deploy, see [deployment/pipeline.md](deployment/pipeline.md)) |
 | — | `build_frontend` | none (tag-triggered deploy) |
@@ -90,7 +91,7 @@ The deploy jobs run only on semver tags, after the check jobs pass, and have no 
 | — | `upload_frontend` | none (tag-triggered deploy) |
 | — | `release` | none (tag-triggered deploy) |
 
-`make tests` runs everything inside the `tests` container.
+`make tests` runs the backend inside the `tests` container, then the frontend and `make clients-checks`.
 
 Run only the checks that correspond to the folders you changed. If a new container or application folder is added in the future, its corresponding test and check jobs must be included before merging changes to that folder.
 

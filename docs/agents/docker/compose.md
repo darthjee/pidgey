@@ -8,6 +8,7 @@ volumes, env files and `depends_on` between services, following the tent reposit
 | `base_build` | `dev_pidgey` | — | Builds the `dev_pidgey` image on a fresh clone; the other `dev_pidgey` services depend on its image. |
 | `app` | `dev_pidgey` | 8080 → 80 | Apache + PHP serving the API, auth endpoints and the built frontend at `/` (from `source/static/`, through the PHP static-file handler). Runs with `PHP_ENV=development`. |
 | `frontend_dev` | `vite_pidgey` | `${FRONTEND_PORT:-8030}` → 8080 | Vite dev server (`yarn server`) with hot reload; proxies `/v1` and `*.json` to `app:80`; depends on `app`. See [frontend/development.md](../frontend/development.md). |
+| `clients` | `darthjee/node:0.2.1` | — | Runs `clients/scripts/checks.sh` for `make clients-checks` and the one-off `yarn` scripts of the client packages. Mounts `./clients` and has no `depends_on`: the checks need no backend. See [clients/nodejs.md](../clients/nodejs.md#commands). |
 | `mysql` | `mysql:9` | 3306 | Database (development and test databases). Mounts `./dockerfiles/mysql/initdb.d` read-only at `/docker-entrypoint-initdb.d`. |
 | `phpmyadmin` | `phpmyadmin` | 8040 | DB inspection during development. |
 | `mailpit` | `axllent/mailpit:v1.32.0` | 8025 (UI), 1025 (SMTP) | Development SMTP server: plain, no auth, no TLS. Used by `app` and the manual checks only; tests never send to it or clear it. |
@@ -19,6 +20,8 @@ volumes, env files and `depends_on` between services, following the tent reposit
 Notes:
 - `app`, `tests` share the backend anchor; `frontend_dev` does not use it: it mounts `./frontend`
   as its working directory (see [volumes.md](volumes.md)). Frontend checks run in `frontend_dev`.
+- `clients` uses the same Node image as `frontend_dev`'s base (`vite_pidgey-base`), without
+  the Vite layer, and does not use the backend anchor either. Client checks run in `clients`.
 - Integration tests use a dedicated test database (`pidgey_test`) on the same `mysql`
   service; see [architecture/database.md](../architecture/database.md#test-database).
 - The `mysql` image only grants `MYSQL_USER` on `MYSQL_DATABASE`. The init script

@@ -16,7 +16,7 @@ FE_IMAGE=$(DOCKER_ID_USER)/vite_$(PROJECT)
 FE_RELEASE_DIR?=source/static
 
 .PHONY: build-base push-base build-ci-base push-ci-base build dev dev-up tests migrate db-reset openapi-diff \
-	build-fe-base push-fe-base build-fe fe-install build-fe-release
+	build-fe-base push-fe-base build-fe fe-install build-fe-release clients-checks
 
 build-base:
 	docker build -f dockerfiles/dev_$(PROJECT)-base/Dockerfile -t $(BASE_IMAGE):$(BASE_VERSION)$(BASE_SUFFIX) source
@@ -61,6 +61,10 @@ dev-up:
 tests:
 	docker compose run --rm tests sh -c "composer lint && composer tests"
 	docker compose run --rm --no-deps frontend_dev sh -c "yarn lint && yarn coverage"
+	$(MAKE) clients-checks
+
+clients-checks:
+	docker compose run --rm clients clients/scripts/checks.sh
 
 migrate:
 	docker compose run --rm app composer db:prepare

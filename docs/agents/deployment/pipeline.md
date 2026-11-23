@@ -15,7 +15,8 @@ These run on **every branch and every tag** (`tags: only: /.*/`).
 | `backend_checks` | `darthjee/circleci_pidgey-base` | `composer lint`, then the `OpenAPI breaking-change check` step: `scripts/check_openapi_breaking.sh` compares `source/openapi/v1.json` against its version at the merge-base with `main` (`oasdiff breaking --fail-on ERR`), see [`/v1` is additive-only](../api/endpoints/openapi.md#v1-is-additive-only). The job holds no context. |
 | `backend_tests` | `darthjee/circleci_pidgey-base` (which ships the Mailpit binary), plus a `mysql:9` service container | Starts the three test Mailpit instances on `localhost` and waits for them, then `composer db:prepare`, `composer coverage`, then a partial Codacy coverage upload. |
 | `frontend_checks` | `darthjee/circleci_node` | `yarn install --frozen-lockfile`, `npm run lint`, `npm run coverage`, then a partial Codacy coverage upload. |
-| `coverage_final` | `darthjee/circleci_node` | Requires `backend_tests` and `frontend_checks`; sends the Codacy `final` call. |
+| `clients_checks` | A matrix over two Node.js images: `cimg/node:22.12.0` (the floor of `engines`) and `darthjee/circleci_node:0.2.1` (the current one) | `clients/scripts/checks.sh`, the same script as `make clients-checks`: per package, `yarn install --frozen-lockfile`, `yarn lint`, `yarn typecheck`, `yarn coverage` (100 % threshold) and the pack file-list check. The instance on `darthjee/circleci_node:0.2.1` then does a partial Codacy coverage upload; the floor instance does not. The job holds no context. See [clients/nodejs.md](../clients/nodejs.md). |
+| `coverage_final` | `darthjee/circleci_node` | Requires `backend_tests`, `frontend_checks` and `clients_checks`; sends the Codacy `final` call. |
 
 ### Database access in CI
 
@@ -75,7 +76,12 @@ The `TEST_MAILPIT_*` keys (form `host:smtpPort:apiPort`) are read only by
   `upload_codacy_coverage` command. That command first rewrites the report's file paths to be
   repository-relative (`source/…`, `frontend/…`), because each job flattens its folder to the
   working directory's root.
-- `coverage_final` sends the Codacy `final` call once both partial reports are in.
+- `clients_checks` uploads `clients/nodejs/coverage/lcov.info` the same way, with the prefix
+  `clients/nodejs`, but only from the instance on `darthjee/circleci_node:0.2.1`. Why: one
+  partial report per package is enough, and the floor instance runs the same specs on the
+  same code.
+- `coverage_final` sends the Codacy `final` call once every partial report is in; it requires
+  `backend_tests`, `frontend_checks` and `clients_checks` (every instance of the matrix).
 - Both the partial uploads and the `final` call go through the `codacy_reporter` command, which
   downloads the reporter script with `curl --fail --retry` and retries the whole download and
   upload up to 3 times with a short backoff, so a transient network error (e.g. an HTTP/2
