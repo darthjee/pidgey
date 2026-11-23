@@ -13,3 +13,6 @@ frontend/dist/
 frontend/.nyc_output/
 frontend/coverage/
 source/static/
+
+clients/*/node_modules/
+clients/*/coverage/
