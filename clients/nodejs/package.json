@@ -21,8 +21,8 @@
   "scripts": {
     "lint": "eslint lib specs",
     "typecheck": "tsc --allowJs --checkJs --noEmit -p .",
-    "test": "jasmine",
-    "coverage": "c8 jasmine"
+    "test": "jasmine \"specs/**/*_spec.js\"",
+    "coverage": "c8 jasmine \"specs/**/*_spec.js\""
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -33,12 +33,6 @@
     "globals": "^16.5.0",
     "jasmine": "^5.0.0",
     "typescript": "^5.9.3"
-  },
-  "jasmine": {
-    "spec_dir": "specs",
-    "spec_files": [
-      "**/*_spec.js"
-    ]
   },
   "c8": {
     "reporter": [
