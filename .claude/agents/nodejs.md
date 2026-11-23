@@ -35,7 +35,13 @@ yarn test        # Jasmine specs
 yarn coverage    # specs with c8 coverage (100 %)
 ```
 
-*(planned)* The exact `docker compose run …` lines and `make clients-checks` are filled in by #246 (the package scaffold); this file is updated then.
+From the repository root:
+
+```bash
+make clients-checks                                         # every check, as CI runs it (development Node.js only)
+docker compose run --rm clients clients/scripts/checks.sh   # the same, without make
+docker compose run --rm clients sh -c "cd clients/nodejs && yarn lint"       # or typecheck, test, coverage
+```
 
 ## Code conventions
 
@@ -50,7 +56,7 @@ lint → typecheck → coverage, looped until all three are clean. Never conside
 
 ## Conventions
 
-- Read `docs/agents/specs/node-client.md` and `docs/agents/specs/node-client/*.md` while they exist, then the as-built `docs/agents/clients/nodejs.md` (planned: #246). `product-owner` updates those docs in the same change set as the code. Never implement a **Pending decision** by guessing.
+- Read `docs/agents/specs/node-client.md` and `docs/agents/specs/node-client/*.md` while they exist, then the as-built `docs/agents/clients/nodejs.md`. `product-owner` updates those docs in the same change set as the code. Never implement a **Pending decision** by guessing.
 - Consult `security` before adding any (dev)dependency.
 - Follow `docs/agents/contributing.md`.
 
