@@ -10,19 +10,24 @@
     "directory": "clients/nodejs"
   },
   "exports": {
-    ".": "./lib/index.js"
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
   },
   "engines": {
     "node": ">=22.12.0"
   },
   "files": [
-    "lib/"
+    "lib/",
+    "dist/"
   ],
   "scripts": {
     "lint": "eslint lib specs",
     "typecheck": "tsc --allowJs --checkJs --noEmit -p .",
     "test": "jasmine \"specs/**/*_spec.js\"",
     "coverage": "c8 jasmine \"specs/**/*_spec.js\"",
+    "build:types": "rm -rf dist && tsc -p tsconfig.build.json",
     "generate:types": "openapi-typescript ../../source/openapi/v1.json -o types/v1.ts"
   },
   "devDependencies": {
