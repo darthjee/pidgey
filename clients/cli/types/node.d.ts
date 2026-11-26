@@ -1,11 +1,7 @@
 // Minimal ambient typings for the few Node.js APIs the CLI uses. They stand in for
 // `@types/node` so the CLI adds no dependency; replace this file with `@types/node`
-// once `security` has approved it. `pidgey-client` ships no typings yet (#250), so its
-// public export used here is declared as well.
-
-declare module 'pidgey-client' {
-  export const VERSION: string;
-}
+// once `security` has approved it. The `pidgey-client` declarations are not declared
+// here: the library ships its own (`dist/lib/index.d.ts`).
 
 declare module 'node:util' {
   export function parseArgs(config: {
