@@ -28,7 +28,7 @@ docs of its area cover it.
 
 | Spec | Purpose |
 | --- | --- |
-| [node-client](specs/node-client.md) | Node.js library `pidgey-client`, CLI `pidgey-cli` and the `/v1` OpenAPI document (epic #219). The library (send, retries, errors, validation) and the CLI scaffold (`--version`, `--help`) are built and described in [clients.md](clients.md); the generated types (#250) and the CLI send flags (#251) are not built yet. |
+| [node-client](specs/node-client.md) | Node.js library `pidgey-client`, CLI `pidgey-cli` and the `/v1` OpenAPI document (epic #219). The library (send, retries, errors, validation) and the CLI scaffold (`--version`, `--help`) are built and described in [clients.md](clients.md); the generated types and the contract spec are built too; the CLI send flags (#251) are not built yet. |
 
 ## Conventions
 

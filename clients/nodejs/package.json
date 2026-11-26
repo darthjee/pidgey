@@ -10,21 +10,29 @@
     "directory": "clients/nodejs"
   },
   "exports": {
-    ".": "./lib/index.js"
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
   },
   "engines": {
     "node": ">=22.12.0"
   },
   "files": [
-    "lib/"
+    "lib/",
+    "dist/"
   ],
   "scripts": {
     "lint": "eslint lib specs",
     "typecheck": "tsc --allowJs --checkJs --noEmit -p .",
     "test": "jasmine \"specs/**/*_spec.js\"",
-    "coverage": "c8 jasmine \"specs/**/*_spec.js\""
+    "coverage": "c8 jasmine \"specs/**/*_spec.js\"",
+    "build:types": "rm -rf dist && tsc -p tsconfig.build.json",
+    "generate:types": "openapi-typescript ../../source/openapi/v1.json -o types/v1.ts"
   },
   "devDependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "@eslint/js": "^9.39.2",
     "c8": "11.0.0",
     "eslint": "^9.39.1",
@@ -32,6 +40,7 @@
     "eslint-plugin-jsdoc": "61.5.0",
     "globals": "^16.5.0",
     "jasmine": "^5.0.0",
+    "openapi-typescript": "7.13.0",
     "typescript": "^5.9.3"
   },
   "c8": {

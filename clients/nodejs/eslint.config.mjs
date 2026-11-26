@@ -4,7 +4,7 @@ import jsdoc from 'eslint-plugin-jsdoc';
 import globals from 'globals';
 
 export default [
-  { ignores: ['node_modules/**', 'coverage/**', 'types/**'] },
+  { ignores: ['node_modules/**', 'coverage/**', 'types/**', 'dist/**'] },
   js.configs.recommended,
   {
     files: ['**/*.{js,mjs}'],

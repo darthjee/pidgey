@@ -61,6 +61,11 @@ check_package() {
   yarn lint
   yarn typecheck
   yarn coverage
+  if [ "$pkg" = "nodejs" ]; then
+    # Emit the .d.ts declarations (git-ignored dist/) before packing, so the
+    # pack check and the CLI's file:../nodejs copy both hold them.
+    yarn build:types
+  fi
   check_pack "$pkg"
 }
 

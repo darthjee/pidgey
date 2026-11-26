@@ -1,4 +1,13 @@
 README.md
+dist/lib/PidgeyClient.d.ts
+dist/lib/PidgeyError.d.ts
+dist/lib/config.d.ts
+dist/lib/index.d.ts
+dist/lib/request.d.ts
+dist/lib/response.d.ts
+dist/lib/retry.d.ts
+dist/lib/version.d.ts
+dist/types/v1.d.ts
 lib/PidgeyClient.js
 lib/PidgeyError.js
 lib/config.js

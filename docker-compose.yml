@@ -125,5 +125,6 @@ services:
     working_dir: /home/node/app
     volumes:
       - ./clients:/home/node/app/clients
+      - ./source/openapi:/home/node/app/source/openapi:ro
       - ./docker_volumes/clients_nodejs_node_modules:/home/node/app/clients/nodejs/node_modules
       - ./docker_volumes/clients_cli_node_modules:/home/node/app/clients/cli/node_modules

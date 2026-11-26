@@ -179,6 +179,26 @@ await client.send(message, { signal: AbortSignal.timeout(10_000) });
 Connections are reused through the dispatcher of the global `fetch`. The library does not
 manage a pool: undici's `setGlobalDispatcher` tunes it for the whole process.
 
+## TypeScript
+
+The package ships type declarations, generated from the `/v1` OpenAPI document
+(`source/openapi/v1.json`), so `send` takes a `SendMessageRequest` and resolves with a
+`SendMessageResponse` plus `replayed`, and `PidgeyError` types `details` and `smtp` from the
+document. No `@types` package is needed.
+
+```ts
+import { PidgeyClient, PidgeyError } from 'pidgey-client';
+
+const client = new PidgeyClient({ token: process.env.PIDGEY_TOKEN!, baseUrl: 'https://pidgey.example.com' });
+const result = await client.send({ to: 'user@example.com', subject: 'Hello', text: 'Hi!' });
+const code: number = result.smtp.code;
+```
+
+For contributors: `types/v1.ts` is generated and committed. After a `/v1` change in
+`source/openapi/v1.json`, run `yarn generate:types` and commit the result (a spec fails when it
+is out of date). `yarn build:types` emits the `.d.ts` declarations into the git-ignored `dist/`,
+which is what gets packed; run it before `npm pack`.
+
 ## Repository
 
 <https://github.com/darthjee/pidgey> (the package lives in `clients/nodejs/`).
