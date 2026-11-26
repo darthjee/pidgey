@@ -22,7 +22,8 @@
     "lint": "eslint lib specs",
     "typecheck": "tsc --allowJs --checkJs --noEmit -p .",
     "test": "jasmine \"specs/**/*_spec.js\"",
-    "coverage": "c8 jasmine \"specs/**/*_spec.js\""
+    "coverage": "c8 jasmine \"specs/**/*_spec.js\"",
+    "generate:types": "openapi-typescript ../../source/openapi/v1.json -o types/v1.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -32,6 +33,7 @@
     "eslint-plugin-jsdoc": "61.5.0",
     "globals": "^16.5.0",
     "jasmine": "^5.0.0",
+    "openapi-typescript": "7.13.0",
     "typescript": "^5.9.3"
   },
   "c8": {

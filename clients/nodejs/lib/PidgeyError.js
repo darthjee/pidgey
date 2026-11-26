@@ -19,8 +19,8 @@ export class PidgeyError extends Error {
    * @param {string} [fields.code] - Stable error code, from the API envelope or client-local.
    * @param {number} [fields.statusCode] - The `statusCode` of the envelope, or the HTTP status.
    *   Absent when there is no HTTP response.
-   * @param {string[]} [fields.details] - `error.details` of the envelope (validation errors).
-   * @param {{ code: number, message: string }} [fields.smtp] - The SMTP server reply, when present.
+   * @param {import('../types/v1.js').components['schemas']['Error']['error']['details']} [fields.details] - `error.details` of the envelope (validation errors).
+   * @param {import('../types/v1.js').components['schemas']['SmtpReply']} [fields.smtp] - The SMTP server reply, when present.
    * @param {boolean} [fields.possiblySent] - Whether the message may have been delivered
    *   (default `false`).
    * @param {string} [fields.body] - The response text, with the token redacted and cut to 4 KiB.

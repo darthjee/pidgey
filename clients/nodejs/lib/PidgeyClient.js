@@ -7,6 +7,11 @@ import { mapResponse, readText } from './response.js';
 import { backoffDelay, shouldRetry, wait } from './retry.js';
 
 /**
+ * The result of `send`: the API's `SendMessageResponse` plus `replayed`.
+ * @typedef {import('../types/v1.js').components['schemas']['SendMessageResponse'] & { replayed: boolean }} SendResult
+ */
+
+/**
  * Client for the Pidgey `/v1` API.
  *
  * The configuration lives in private fields, so the token never shows up in
@@ -58,11 +63,11 @@ export class PidgeyClient {
    * Only `to`, `subject`, `text` and `html` are sent. The values are not validated here: the
    * API is the only validator. Every call sends an `Idempotency-Key`: the caller's, or a
    * `crypto.randomUUID()` generated once per call.
-   * @param {{ to?: unknown, subject?: unknown, text?: unknown, html?: unknown }} message - The message.
+   * @param {import('../types/v1.js').components['schemas']['SendMessageRequest']} message - The message.
    * @param {object} [options] - Per-call options.
    * @param {AbortSignal} [options.signal] - Aborts the call; it then rejects with `ABORTED`.
    * @param {string} [options.idempotencyKey] - The caller's key: 1 to 255 characters in `0x21`-`0x7E`.
-   * @returns {Promise<Record<string, any>>} The parsed success body, plus `replayed`.
+   * @returns {Promise<SendResult>} The parsed success body, plus `replayed`.
    */
   async send(message, options) {
     const { signal, idempotencyKey } = options ?? {};
@@ -89,7 +94,7 @@ export class PidgeyClient {
    * @param {string} body - The JSON request body.
    * @param {string} key - The `Idempotency-Key` of the whole `send` call.
    * @param {AbortSignal | undefined} signal - The caller's signal.
-   * @returns {Promise<Record<string, any>>} The parsed success body, plus `replayed`.
+   * @returns {Promise<SendResult>} The parsed success body, plus `replayed`.
    */
   async #run(body, key, signal) {
     const { maxRetries, retryDelayMs, retryAmbiguous } = this.#config;
@@ -124,7 +129,7 @@ export class PidgeyClient {
    * @param {string} body - The JSON request body.
    * @param {string} key - The `Idempotency-Key` of the whole `send` call.
    * @param {AbortSignal | undefined} signal - The caller's signal.
-   * @returns {Promise<Record<string, any>>} The parsed success body, plus `replayed`.
+   * @returns {Promise<SendResult>} The parsed success body, plus `replayed`.
    */
   async #attempt(body, key, signal) {
     const { token, endpoint, timeoutMs } = this.#config;
@@ -159,7 +164,11 @@ export class PidgeyClient {
       throw tooLargeError(response.status);
     }
     const parsed = mapResponse(response, read.text, token);
-    return { ...parsed, replayed: response.headers.get('idempotent-replayed') === 'true' };
+    // `mapResponse` accepts a 2xx body only when it is a JSON object; the API's contract makes
+    // it a SendMessageResponse, which is not re-validated here.
+    return /** @type {SendResult} */ ({
+      ...parsed, replayed: response.headers.get('idempotent-replayed') === 'true',
+    });
   }
 }
 
