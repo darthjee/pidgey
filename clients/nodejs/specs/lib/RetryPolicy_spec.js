@@ -1,15 +1,11 @@
 import { PidgeyClient } from '../../lib/PidgeyClient.js';
+import { SUCCESS_BODY, SUCCESS_REPLY, errorReply } from '../support/Fixtures.js';
 import { TestServer } from '../support/TestServer.js';
 
 const TOKEN = 'pdg_secret_token';
 const MESSAGE = { to: 'user@example.com', subject: 'Hello', text: 'Hi!' };
-const OK = { status: 'sent', smtp: { code: 250, message: 'OK: queued as 1a2b3c' } };
 
-const envelope = (code, statusCode, extra = {}) => ({
-  json: { error: { code, message: `${code} happened`, ...extra }, statusCode, timestamp: '2026-10-25T12:00:00.000Z' },
-  status: statusCode,
-});
-const success = { json: OK };
+const success = SUCCESS_REPLY;
 
 describe('Retry policy', () => {
   let server;
@@ -34,7 +30,7 @@ describe('Retry policy', () => {
       ['SMTP_NEW_THING', 503],
     ].forEach(([code, status]) => {
       it(`retries ${code} on ${status} without retryAmbiguous`, async () => {
-        await start([envelope(code, status), success]);
+        await start([errorReply(code, status), success]);
         const result = await clientFor().send(MESSAGE);
 
         expect(result.status).toBe('sent');
@@ -47,7 +43,7 @@ describe('Retry policy', () => {
       ['SMTP_NEW_THING', 504],
     ].forEach(([code, status]) => {
       it(`does not retry ${code} on ${status} by default, and reports it possibly sent`, async () => {
-        await start([envelope(code, status), success]);
+        await start([errorReply(code, status), success]);
         const error = await failureOf(clientFor().send(MESSAGE));
 
         expect(error.code).toBe(code);
@@ -56,7 +52,7 @@ describe('Retry policy', () => {
       });
 
       it(`retries ${code} on ${status} with retryAmbiguous`, async () => {
-        await start([envelope(code, status), success]);
+        await start([errorReply(code, status), success]);
         const result = await clientFor({ retryAmbiguous: true }).send(MESSAGE);
 
         expect(result.status).toBe('sent');
@@ -85,7 +81,7 @@ describe('Retry policy', () => {
     ].forEach(([code, status, possiblySent]) => {
       [false, true].forEach((retryAmbiguous) => {
         it(`rejects ${code} on ${status} after one request, with retryAmbiguous ${retryAmbiguous}`, async () => {
-          await start([envelope(code, status), success]);
+          await start([errorReply(code, status), success]);
           const error = await failureOf(clientFor({ retryAmbiguous }).send(MESSAGE));
 
           expect(error.code).toBe(code);
@@ -146,7 +142,7 @@ describe('Retry policy', () => {
     });
 
     it('does not retry a timeout by default', async () => {
-      await start({ json: OK, delay: 300 });
+      await start({ json: SUCCESS_BODY, delay: 300 });
       const error = await failureOf(clientFor({ timeoutMs: 30 }).send(MESSAGE));
 
       expect(error.code).toBe('NETWORK_ERROR');
@@ -155,7 +151,7 @@ describe('Retry policy', () => {
     });
 
     it('retries a timeout with retryAmbiguous, and resolves when a later attempt answers', async () => {
-      await start([{ json: OK, delay: 300 }, success]);
+      await start([{ json: SUCCESS_BODY, delay: 300 }, success]);
       const result = await clientFor({ timeoutMs: 100, retryAmbiguous: true }).send(MESSAGE);
 
       expect(result.status).toBe('sent');
@@ -166,7 +162,7 @@ describe('Retry policy', () => {
   describe('attempts', () => {
     [0, 1, 2].forEach((maxRetries) => {
       it(`makes ${maxRetries + 1} attempt(s) with maxRetries ${maxRetries}`, async () => {
-        await start(envelope('SMTP_CONNECTION_FAILED', 502));
+        await start(errorReply('SMTP_CONNECTION_FAILED', 502));
         const error = await failureOf(clientFor({ maxRetries }).send(MESSAGE));
 
         expect(error.code).toBe('SMTP_CONNECTION_FAILED');
@@ -175,16 +171,16 @@ describe('Retry policy', () => {
     });
 
     it('makes three attempts by default', async () => {
-      await start(envelope('SMTP_TEMPORARY_FAILURE', 503));
+      await start(errorReply('SMTP_TEMPORARY_FAILURE', 503));
       await failureOf(clientFor().send(MESSAGE));
 
       expect(server.requests.length).toBe(3);
     });
 
     const changing = [
-      envelope('SMTP_CONNECTION_FAILED', 502),
-      envelope('SMTP_TEMPORARY_FAILURE', 503),
-      envelope('SMTP_NEW_THING', 503),
+      errorReply('SMTP_CONNECTION_FAILED', 502),
+      errorReply('SMTP_TEMPORARY_FAILURE', 503),
+      errorReply('SMTP_NEW_THING', 503),
       success,
     ];
 
@@ -217,7 +213,7 @@ describe('Retry policy', () => {
       const times = [];
       await start(() => {
         times.push(Date.now());
-        return envelope('SMTP_TEMPORARY_FAILURE', 503);
+        return errorReply('SMTP_TEMPORARY_FAILURE', 503);
       });
       await failureOf(clientFor({ retryDelayMs: 20, maxRetries: 2 }).send(MESSAGE));
       const [first, second] = [times[1] - times[0], times[2] - times[1]];
@@ -230,7 +226,7 @@ describe('Retry policy', () => {
 
   describe('possiblySent across attempts', () => {
     it('is true when an earlier attempt was ambiguous, even if the last one was not', async () => {
-      await start([envelope('SMTP_TIMEOUT', 504), envelope('SMTP_CONNECTION_FAILED', 502)]);
+      await start([errorReply('SMTP_TIMEOUT', 504), errorReply('SMTP_CONNECTION_FAILED', 502)]);
       const error = await failureOf(clientFor({ retryAmbiguous: true, maxRetries: 2 }).send(MESSAGE));
 
       expect(error.code).toBe('SMTP_CONNECTION_FAILED');
@@ -239,7 +235,7 @@ describe('Retry policy', () => {
     });
 
     it('is false when no attempt was ambiguous', async () => {
-      await start(envelope('SMTP_CONNECTION_FAILED', 502));
+      await start(errorReply('SMTP_CONNECTION_FAILED', 502));
       const error = await failureOf(clientFor({ retryAmbiguous: true }).send(MESSAGE));
 
       expect(error.possiblySent).toBe(false);
@@ -250,14 +246,14 @@ describe('Retry policy', () => {
     const keysOf = () => server.requests.map((request) => request.headers['idempotency-key']);
 
     it('sends the caller key on every attempt', async () => {
-      await start(envelope('SMTP_CONNECTION_FAILED', 502));
+      await start(errorReply('SMTP_CONNECTION_FAILED', 502));
       await failureOf(clientFor().send(MESSAGE, { idempotencyKey: 'my-key-1' }));
 
       expect(keysOf()).toEqual(['my-key-1', 'my-key-1', 'my-key-1']);
     });
 
     it('generates one key per call and a new one for the next call', async () => {
-      await start(envelope('SMTP_CONNECTION_FAILED', 502));
+      await start(errorReply('SMTP_CONNECTION_FAILED', 502));
       const client = clientFor();
       await failureOf(client.send(MESSAGE));
       await failureOf(client.send(MESSAGE));
@@ -269,7 +265,7 @@ describe('Retry policy', () => {
     });
 
     it('sends the same body on every attempt', async () => {
-      await start(envelope('SMTP_CONNECTION_FAILED', 502));
+      await start(errorReply('SMTP_CONNECTION_FAILED', 502));
       await failureOf(clientFor().send(MESSAGE));
 
       expect(new Set(server.requests.map((request) => request.body)).size).toBe(1);

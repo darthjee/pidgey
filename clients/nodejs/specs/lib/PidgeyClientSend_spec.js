@@ -1,15 +1,10 @@
 import { PidgeyClient } from '../../lib/PidgeyClient.js';
 import { PidgeyError } from '../../lib/PidgeyError.js';
+import { SUCCESS_BODY, errorReply } from '../support/Fixtures.js';
 import { TestServer } from '../support/TestServer.js';
 
 const TOKEN = 'pdg_secret_token';
 const MESSAGE = { to: 'user@example.com', subject: 'Hello', text: 'Hi!' };
-const OK = { status: 'sent', smtp: { code: 250, message: 'OK: queued as 1a2b3c' } };
-
-const envelope = (code, message, statusCode, extra = {}) => ({
-  json: { error: { code, message, ...extra }, statusCode, timestamp: '2026-10-25T12:00:00.000Z' },
-  status: statusCode,
-});
 
 describe('PidgeyClient#send', () => {
   let server;
@@ -27,49 +22,49 @@ describe('PidgeyClient#send', () => {
 
   describe('success', () => {
     it('resolves with the body as returned, plus replayed: false', async () => {
-      await start({ json: OK });
+      await start({ json: SUCCESS_BODY });
 
-      expect(await clientFor().send(MESSAGE)).toEqual({ ...OK, replayed: false });
+      expect(await clientFor().send(MESSAGE)).toEqual({ ...SUCCESS_BODY, replayed: false });
     });
 
-    it('passes a field added by the API through', async () => {
-      await start({ json: { ...OK, queueId: 'abc' } });
+    it('passes an off-contract field added by the API through', async () => {
+      await start({ json: { ...SUCCESS_BODY, queueId: 'abc' } });
 
       expect((await clientFor().send(MESSAGE)).queueId).toBe('abc');
     });
 
-    it('resolves a 200 without smtp unchanged', async () => {
+    it('resolves an off-contract 200 without smtp unchanged', async () => {
       await start({ json: { status: 'sent' } });
 
       expect(await clientFor().send(MESSAGE)).toEqual({ status: 'sent', replayed: false });
     });
 
     it('sets replayed: true from the Idempotent-Replayed header', async () => {
-      await start({ json: OK, headers: { 'Idempotent-Replayed': 'true' } });
+      await start({ json: SUCCESS_BODY, headers: { 'Idempotent-Replayed': 'true' } });
 
       expect((await clientFor().send(MESSAGE)).replayed).toBe(true);
     });
 
     it('sets replayed: false for another header value', async () => {
-      await start({ json: OK, headers: { 'Idempotent-Replayed': 'false' } });
+      await start({ json: SUCCESS_BODY, headers: { 'Idempotent-Replayed': 'false' } });
 
       expect((await clientFor().send(MESSAGE)).replayed).toBe(false);
     });
 
     it('does not let the body override replayed', async () => {
-      await start({ json: { ...OK, replayed: true } });
+      await start({ json: { ...SUCCESS_BODY, replayed: true } });
 
       expect((await clientFor().send(MESSAGE)).replayed).toBe(false);
     });
 
     it('reads a gzip body', async () => {
-      await start({ json: OK, gzip: true });
+      await start({ json: SUCCESS_BODY, gzip: true });
 
-      expect(await clientFor().send(MESSAGE)).toEqual({ ...OK, replayed: false });
+      expect(await clientFor().send(MESSAGE)).toEqual({ ...SUCCESS_BODY, replayed: false });
     });
 
     it('works with an options argument of null', async () => {
-      await start({ json: OK });
+      await start({ json: SUCCESS_BODY });
 
       expect((await clientFor().send(MESSAGE, null)).status).toBe('sent');
     });
@@ -117,7 +112,7 @@ describe('PidgeyClient#send', () => {
 
   describe('API failures', () => {
     it('maps the envelope', async () => {
-      await start(envelope('NO_SMTP_CONNECTION', 'No SMTP connection configured', 409));
+      await start(errorReply('NO_SMTP_CONNECTION', 409, { message: 'No SMTP connection configured' }));
       const error = await failureOf(clientFor().send(MESSAGE));
 
       expect(error).toBeInstanceOf(PidgeyError);
@@ -129,14 +124,14 @@ describe('PidgeyClient#send', () => {
     });
 
     it('maps validation details', async () => {
-      await start(envelope('VALIDATION_FAILED', 'to must be an email', 400, { details: ['to must be an email'] }));
+      await start(errorReply('VALIDATION_FAILED', 400, { message: 'to must be an email', details: ['to must be an email'] }));
       const error = await failureOf(clientFor().send(MESSAGE));
 
       expect(error.details).toEqual(['to must be an email']);
     });
 
     it('maps the smtp reply and possiblySent of an SMTP timeout', async () => {
-      await start(envelope('SMTP_TIMEOUT', 'SMTP timeout', 504, { smtp: { code: 421, message: 'slow' } }));
+      await start(errorReply('SMTP_TIMEOUT', 504, { message: 'SMTP timeout', smtp: { code: 421, message: 'slow' } }));
       const error = await failureOf(clientFor().send(MESSAGE));
 
       expect(error.smtp).toEqual({ code: 421, message: 'slow' });
@@ -144,7 +139,7 @@ describe('PidgeyClient#send', () => {
     });
 
     it('redacts a token reflected by the server', async () => {
-      await start(envelope('SMTP_REJECTED', `echo ${TOKEN}`, 502));
+      await start(errorReply('SMTP_REJECTED', 502, { message: `echo ${TOKEN}` }));
       const error = await failureOf(clientFor().send(MESSAGE));
 
       expect(error.message).toBe('echo [redacted]');
@@ -190,7 +185,7 @@ describe('PidgeyClient#send', () => {
     it('does not follow a redirect and keeps its status', async () => {
       await start((request) => (request.url === '/v1/messages'
         ? { status: 302, headers: { Location: '/elsewhere' } }
-        : { json: OK }));
+        : { json: SUCCESS_BODY }));
       const error = await failureOf(clientFor().send(MESSAGE));
 
       expect(error.code).toBe('INVALID_RESPONSE');
@@ -225,7 +220,7 @@ describe('PidgeyClient#send', () => {
     });
 
     it('reports a timeout as an ambiguous NETWORK_ERROR', async () => {
-      await start({ json: OK, delay: 500 });
+      await start({ json: SUCCESS_BODY, delay: 500 });
       const error = await failureOf(clientFor({ timeoutMs: 50 }).send(MESSAGE));
 
       expect(error.code).toBe('NETWORK_ERROR');
@@ -234,7 +229,7 @@ describe('PidgeyClient#send', () => {
     });
 
     it('reports a timeout while reading the body as an ambiguous NETWORK_ERROR', async () => {
-      await start({ json: OK, stall: true });
+      await start({ json: SUCCESS_BODY, stall: true });
       const error = await failureOf(clientFor({ timeoutMs: 50 }).send(MESSAGE));
 
       expect(error.code).toBe('NETWORK_ERROR');

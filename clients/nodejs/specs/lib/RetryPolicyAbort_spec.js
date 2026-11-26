@@ -1,15 +1,11 @@
 import { PidgeyClient } from '../../lib/PidgeyClient.js';
+import { SUCCESS_BODY, SUCCESS_REPLY, errorReply } from '../support/Fixtures.js';
 import { TestServer } from '../support/TestServer.js';
 
 const TOKEN = 'pdg_secret_token';
 const MESSAGE = { to: 'user@example.com', subject: 'Hello', text: 'Hi!' };
-const OK = { status: 'sent', smtp: { code: 250, message: 'OK: queued as 1a2b3c' } };
 
-const envelope = (code, statusCode, extra = {}) => ({
-  json: { error: { code, message: `${code} happened`, ...extra }, statusCode, timestamp: '2026-10-25T12:00:00.000Z' },
-  status: statusCode,
-});
-const success = { json: OK };
+const success = SUCCESS_REPLY;
 
 describe('Retry policy abort', () => {
   let server;
@@ -38,7 +34,7 @@ describe('Retry policy abort', () => {
   });
 
   it('rejects ABORTED, possibly sent, in flight, without retrying', async () => {
-    await start({ json: OK, delay: 1000 });
+    await start({ json: SUCCESS_BODY, delay: 1000 });
     const controller = new AbortController();
     const promise = failureOf(clientFor({ retryAmbiguous: true }).send(MESSAGE, { signal: controller.signal }));
     setTimeout(() => controller.abort(), 50);
@@ -62,7 +58,7 @@ describe('Retry policy abort', () => {
 
   [['VALIDATION_FAILED', 400], ['UNAUTHORIZED', 401], ['FORBIDDEN', 403], ['NO_SMTP_CONNECTION', 409]].forEach(([code, status]) => {
     it(`rejects ABORTED, possibly sent, while reading the body of a ${status}`, async () => {
-      await start({ ...envelope(code, status), stall: true });
+      await start({ ...errorReply(code, status), stall: true });
       const controller = new AbortController();
       const promise = failureOf(clientFor().send(MESSAGE, { signal: controller.signal }));
       setTimeout(() => controller.abort(), 100);
@@ -75,7 +71,7 @@ describe('Retry policy abort', () => {
   });
 
   it('rejects ABORTED, not sent, during the backoff after unambiguous failures', async () => {
-    await start(envelope('SMTP_CONNECTION_FAILED', 502));
+    await start(errorReply('SMTP_CONNECTION_FAILED', 502));
     const controller = new AbortController();
     const started = Date.now();
     const promise = failureOf(clientFor({ retryDelayMs: 5000 }).send(MESSAGE, { signal: controller.signal }));
@@ -90,7 +86,7 @@ describe('Retry policy abort', () => {
   });
 
   it('rejects ABORTED, possibly sent, during the backoff after an ambiguous attempt', async () => {
-    await start(envelope('SMTP_TIMEOUT', 504));
+    await start(errorReply('SMTP_TIMEOUT', 504));
     const controller = new AbortController();
     const promise = failureOf(clientFor({ retryDelayMs: 5000, retryAmbiguous: true })
       .send(MESSAGE, { signal: controller.signal }));
