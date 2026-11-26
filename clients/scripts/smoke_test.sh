@@ -67,4 +67,35 @@ HELP_STATUS=0
 npx --no-install pidgey --help > /dev/null || HELP_STATUS=$?
 assert_equals "pidgey --help exit status" "0" "$HELP_STATUS"
 
+# The installed pidgey-client must ship usable type declarations: the consumer
+# fixture imports only the package and is type-checked against it, offline.
+cp "${CLIENTS_DIR}/nodejs/specs/types/consumer.ts" "${WORK}/project/consumer.ts"
+cat > "${WORK}/project/tsconfig.json" <<'JSON'
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "lib": ["es2022", "dom"],
+    "types": []
+  },
+  "include": ["consumer.ts"]
+}
+JSON
+node -e '
+  const fs = require("fs");
+  const file = process.argv[1];
+  const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+  pkg.type = "module";
+  fs.writeFileSync(file, JSON.stringify(pkg, null, 2));
+' "${WORK}/project/package.json"
+
+if ! "${CLIENTS_DIR}/nodejs/node_modules/.bin/tsc" -p "${WORK}/project"; then
+  echo "Smoke test failed: consumer.ts does not type-check against the installed pidgey-client" >&2
+  exit 1
+fi
+
 echo "Smoke test passed" >&2
