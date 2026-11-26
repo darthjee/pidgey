@@ -16,3 +16,4 @@ source/static/
 
 clients/*/node_modules/
 clients/*/coverage/
+clients/*/dist/
