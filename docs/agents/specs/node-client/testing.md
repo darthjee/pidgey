@@ -53,7 +53,7 @@ Spec of how `pidgey-client` and `pidgey-cli` are tested and which CI jobs run th
 | `specs/lib/retry_spec.js` | The pure retry helpers: the decision for every code and status of the [retry table](errors-and-retry.md#retry-table), with `retryAmbiguous` off and on (an ambiguous attempt retried only with the option, the never-retried codes refused with it too); the backoff delay (`retryDelayMs` doubling per retry, capped at `8000` ms, also for a base above `8000`); the abortable wait (resolves after the delay, rejects at once on a signal, also an already aborted one, and clears its timer). |
 | `specs/lib/RetryPolicy_spec.js` | One case per row of the [retry table](errors-and-retry.md#retry-table) (each `SMTP_*` code, unknown `SMTP_*` on `502`/`503`/`504`, network errors); no retry on `400`/`401`/`403`/`409`/`422`/`429`/`500`, 3xx and a non-JSON `200`; `ABORTED` from a caller signal during an attempt and during the backoff wait; attempt count for `maxRetries` `0`, `1` and `2`; backoff growing and capped; the last error surfacing when retries are exhausted; a timeout classified as an ambiguous `NETWORK_ERROR`; `retryAmbiguous` off and on; `possiblySent` for every code, including the "any attempt was ambiguous" rule; `possiblySent` for `ABORTED`: before any request, in flight (including while the body is being read), during the backoff after unambiguous failures, after an earlier ambiguous attempt, and an abort while reading the body of an already-received `400`/`401`/`403`/`409` (`true`); one idempotency key reused across the retries of a call and a new one for the next call; `409 IDEMPOTENCY_KEY_IN_USE` never retried with `possiblySent: true` and `422 IDEMPOTENCY_KEY_REUSED` never retried with `possiblySent: false`, also with `retryAmbiguous: true`. |
 | `specs/lib/Version_spec.js` | The `VERSION` export ([library.md](library.md#exports)) equals the `version` in the library's `package.json`; there is no build step to inject it, so this spec keeps the two from drifting. |
-| `specs/contract/OpenApi_spec.js` | **Comes with #250.** Request bodies built by `send` and the response fixtures used by the specs validate against the OpenAPI document; the generated `types/` file is up to date with it ([openapi.md](openapi.md#contract-tests)). |
+| `specs/contract/OpenApi_spec.js` | Request bodies built by `send` and the response fixtures used by the specs validate against the OpenAPI document; the generated `types/` file is up to date with it ([openapi.md](openapi.md#contract-tests)). |
 
 The scripted server is the helper `specs/support/TestServer.js` (not a spec): an in-process
 `node:http` server on `127.0.0.1`, port `0`, that records each request and answers from a
@@ -79,7 +79,7 @@ script (JSON or raw bodies, gzip, a delay, a destroyed socket, a stalled body).
   entry with a real host, `info.version` is not the Pidgey release version); no cache
   headers; an invalid Bearer is still served; and a check that the documented status codes
   of `POST /v1/messages` match the document.
-- **Contract:** `specs/contract/OpenApi_spec.js` in the library (above, with #250).
+- **Contract:** `specs/contract/OpenApi_spec.js` in the library (above).
 - **Pack check:** `npm pack --dry-run` in both packages, compared against an explicit
   expected file list committed per package; any added or missing file fails
   ([packaging.md](packaging.md#supply-chain)).

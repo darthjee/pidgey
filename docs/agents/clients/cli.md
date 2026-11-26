@@ -58,12 +58,18 @@ import and never a deep import.
 ### Typings
 
 `types/node.d.ts` is a minimal ambient typings shim for the few Node.js APIs the CLI uses
-(`node:util` `parseArgs`, `process`) and for the `VERSION` export of `pidgey-client`, which
-ships no typings until #250. It stands in for `@types/node` so that the scaffold adds no
+(`node:util` `parseArgs`, `process`). It stands in for `@types/node` so that the scaffold adds no
 dependency. The folder is excluded from ESLint.
 
+The shim declares Node.js only. `pidgey-client` is not declared there: it ships its own
+declarations (`exports` `types` condition, see [nodejs.md](nodejs.md#types)), and the CLI's
+typecheck resolves them from the `file:../nodejs` copy, which holds `dist/` because `checks.sh`
+builds the library's declarations before the CLI's install
+([clients.md](../clients.md#checks)). Outside `checks.sh`, run `yarn build:types` in
+`clients/nodejs/` first.
+
 **Pending decision:** whether to adopt `@types/node` as a devDependency, after the security
-review of the new dependency, or to keep the shim until #250.
+review of the new dependency, or to keep the Node.js shim.
 
 ## Specs layout
 

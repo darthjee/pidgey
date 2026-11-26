@@ -1,9 +1,9 @@
 # Node.js client (`pidgey-client`)
 
 The library for Pidgey's `/v1` API, in `clients/nodejs/`. It has the working **core**: the
-configuration, `send` with its retry policy, `PidgeyError` and the failure classification. The
-OpenAPI types and the contract spec (#250) are not built yet. The CLI that consumes it is in
-[cli.md](cli.md). The rules are specified in
+configuration, `send` with its retry policy, `PidgeyError` and the failure classification, its
+types generated from the `/v1` OpenAPI document and its contract spec (#250). The CLI that
+consumes it is in [cli.md](cli.md). The rules are specified in
 [specs/node-client/library.md](../specs/node-client/library.md) and
 [specs/node-client/errors-and-retry.md](../specs/node-client/errors-and-retry.md); this page
 records what was built and links the rules instead of copying them.
@@ -15,10 +15,10 @@ records what was built and links the rules instead of copying them.
 | Name | `pidgey-client` |
 | Version | `0.1.0`, the first release line; nothing is published before the epic's release. |
 | Module system | ESM (`"type": "module"`). |
-| Entry point | `exports` maps `.` to `lib/index.js`. |
+| Entry point | `exports` maps `.` to `{ "types": "./dist/lib/index.d.ts", "default": "./lib/index.js" }`: the runtime is `lib/index.js` and the declarations are in `dist/`, see [Types](#types). |
 | Node.js | `engines.node` is `>=22.12.0`. |
-| Published files | The `files` allowlist holds `lib/` only (eight modules); npm adds `package.json` and `README.md`. |
-| Dependencies | No runtime dependency. Why: the library stays dependency-free to keep its supply chain empty. |
+| Published files | The `files` allowlist holds `lib/` (eight modules) and `dist/` (the generated declarations); npm adds `package.json` and `README.md`. |
+| Dependencies | No runtime dependency. Why: the library stays dependency-free to keep its supply chain empty. The type generator and the contract-spec validators are devDependencies, pinned to exact versions (see [Types](#types)). |
 | Install scripts | None (`preinstall`, `install`, `postinstall`, `prepare`). Why: nothing runs at the consumer's install. |
 | License | MIT. |
 
@@ -177,7 +177,7 @@ with no code, is ambiguous. This errs on the safe side
 
 ### Specs layout
 
-The specs mirror `lib/` under `clients/nodejs/specs/lib/`, plus a shared helper:
+The specs mirror `lib/` under `clients/nodejs/specs/lib/`, plus shared helpers and the contract:
 
 - `config_spec.js`, `request_spec.js`, `retry_spec.js` (the decision, the backoff delay and the
   abortable wait), `response_spec.js` (the body read, redaction and cut),
@@ -185,11 +185,92 @@ The specs mirror `lib/` under `clients/nodejs/specs/lib/`, plus a shared helper:
 - `index_spec.js`, `PidgeyClient_spec.js`, `PidgeyClientSend_spec.js`,
   `PidgeyClientSendAbort_spec.js`, `RetryPolicy_spec.js` (the retry loop end to end against
   `TestServer`) and `PidgeyError_spec.js`;
+- `specs/contract/OpenApi_spec.js` and `specs/support/Fixtures.js`, see
+  [Contract spec](#contract-spec), and `specs/types/consumer.ts`, see
+  [Consumer fixture](#consumer-fixture);
 - `specs/support/TestServer.js`, a scripted in-process `node:http` server on `127.0.0.1` with
   port `0`: it records the requests and answers from a script (JSON or raw bodies, gzip,
   delays, a destroyed socket, a stalled body). The specs use real `fetch` against it.
 
 The coverage threshold is 100 %, over every file of `lib/`.
+
+## Types
+
+The library ships TypeScript declarations for its public surface. The schema types come from
+the `/v1` OpenAPI document, the single source of truth, instead of being written by hand: the
+declarations cannot drift from the API the document describes. The library itself stays plain
+JavaScript with JSDoc, and keeps zero runtime dependencies.
+
+**Generated schema types.** `clients/nodejs/types/v1.ts` is generated from
+`source/openapi/v1.json` and **committed**. `yarn generate:types` rewrites it with
+`openapi-typescript`. Rules:
+
+- a change to the `/v1` document (the contract is additive-only, see
+  [openapi.md](../specs/node-client/openapi.md#v1-is-additive-only)) needs a regeneration, in
+  the same change set: run `yarn generate:types` and commit the result;
+- never edit `types/v1.ts` by hand;
+- `openapi-typescript`, `ajv` and `ajv-formats` are pinned to exact versions in `package.json`.
+  Why: the up-to-date check below compares the generator output byte for byte, so a floating
+  generator version would fail it without any change to the document.
+
+**Use in the JSDoc.** The public JSDoc references the generated schemas
+(`import('../types/v1.js').components['schemas'][...]`): `send`'s message is
+`SendMessageRequest`, its result is `SendMessageResponse & { replayed: boolean }`, and the
+`smtp` field of `PidgeyError` is `SmtpReply`. The runtime validation of `send` is unchanged,
+because it takes untrusted input: where a field is `unknown` to the validation, an internal type
+is kept, so the public signature stays the generated one.
+
+**Declaration build.** `yarn build:types` runs `rm -rf dist && tsc -p tsconfig.build.json`.
+`tsconfig.build.json` emits declarations only (`allowJs`, `declaration`, `emitDeclarationOnly`,
+`strict`, `nodenext`) for `lib/` and `types/` into the git-ignored `dist/`: `dist/lib/*.d.ts`
+and `dist/types/v1.d.ts`. The `types/` declaration is emitted so that the relative
+`../types/v1.js` imports inside the `lib` declarations resolve inside the tarball. There is no
+`prepack` hook, because the smoke test packs with `--ignore-scripts`: `checks.sh` builds
+explicitly instead ([clients.md](../clients.md#checks)). `dist/` is ignored through
+`clients/*/dist/` in the root `.gitignore` and by ESLint, and is listed in `pack-files.txt`:
+every emitted `.d.ts` is an expected file of the pack check.
+
+**Typecheck versus build.** `yarn typecheck` (JSDoc check, no emit) and `yarn build:types`
+(emit) are separate scripts. The typecheck resolves the generated types through the committed
+`types/v1.ts`; it needs no build.
+
+### Contract spec
+
+`specs/contract/OpenApi_spec.js` ties the client and the specs to the document, with `ajv`
+(draft 2020-12, with `ajv-formats` for `date-time`; `strict: false` so the OpenAPI keywords
+such as `example` are tolerated). It reads the document from `../../source/openapi/v1.json`,
+relative to the library, so the document must be reachable there: in CI the whole repository is
+checked out, and in the `clients` compose service `source/openapi` is mounted read-only
+([docker/volumes.md](../docker/volumes.md)). It checks that:
+
+- **Request bodies:** what `send` puts on the wire (text only, html only, both, and with an
+  `idempotencyKey`), recorded by `TestServer`, validates against `SendMessageRequest`, and the
+  `Idempotency-Key` header matches the document's header schema;
+- **Response fixtures:** every shared fixture validates against the schema the document gives
+  its status in the `POST /v1/messages` responses;
+- **Generated types:** regenerating `types/v1.ts` in memory (the `openapi-typescript` Node API,
+  with the options of `yarn generate:types`) equals the committed file. The failure message says
+  to run `yarn generate:types`.
+
+**Shared fixtures.** `specs/support/Fixtures.js` exports the valid response bodies the specs
+use (the `200` success body and one error envelope per documented status and code), each with
+its HTTP status so the contract spec can pick the schema. The `PidgeyClientSend`,
+`PidgeyClientSendAbort`, `RetryPolicy` and `RetryPolicyAbort` specs use them. **Rule:** a body
+that is off-contract on purpose stays inline in the spec, with a name that says so (an extra
+field such as `queueId`, a missing `smtp`, an unknown code, a non-JSON body); every other
+response body of a spec comes from `Fixtures.js`, so the contract spec covers it.
+
+### Consumer fixture
+
+`specs/types/consumer.ts` is a strict TypeScript consumer of the installed package, with positive
+usage only: it imports `PidgeyClient`, `PidgeyError` and `VERSION` from `pidgey-client`,
+builds the client with every option, calls `send` with and without `signal` and
+`idempotencyKey`, reads `status`, `smtp.code` and `replayed` into explicitly typed variables and
+narrows a caught error with `instanceof PidgeyError`. It imports only `pidgey-client`, so it
+needs no `@types/node`. It is never executed: Jasmine does not pick it up (it is not
+`*_spec.js`) and ESLint does not lint `.ts`. The pack smoke test type-checks it against the
+installed tarball ([Pack smoke test](#pack-smoke-test)); that check is what proves the
+`exports` `types` condition and the declarations in `dist/`.
 
 ## Scripts
 
@@ -199,6 +280,8 @@ Run from `clients/nodejs/`. Each one exits non-zero on failure.
 | --- | --- |
 | `yarn lint` | ESLint over `lib` and `specs`. |
 | `yarn typecheck` | `tsc --allowJs --checkJs --noEmit` over `lib`: the JSDoc types are checked, nothing is emitted. |
+| `yarn generate:types` | Regenerates `types/v1.ts` from `../../source/openapi/v1.json`. Run it after a `/v1` document change and commit the result. |
+| `yarn build:types` | `rm -rf dist && tsc -p tsconfig.build.json`: emits the `.d.ts` declarations into `dist/`. Run by `checks.sh` before the pack check. |
 | `yarn test` | Jasmine over `specs/`, files named `*_spec.js`. |
 | `yarn coverage` | `c8` running Jasmine. Writes `coverage/lcov.info` and **fails below 100 %** of lines, branches, functions and statements, over every file of `lib/` (also those no spec loads). |
 
@@ -207,7 +290,7 @@ merged code.
 
 ## Pack check
 
-The package must publish exactly the files it declares. `clients/nodejs/pack-files.txt` is
+The package must publish exactly the files it declares, the emitted `dist/` declarations included, so `checks.sh` runs `yarn build:types` before this check. `clients/nodejs/pack-files.txt` is
 the committed list of expected files: one path per line, sorted with `LC_ALL=C sort`, no blank
 or comment lines. The check compares it with the `files[].path` values of
 `npm pack --dry-run --json`; any file added or missing fails the checks and prints the diff.
@@ -232,7 +315,9 @@ packs this library, packs the CLI with `pack_cli.sh` ([cli.md](cli.md#the-depend
 and installs both tarballs in an empty project, offline and with `--ignore-scripts`. For the
 library it asserts what a consumer gets from the tarball: `import { PidgeyClient, PidgeyError }
 from 'pidgey-client'` resolves through the `exports` map, and `require('pidgey-client')` works
-(`require(esm)`, available from the floor Node.js 22.12). It also asserts the CLI's packed
+(`require(esm)`, available from the floor Node.js 22.12), and that `consumer.ts` type-checks
+against the installed package (`strict`, `nodenext`, `skipLibCheck: false`, no `@types/node`), so a
+wrong `types` path in `exports` or a broken declaration fails it. It also asserts the CLI's packed
 dependency range and its `--version` output, which is the library's `VERSION` as installed from
 the tarball. What it checks is listed in [clients.md](../clients.md#checks).
 
@@ -250,9 +335,10 @@ with no manual edit.
 | --- | --- |
 | `make clients-checks` | Runs `checks.sh` in the compose `clients` service. `make tests` runs it too. |
 | `docker compose run --rm clients clients/scripts/checks.sh` | The same, without `make`. |
-| `docker compose run --rm clients sh -c "cd clients/nodejs && yarn <lint\|typecheck\|test\|coverage>"` | One script on its own. |
+| `docker compose run --rm clients sh -c "cd clients/nodejs && yarn <lint\|typecheck\|test\|coverage\|generate:types\|build:types>"` | One script on its own. |
 
-The `clients` service is described in [docker/compose.md](../docker/compose.md).
+The `clients` service is described in [docker/compose.md](../docker/compose.md); it mounts
+`source/openapi` read-only, which the contract spec and `yarn generate:types` read.
 
 ## CI
 
