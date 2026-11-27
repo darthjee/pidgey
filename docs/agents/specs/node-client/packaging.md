@@ -20,22 +20,16 @@ publishing.
 - **Names.** Both are unscoped and were free on npm when checked. The unscoped name `pidgey`
   belongs to an unrelated library (an event emitter with no `bin`), so only the CLI's package
   name differs from its command; the command does not clash.
-- **Name reservation.** Both names are to be reserved with manual `0.0.0` placeholders (a
-  README pointing at this repository, no code, no `bin`), published by the maintainer with the
-  npm credential, outside CI (#227).
-  - **Decided, not done yet.** On 2026-11-27, `npm view pidgey-client` and
-    `npm view pidgey-cli` both answer `404`, although #227 is closed: neither name is reserved.
-    Publishing the placeholders is a prerequisite of the first release (#254), part of the
-    [npm publishing setup](../../deployment/operations.md#set-up-npm-publishing).
-  - **Placeholder fields.** The placeholder's `package.json` has `name`, version `0.0.0`,
-    `description`, `repository` (this repository) and `license` `MIT`, with no `main`, `bin`,
-    dependencies or scripts.
-  - **Locked at reservation.** Right after each `0.0.0` is published, the package's
-    publishing settings are set as in [Credential](#credential-the-pidgey-npm-context): 2FA
-    required, allowing only 2FA or a granular token.
-  - **Deprecated after `0.1.0`.** Once a package's first real release is on npm, the
-    maintainer runs `npm deprecate <pkg>@0.0.0 "placeholder; use >=0.1.0"` from their machine
-    with 2FA, never from CI, as in [Rollback](#rollback).
+- **Name reservation.** **Decided in #254:** both names are claimed by the
+  [manual publish of `0.1.0`](#first-release-010), their first version on npm.
+  - **Not claimed yet.** On 2026-11-27, `npm view pidgey-client` and
+    `npm view pidgey-cli` both answer `404`. Neither name is reserved until that publish.
+  - **No placeholders.** The `0.0.0` placeholders planned in #227 were never published and are
+    dropped, so there is nothing to deprecate. They were needed to limit the npm token to the
+    two packages before a first release by CI.
+  - **Locked at the first publish.** Right after each `0.1.0` is published, the package's
+    publishing settings are set to require 2FA
+    ([Credential](#credential-the-pidgey-npm-context)).
 - **Not consumed by `frontend/`.** The admin UI keeps its own cookie-authenticated client
   layer: the client is Bearer-token only, and mixing credentials on the admin UI's surface
   would break the disjoint-credentials rule.
@@ -174,7 +168,8 @@ in the package README, so every JavaScript area runs one Node major.
 
 ## Versioning
 
-- **First release `0.1.0`** for both packages, after the `0.0.0` placeholders.
+- **First release `0.1.0`** for both packages, the first version of each on npm, published
+  [by hand](#first-release-010) (#254).
 - While on `0.x`, semver's `0.x` rules apply: a breaking change bumps the **minor**
   (`0.1.x` → `0.2.0`), everything else bumps the patch. Moving to `1.0.0` is a later,
   explicit decision.
@@ -216,13 +211,16 @@ state that codes may be added); a case that becomes **not** retried; a new opt-i
 ## Publishing
 
 - Both packages are published to the public npm registry within the epic: `pidgey-client`
-  `0.1.0` first, then `pidgey-cli` `0.1.0` depending on it.
-- **Who can publish:** whoever can push a package tag (today only the owner), the same access
-  model as the backend deploy
-  ([pipeline.md](../../deployment/pipeline.md#who-can-publish)). The credential sits in a
-  CircleCI context `pidgey-npm` with a **project restriction** and an **expression
-  restriction**, not a security group: security groups are not available on the CircleCI free
-  plan ([pipeline.md](../../deployment/pipeline.md#context-restriction)).
+  `0.1.0` first, then `pidgey-cli` `0.1.0` depending on it. Nothing is published yet.
+- **CI publishes, except the first release.** The mechanism below is built (#253), and
+  releases use it from the first one after #266 (trusted publishing). `0.1.0` is a
+  [one-off manual publish](#first-release-010).
+- **Who can publish from CI:** whoever can push a package tag (today only the owner), the same
+  access model as the backend deploy
+  ([pipeline.md](../../deployment/pipeline.md#who-can-publish)). The jobs as built take the
+  credential from a CircleCI context `pidgey-npm` with a **project restriction** and an
+  **expression restriction**, not a security group: security groups are not available on the
+  CircleCI free plan ([pipeline.md](../../deployment/pipeline.md#context-restriction)).
 - npm credentials are never committed and never provided as repository secrets in a pull
   request; where the credential lives is documented in `docs/agents/deployment/` (owned by
   `architect`).
@@ -241,7 +239,7 @@ state that codes may be added); a case that becomes **not** retried; a new opt-i
 | Option | Why rejected |
 | --- | --- |
 | CircleCI, navi model (one `X.Y.Z` tag releases every package whose version is not on npm) | A client-only release would need a backend tag, and so a backend deploy. Its idempotent "skip if already on npm" and "wait for npm" ideas are kept. |
-| Manual `npm publish` from the maintainer's laptop | No automated pre-publish gate, and the tarball is built on a laptop instead of from a tagged commit. |
+| Manual `npm publish` from the maintainer's laptop | No automated pre-publish gate, and the tarball is built on a laptop instead of from a tagged commit. Rejected as the release mechanism; used once, for `0.1.0`, with the scripted gate and the byte comparison run locally ([First release](#first-release-010)). |
 | GitHub Actions with trusted publishing (OIDC) | A second CI system next to CircleCI, for one job. |
 
 ### CI jobs, per package
@@ -312,6 +310,11 @@ the procedure.
 
 ### Credential: the `pidgey-npm` context
 
+- **Superseded by #266, not set up (#254).** The first release uses no token
+  ([First release](#first-release-010)), and trusted publishing replaces the token before the
+  first CI publish. So neither the token nor the context is created. The rules below are what
+  the publish jobs as built (#253) expect; only the 2FA requirement applies to the first
+  release.
 - A **new** CircleCI context `pidgey-npm`, holding only `NPM_TOKEN`, separate from
   `pidgey-deploy`, so the SSH deploy key and the npm token are never reachable from the same
   job.
@@ -354,8 +357,8 @@ the procedure.
 ### Provenance
 
 **Outcome (#253): the packages are published without provenance attestations**, so a consumer
-cannot verify that a tarball was built from a commit of this repository. Authentication stays
-the `NPM_TOKEN` of `pidgey-npm`.
+cannot verify that a tarball was built from a commit of this repository. This holds for the
+manual `0.1.0` publish and for CI publishing.
 
 - `npm publish --provenance` supports only GitHub Actions and GitLab CI/CD
   ([generating provenance statements](https://docs.npmjs.com/generating-provenance-statements)).
@@ -385,6 +388,9 @@ A version already on npm is not an error but a no-op, as described above.
 
 ### Release procedure
 
+This is the CI procedure. It applies from the first release after #266; `0.1.0` is the
+[exception](#first-release-010).
+
 1. **Release PR:** bumps `version` in the package's `package.json` and adds its `CHANGELOG.md`
    entry. A release changing both packages bumps both in the same PR.
 2. After merge, the maintainer tags the merge commit on `main` and pushes **one tag**:
@@ -394,9 +400,41 @@ A version already on npm is not an error but a no-op, as described above.
    tags and pushes `pidgey-cli-vX.Y.Z` ([why](#both-packages-in-one-release)).
 
 The runbook is in [operations.md](../../deployment/operations.md#release-a-client-package).
-Before the first release, the maintainer does the
-[npm publishing setup](../../deployment/operations.md#set-up-npm-publishing), placeholders
-included.
+
+#### First release (`0.1.0`)
+
+**Decided in #254:** `0.1.0` of both packages is a **one-off manual publish** from the
+maintainer's machine, after the release PR is merged. It has not happened yet.
+
+- **Why:**
+  - npm removes direct publishing with a granular token in **January 2027**, so setting up
+    the token would serve a single release
+    ([Credential](#credential-the-pidgey-npm-context));
+  - npm trusted publishing needs the packages to already exist, so #266 cannot be set up
+    before a first publish;
+  - neither name exists on npm (`404` on 2026-11-27).
+- **Release PR:** adds the `## 0.1.0` entry to both `CHANGELOG.md` files. Both `package.json`
+  files already have that version.
+- **Source:** a clean checkout of the merge commit on `main`, with CI green.
+- **Order:** [library first](#cli-to-library-dependency).
+- **Checks:** for each package, [`release_pack.sh`](#ci-jobs-per-package) produces the
+  tarball and `release_publish.sh --dry-run` ([publish script](#publish-script)) compares it
+  byte for byte with a pack of the checkout.
+- **Publish:** the maintainer publishes **that tarball**, never a fresh pack, with
+  `npm publish <tarball> --access public`, confirmed with 2FA.
+- **Not enforced by a pipeline:** the maintainer runs the checks and keeps the order. The dry
+  run only warns when the CLI's library floor is missing from npm, so the library must be
+  visible on npm before the CLI is published. The tarball is built on the machine that holds
+  the npm login, without the separation of the [CI jobs](#ci-jobs-per-package).
+- **No token setup and no placeholders:** `0.1.0` claims both names
+  ([Name reservation](#packages)).
+- **No release tag is pushed until #266 lands:** a pushed tag would start `publish_*`, which
+  fails without the `pidgey-npm` context. The `0.1.0` tags are pushed afterwards, under the
+  conditions the runbook states; the publish job ends as a no-op for a version already on
+  npm.
+
+The runbook is in
+[operations.md](../../deployment/operations.md#publish-the-first-client-release-manually).
 
 ### Rollback
 
@@ -421,8 +459,10 @@ The pipeline as built (#253) is documented in `docs/agents/deployment/` (owned b
   [serial group](../../deployment/pipeline.md#serial-group);
 - [variables.md](../../deployment/variables.md#npm-context): the `pidgey-npm` context,
   `NPM_TOKEN` and the token settings;
-- [operations.md](../../deployment/operations.md#set-up-npm-publishing): setup, release, dry
-  run, rerun, token rotation, deprecation and unpublish;
+- [operations.md](../../deployment/operations.md#publish-the-first-client-release-manually):
+  the manual first release; also the
+  [token setup](../../deployment/operations.md#set-up-npm-publishing) (superseded by #266),
+  release, dry run, rerun, token rotation, deprecation and unpublish;
 - [known-gaps.md](../../deployment/known-gaps.md): what the publishing does not cover yet.
 
 ### Supply chain
@@ -448,9 +488,10 @@ the pack check and the hardened publishing token that navi lacks.
 - **No install scripts.** Neither package declares `preinstall`, `install` or `postinstall`
   scripts: installing them runs no code.
 - **2FA and token.** 2FA is required on the maintainer's npm account and in each package's
-  publishing settings. CI publishes with a **granular** npm token limited to `pidgey-client`
-  and `pidgey-cli`, with an expiry date, never a classic long-lived automation token. Where
-  the token lives, its rotation and the release procedure are in
+  publishing settings. The CI publish jobs as built expect a **granular** npm token limited to
+  `pidgey-client` and `pidgey-cli`, with an expiry date, never a classic long-lived automation
+  token; it is not set up, since #266 replaces it. Where the token would live, its rotation
+  and the release procedure are in
   [Credential](#credential-the-pidgey-npm-context) and [Release procedure](#release-procedure).
 - **Provenance.** The goal is provenance-attested releases. It is not met: npm generates no
   provenance from CircleCI, so releases are published without it
@@ -460,10 +501,10 @@ the pack check and the hardened publishing token that navi lacks.
   so the published range only ever comes from the staging-copy pack
   ([CLI to library dependency](#cli-to-library-dependency)).
 - **Range versus pin.** The range admits only this project's own releases, published under
-  the token, 2FA and gate rules above and in [Publishing](#publishing). The one added risk is
-  that a compromised `pidgey-client` publish reaches CLI installs without a CLI release; a pin
-  would not protect library consumers from the same publish, so the publishing controls remain
-  the defence.
+  the credential, 2FA and gate rules above and in [Publishing](#publishing). The one added
+  risk is that a compromised `pidgey-client` publish reaches CLI installs without a CLI
+  release; a pin would not protect library consumers from the same publish, so the publishing
+  controls remain the defence.
 - **Frozen installs.** CI installs with the committed lockfile frozen
   (`yarn install --frozen-lockfile`, matching the Yarn tooling in [Stack](#stack)), so a
   release never resolves new dependency versions. The release pack install also passes
