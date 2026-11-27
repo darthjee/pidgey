@@ -12,6 +12,8 @@
 # pack-files.txt. Prints the absolute path of the tarball on stdout; everything
 # else goes to stderr.
 #
+# The install runs no dependency lifecycle script.
+#
 # Never enable shell tracing in a release script.
 set -euo pipefail
 
@@ -70,7 +72,7 @@ CHANGELOG="${PACKAGE_DIR}/CHANGELOG.md"
 grep -Eq "^## ${VERSION//./\\.}( |\$)" "$CHANGELOG" \
   || fail "${CHANGELOG} has no \"## ${VERSION}\" entry"
 
-(cd "$PACKAGE_DIR" && yarn install --frozen-lockfile >&2)
+(cd "$PACKAGE_DIR" && yarn install --frozen-lockfile --ignore-scripts >&2)
 
 mkdir -p "$2"
 OUT_DIR="$(cd "$2" && pwd)"
