@@ -40,7 +40,7 @@ declare const process: {
   env: Record<string, string | undefined>;
   exitCode: number | undefined;
   platform: string;
-  stdin: { isTTY?: boolean };
+  stdin: AsyncIterable<Uint8Array> & { isTTY?: boolean; destroy(): unknown };
   once(event: string, listener: () => void): unknown;
   stdout: { write(text: string): unknown };
   stderr: { write(text: string): unknown };
