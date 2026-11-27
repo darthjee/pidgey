@@ -1,6 +1,10 @@
 README.md
 bin/pidgey.js
 cli/Arguments.js
+cli/Body.js
+cli/Credentials.js
+cli/ExitCode.js
+cli/Output.js
 cli/run.js
 cli/version.js
 package.json
