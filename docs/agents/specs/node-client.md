@@ -1,7 +1,9 @@
 # Node Client (spec)
 
-Spec of a feature **not released yet**: the clients and their publish pipeline are built, and
-the first npm release is #254. Parent epic: #219 ("Create Clients").
+Spec of a feature **not released yet**: the clients and their publish pipeline are built. The
+first npm release (#254) is a
+[one-off manual publish](node-client/packaging.md#first-release-010) that has not happened yet,
+and CI publishing starts after #266. Parent epic: #219 ("Create Clients").
 
 Pidgey exposes a JSON API authenticated by scoped API tokens, but ships no client. Every
 consumer hand-rolls the request body of `POST /v1/messages`, the `Authorization: Bearer`

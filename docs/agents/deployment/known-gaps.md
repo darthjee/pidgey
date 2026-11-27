@@ -84,18 +84,20 @@ do it. A global limit belongs to the open rate-limit decision in
 The [npm publish chain](pipeline.md#npm-publish-chain) is in the repository, but its real
 publish path (token, upload, wait for npm) has never run: only dry runs and runs against a
 stand-in `npm`. On 2026-11-27, `npm view` answered "not found" for `pidgey-client` and
-`pidgey-cli`, so the `0.0.0` placeholders of #227 are not published, and the manual setup in
-[operations.md](operations.md#set-up-npm-publishing) is the maintainer's to do. The first
-release is #254.
+`pidgey-cli`. The first release, `0.1.0` (#254), is a
+[manual publish](operations.md#publish-the-first-client-release-manually) that does not go
+through the chain: no `0.0.0` placeholder, token or `pidgey-npm` context is set up. The CI
+publish path stays unexercised until the switch to trusted publishing (#266).
 
 ## npm token publishing ends in January 2027
 
 npm announces in [about access tokens](https://docs.npmjs.com/about-access-tokens) (read
 2026-11-27): "The ability to publish new package versions directly with a granular access
 token will be removed in **January 2027**." The publish jobs publish exactly that way, so
-from then on they stop working, and rotating the token will not help. Either the first release
-(#254) happens before, or the switch to npm trusted publishing (OIDC), which supports
-CircleCI, lands first: #266.
+from then on they stop working, and rotating the token will not help. The token path is
+therefore not set up for the first release, which is published by hand (#254), and CI
+publishing depends on the switch to npm trusted publishing (OIDC), which supports CircleCI:
+#266.
 
 ## npm packages published without provenance
 

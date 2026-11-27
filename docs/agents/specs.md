@@ -28,7 +28,7 @@ docs of its area cover it.
 
 | Spec | Purpose |
 | --- | --- |
-| [node-client](specs/node-client.md) | Node.js library `pidgey-client`, CLI `pidgey-cli` and the `/v1` OpenAPI document (epic #219). The library (send, retries, errors, validation) and the CLI (send flags, token and URL, body and stdin, output, exit codes) are built and described in [clients.md](clients.md); the generated types and the contract spec are built too, and so is the npm publish pipeline ([deployment](deployment.md)). Nothing is published yet: the first release is #254. |
+| [node-client](specs/node-client.md) | Node.js library `pidgey-client`, CLI `pidgey-cli` and the `/v1` OpenAPI document (epic #219). The library (send, retries, errors, validation) and the CLI (send flags, token and URL, body and stdin, output, exit codes) are built and described in [clients.md](clients.md); the generated types and the contract spec are built too, and so is the npm publish pipeline ([deployment](deployment.md)). Nothing is published yet: the first release (#254) is a one-off manual publish, and CI publishing starts after #266. |
 
 ## Conventions
 

@@ -20,7 +20,10 @@ not by the deploy or the npm publish.
 
 The `pidgey-npm` context holds one variable and is attached only to `publish_client` and
 `publish_cli`, with the restrictions in
-[pipeline.md](pipeline.md#context-restriction).
+[pipeline.md](pipeline.md#context-restriction). It is what the publish jobs as built expect;
+neither the context nor the token is set up for the first release, and the token is superseded
+by trusted publishing, #266 (see
+[operations.md](operations.md#set-up-npm-publishing)).
 
 | Variable | Holds | Format | Used by |
 | --- | --- | --- | --- |

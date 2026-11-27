@@ -1,8 +1,8 @@
 # Operations
 
 Runbooks for releasing Pidgey, for the manual tasks the deploy does not automate, and for
-publishing the client packages to npm (from [Set up npm publishing](#set-up-npm-publishing)
-on).
+publishing the client packages to npm (from
+[Publish the first client release manually](#publish-the-first-client-release-manually) on).
 
 Placeholders: `<live>` is the live folder (`$SSH_REMOTE_DIR`), `<domain>` is Pidgey's domain.
 Commands on the host run over SSH as the host user (see [variables.md](variables.md)).
@@ -211,35 +211,121 @@ the rotation above, with no previous key) **before** deploying that release, oth
 release stops before going live. No SMTP rows exist in production yet, so nothing needs
 migrating.
 
+## Publish the first client release manually
+
+`0.1.0` of `pidgey-client` and `pidgey-cli` is a **one-off manual publish** from the
+maintainer's machine (#254). The release scripts of the repository still pack the tarballs and
+run the release gate; only the publish command is run by hand. CI publishing starts with the
+next release, after the switch to npm trusted publishing (#266).
+
+Why:
+
+- npm removes direct publishing with a granular access token in January 2027 (see
+  [known-gaps.md](known-gaps.md#npm-token-publishing-ends-in-january-2027)), so the token
+  setup would serve a single release;
+- trusted publishing needs both packages to already exist on npm;
+- neither name existed on npm on 2026-11-27. `0.1.0` claims both, so no `0.0.0` placeholder is
+  published and none has to be deprecated.
+
+Needed: a clean checkout of the merge commit of the release PR on `main`, with its CI green;
+Node.js 22.12 or later, with Yarn and npm; an npm login (`npm whoami`) on an account with 2FA.
+The release scripts always use the public registry, but the `npm` commands run by hand follow
+the local npm configuration: if `npm config get registry` does not print
+`https://registry.npmjs.org/`, add `--registry https://registry.npmjs.org/` to each of them,
+the login included. Run everything on the host (not in a container), from the repository root,
+in one shell session (the steps share `$out`), the library first.
+
+1. Pack the library. This checks the tag/version match and the `CHANGELOG.md` entry, installs
+   from the frozen lockfile, packs and checks the file list. The tag does not need to exist in
+   git:
+
+   ```bash
+   out="$(mktemp -d)"
+   clients/scripts/release_pack.sh pidgey-client-v0.1.0 "$out"
+   ```
+
+2. Dry-run the publish, which adds the byte comparison with a second pack of the checkout:
+
+   ```bash
+   clients/scripts/release_publish.sh --dry-run pidgey-client-v0.1.0 "$out/pidgey-client-0.1.0.tgz"
+   ```
+
+3. Publish **that tarball**, never a fresh pack, and confirm with 2FA:
+
+   ```bash
+   npm publish "$out/pidgey-client-0.1.0.tgz" --access public
+   ```
+
+4. Check that `npm view pidgey-client@0.1.0 version` prints `0.1.0`; do not go on until it
+   does. Then, in the package's **Settings** → **Publishing access**, require 2FA. No token
+   exists, so no token exception is needed; #266 owns the setting used from then on.
+5. Repeat steps 1 and 2 for the CLI:
+
+   ```bash
+   clients/scripts/release_pack.sh pidgey-cli-v0.1.0 "$out"
+   clients/scripts/release_publish.sh --dry-run pidgey-cli-v0.1.0 "$out/pidgey-cli-0.1.0.tgz"
+   ```
+
+   Before publishing, check that the pack printed `^0.1.0` as the `pidgey-client` range of the
+   packed CLI, and that the dry run printed `pidgey-client@0.1.0 is on npm`. A missing library
+   is only a warning there, and a hand-run publish does not wait for it. Then publish that
+   tarball and set the CLI's **Publishing access** as in step 4:
+
+   ```bash
+   npm publish "$out/pidgey-cli-0.1.0.tgz" --access public
+   ```
+6. Check the result:
+
+   ```bash
+   npm view pidgey-cli@0.1.0 version
+   npm view pidgey-cli@0.1.0 dependencies   # pidgey-client: ^0.1.0
+   npm view pidgey-client dist-tags          # latest: 0.1.0
+   npm view pidgey-cli dist-tags             # latest: 0.1.0
+   npm install -g pidgey-cli
+   pidgey --version
+   ```
+
+7. **Do not push** `pidgey-client-v0.1.0` or `pidgey-cli-v0.1.0` yet: a pushed tag starts the
+   `publish_*` job, which fails without the `pidgey-npm` context. Push both on the published
+   commit once #266 lands. The publish job ends as a no-op for a version already on npm, but a
+   tag runs the pipeline configuration of its commit, which attaches `pidgey-npm`, so check
+   that the context exists then.
+8. Record the outcome in issue #254: the published commit, the versions, the dist-tags and the
+   absence of provenance attestations (expected, see
+   [known-gaps.md](known-gaps.md#npm-packages-published-without-provenance)).
+
+When a check fails before a publish, nothing was published for that package: fix it on `main`
+and start again from the new commit. A published version number cannot be published again.
+
 ## Set up npm publishing
 
-Manual, done once by the maintainer, **before** pushing the first client release tag. None of
-it is in the repository, and no real publish has run yet (see
-[known-gaps.md](known-gaps.md#npm-publishing-not-set-up-or-exercised-yet)).
+The setup of **token** publishing from CI. It is not done for `0.1.0`
+([published by hand](#publish-the-first-client-release-manually)), its token steps are
+superseded by the switch to trusted publishing (#266), and none of it is in the repository. The
+publish jobs [as built](pipeline.md#npm-publish-chain) still expect the token, so they cannot
+publish until #266 lands.
 
-1. Enable 2FA on the npm account.
-2. Make sure `pidgey-client` and `pidgey-cli` exist on npm (the `0.0.0` placeholders, #227):
-   the token is limited to those two packages. If one is missing, publish its placeholder by
-   hand from a temporary directory outside the repository: a `package.json` with only `name`,
-   `version` (`0.0.0`), `description`, `repository` (this repository) and `license` (`MIT`),
-   plus a `README.md` saying the name is reserved, then `npm publish --access public`
-   confirmed with 2FA.
-3. In each package's **Settings** → **Publishing access**, require 2FA while still allowing a
-   granular access token that bypasses it. The exact name of that option was not verified. Do
-   **not** select "Require two-factor authentication and disallow tokens": it blocks token
+1. Enable 2FA on the npm account. Still needed.
+2. _Not needed:_ the `0.0.0` placeholders (#227) are not published, since `0.1.0` claims both
+   names.
+3. _Superseded by #266:_ in each package's **Settings** → **Publishing access**, require 2FA
+   while still allowing a granular access token that bypasses it. The exact name of that option
+   was not verified. "Require two-factor authentication and disallow tokens" blocks token
    publishing.
-4. Create the granular access token with the settings in
+4. _Superseded by #266:_ create the granular access token with the settings in
    [variables.md](variables.md#npm-context).
-5. Create the CircleCI context `pidgey-npm` holding only `NPM_TOKEN`, with the project
-   restriction and the expression restriction in
+5. _Superseded by #266:_ create the CircleCI context `pidgey-npm` holding only `NPM_TOKEN`,
+   with the project restriction and the expression restriction in
    [pipeline.md](pipeline.md#context-restriction), **before** storing the token in it.
 6. Check that "Pass secrets to builds from forked pull requests" is off, and that no
-   `NPM_TOKEN` project variable exists.
-7. Set a reminder before the token expires.
+   `NPM_TOKEN` project variable exists. Still applies.
+7. _Superseded by #266:_ set a reminder before the token expires.
 
 ## Release a client package
 
-Direct publishing with this token ends in January 2027 (see
+The procedure of a release published by CI, which starts with the first release after #266
+(`0.1.0` is [published by hand](#publish-the-first-client-release-manually)). Direct
+publishing with the token of the jobs as built ends in January 2027 (see
 [known-gaps.md](known-gaps.md#npm-token-publishing-ends-in-january-2027)).
 
 1. **Release PR:** bump `version` in the package's `package.json` (`clients/nodejs/` or
@@ -327,9 +413,6 @@ npm deprecate <package>@<version> "<reason>; use <fixed version>"
 
 Then [release](#release-a-client-package) a patch version, which also moves the `latest`
 dist-tag. A fixed library patch reaches every CLI install without a CLI release.
-
-After the first real release (`0.1.0`) of a package, deprecate its placeholder the same way:
-`npm deprecate <package>@0.0.0 "placeholder; use >=0.1.0"`.
 
 ## Unpublish a client release
 

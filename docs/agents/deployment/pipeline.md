@@ -142,6 +142,12 @@ tag, and its jobs run **only on that tag** (`branches: ignore: /.*/`):
 Neither filter matches the other, nor the deploy filter `/^\d+\.\d+\.\d+$/`: a client tag
 never deploys the backend, and a deploy tag never publishes to npm.
 
+The first release, `0.1.0`, does not use this chain: it is
+[published by hand](operations.md#publish-the-first-client-release-manually) with the same
+release scripts, and no client tag is pushed for it until #266 lands. The token the publish
+jobs expect is not set up; CI publishing starts with the next release, after the switch to npm
+trusted publishing (#266).
+
 | Job | Context | Requires | What it does |
 | --- | --- | --- | --- |
 | `pack_client` / `pack_cli` | None | `backend_checks`, `backend_tests`, `frontend_checks`, `clients_checks` (every instance of the matrix), `clients_integration` | `clients/scripts/release_pack.sh "$CIRCLE_TAG" release`, then persists `release/` (the tarball) to the workspace. |
@@ -247,8 +253,9 @@ Why: the restriction is enforced by CircleCI, outside the repository, so no chan
 can reach the deploy key (see [Who can deploy](#who-can-deploy)).
 
 The `pidgey-npm` context is a separate context, so the deploy key and the npm token are never
-reachable from the same job. The maintainer creates it (see
-[operations.md](operations.md#set-up-npm-publishing)) with two restrictions:
+reachable from the same job. It is not set up yet (see
+[operations.md](operations.md#set-up-npm-publishing)); for token publishing it takes two
+restrictions:
 
 - a **project restriction** to the Pidgey project. Without one, every project of the CircleCI
   organization can use a context;

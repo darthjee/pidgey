@@ -109,14 +109,23 @@ the 100 % threshold or the Codacy upload.
 
 ## Releases
 
-The publish pipeline is built, but **nothing is published yet**: the first release is #254. On
-2026-11-27 neither package name existed on npm, and the maintainer's manual
-[npm publishing setup](deployment/operations.md#set-up-npm-publishing) comes first.
+The publish pipeline is built, but **nothing is published yet**: on 2026-11-27 neither package
+name existed on npm.
 
-Each package is released on its own, by its own tag (`pidgey-client-vX.Y.Z` or
-`pidgey-cli-vX.Y.Z`): a CircleCI pack job, which holds no secret, then a publish job, which
-holds the npm token ([deployment/pipeline.md](deployment/pipeline.md#npm-publish-chain)). Their
-logic is in `clients/scripts/`, so it also runs locally:
+**First release (#254).** `0.1.0` of both packages is a one-off manual publish from the
+maintainer's machine, after the merge of its release change. The maintainer publishes, library
+first and with 2FA, the tarballs that `release_pack.sh` produces and the dry run of
+`release_publish.sh` checks
+([runbook](deployment/operations.md#publish-the-first-client-release-manually)). There are no
+`0.0.0` placeholders and no npm token setup, and no release tag is pushed yet. CI publishing
+starts with the next release, after npm trusted publishing (#266)
+([why](specs/node-client/packaging.md#first-release-010)).
+
+In CI, each package is released on its own, by its own tag (`pidgey-client-vX.Y.Z` or
+`pidgey-cli-vX.Y.Z`): a CircleCI pack job, which holds no secret, then a publish job, which as
+built holds an npm token
+([deployment/pipeline.md](deployment/pipeline.md#npm-publish-chain)). Their logic is in
+`clients/scripts/`, so it also runs locally:
 
 | Script | Role |
 | --- | --- |
@@ -127,17 +136,17 @@ logic is in `clients/scripts/`, so it also runs locally:
 Both pack the CLI through `pack_cli.sh`
 ([clients/cli.md](clients/cli.md#the-dependency-on-the-library)).
 
-**Changelog.** Each package has a `CHANGELOG.md`, today a skeleton: an `## Unreleased` heading
-and no version entry (the `0.1.0` entries belong to the release of #254). The release gate reads
-its `## X.Y.Z` heading (optionally `## X.Y.Z - YYYY-MM-DD`, without brackets around the
+**Changelog.** Each package has a `CHANGELOG.md`: an empty `## Unreleased` heading and, below
+it, the `## 0.1.0` entry of the first release. The release gate reads the `## X.Y.Z` heading of
+the version being released (optionally `## X.Y.Z - YYYY-MM-DD`, without brackets around the
 version). The file does not ship in the tarball.
 
-**Procedure and limits.** The library is released first, and the CLI tag is pushed only after
-the library is published
+**Procedure and limits.** The library is released first; in CI releases, the CLI tag is pushed
+only after the library is published
 ([operations.md](deployment/operations.md#release-a-client-package)). The packages carry
 [no provenance](deployment/known-gaps.md#npm-packages-published-without-provenance), and
-[publishing with the npm token ends in January 2027](deployment/known-gaps.md#npm-token-publishing-ends-in-january-2027)
-(#266). The rules are in
+[publishing with the npm token ends in January 2027](deployment/known-gaps.md#npm-token-publishing-ends-in-january-2027),
+so CI publishing waits for #266. The rules are in
 [specs/node-client/packaging.md](specs/node-client/packaging.md#publishing).
 
 ## Owners
@@ -155,5 +164,6 @@ The behaviour of the clients is still in the spec
 [specs/node-client.md](specs/node-client.md), which is removed once these docs cover it (#229).
 Not done yet:
 
-- the first release, `0.1.0` of both packages (#254), see [Releases](#releases);
-- the switch to npm trusted publishing (#266).
+- the manual publish of the first release, `0.1.0` of both packages (#254), see
+  [Releases](#releases);
+- the switch to npm trusted publishing (#266), which CI publishing waits for.
