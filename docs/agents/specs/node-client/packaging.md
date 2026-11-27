@@ -20,9 +20,13 @@ publishing.
 - **Names.** Both are unscoped and were free on npm when checked. The unscoped name `pidgey`
   belongs to an unrelated library (an event emitter with no `bin`), so only the CLI's package
   name differs from its command; the command does not clash.
-- **Name reservation.** Both names are reserved with manual `0.0.0` placeholders (a README
-  pointing at this repository, no code, no `bin`), published by the maintainer with the npm
-  credential, outside CI (#227).
+- **Name reservation.** Both names are to be reserved with manual `0.0.0` placeholders (a
+  README pointing at this repository, no code, no `bin`), published by the maintainer with the
+  npm credential, outside CI (#227).
+  - **Decided, not done yet.** On 2026-11-27, `npm view pidgey-client` and
+    `npm view pidgey-cli` both answer `404`, although #227 is closed: neither name is reserved.
+    Publishing the placeholders is a prerequisite of the first release (#254), part of the
+    [npm publishing setup](../../deployment/operations.md#set-up-npm-publishing).
   - **Placeholder fields.** The placeholder's `package.json` has `name`, version `0.0.0`,
     `description`, `repository` (this repository) and `license` `MIT`, with no `main`, `bin`,
     dependencies or scripts.
@@ -73,9 +77,11 @@ keeps the CLI buildable without a workspace. A published CLI release depends on 
     1. copies `clients/cli/` into a temporary directory;
     2. rewrites `dependencies["pidgey-client"]` to `^<floor>`, the version read from
        `clients/nodejs/package.json`;
-    3. runs `npm pack` there.
+    3. normalizes the file modes of the copy, so the packed bytes do not depend on the umask
+       of the checkout ([publish script](#publish-script));
+    4. runs `npm pack` there.
   - The working tree is never modified. The pack smoke test
-    ([testing.md](testing.md#pack-smoke-test-adopted)) and the publish step use this same
+    ([testing.md](testing.md#pack-smoke-test-adopted)) and both release jobs use this same
     script, so CI tests the exact tarball shape that gets published.
   - **Rejected:** a `prepack`/`postpack` hook rewriting the committed file in place, because a
     failed pack leaves it dirty.
@@ -154,7 +160,7 @@ in the package README, so every JavaScript area runs one Node major.
 | --- | --- |
 | `clients/nodejs/` (source, Jasmine specs, `package.json`, `yarn.lock`, `eslint.config.mjs`, the package README) | New agent `nodejs` |
 | `clients/cli/` (`bin/`, source, Jasmine specs, `package.json`, `yarn.lock`, `eslint.config.mjs`) | New agent `cli` |
-| `clients/scripts/` (the shared check and integration scripts, called by the `Makefile` and CI; `nodejs` and `cli` own the npm scripts they call) | `infra` |
+| `clients/scripts/` (the shared check and integration scripts, called by the `Makefile` and CI, and the release scripts, called by CI; `nodejs` and `cli` own the npm scripts they call) | `infra` |
 | `docs/agents/clients.md` and `docs/agents/clients/` (as-built docs) | `product-owner` |
 | `.claude/agents/`, `AGENTS.md`, `docs/agents/folder-structure.md` | `architect` |
 
@@ -172,7 +178,9 @@ in the package README, so every JavaScript area runs one Node major.
 - While on `0.x`, semver's `0.x` rules apply: a breaking change bumps the **minor**
   (`0.1.x` → `0.2.0`), everything else bumps the patch. Moving to `1.0.0` is a later,
   explicit decision.
-- Each package keeps a `CHANGELOG.md`.
+- Each package keeps a `CHANGELOG.md`. A release has a `## X.Y.Z` heading (optionally
+  `## X.Y.Z - YYYY-MM-DD`), which the [pre-publish gate](#pre-publish-gate) reads. The file
+  does not ship in the tarball.
 - Package versions are independent from each other and from the backend version. The only
   link is the CLI's dependency range, whose floor rule is in
   [CLI to library dependency](#cli-to-library-dependency): a CLI release raises the floor
@@ -210,10 +218,11 @@ state that codes may be added); a case that becomes **not** retried; a new opt-i
 - Both packages are published to the public npm registry within the epic: `pidgey-client`
   `0.1.0` first, then `pidgey-cli` `0.1.0` depending on it.
 - **Who can publish:** whoever can push a package tag (today only the owner), the same access
-  model as the backend deploy. The credential sits in a CircleCI context `pidgey-npm` with an
-  **expression restriction**, not a security group: security groups are not available on the
-  CircleCI free plan
-  ([pipeline.md](../../deployment/pipeline.md#context-restriction)).
+  model as the backend deploy
+  ([pipeline.md](../../deployment/pipeline.md#who-can-publish)). The credential sits in a
+  CircleCI context `pidgey-npm` with a **project restriction** and an **expression
+  restriction**, not a security group: security groups are not available on the CircleCI free
+  plan ([pipeline.md](../../deployment/pipeline.md#context-restriction)).
 - npm credentials are never committed and never provided as repository secrets in a pull
   request; where the credential lives is documented in `docs/agents/deployment/` (owned by
   `architect`).
@@ -243,22 +252,61 @@ never runs next to the npm token.
 
 | Job | Context | What it does |
 | --- | --- | --- |
-| `pack_client` / `pack_cli` | None | Requires every check job. Frozen install; checks the tag version equals `package.json` `version`; checks `CHANGELOG.md` has an entry for that version; packs (the CLI through the [staging-copy script](#cli-to-library-dependency)); runs the pack check against the expected file list; persists the tarball to the workspace. |
-| `publish_client` / `publish_cli` | `pidgey-npm` | Requires its pack job. Attaches the workspace and installs nothing. Then: (1) if `npm view <pkg>@<version>` already answers, ends as a **no-op success**, so a failed workflow can be re-run; (2) for the CLI, waits for the floor ([below](#both-packages-in-one-release)); (3) `npm publish <tarball> --access public --ignore-scripts`, with `--provenance` when supported; (4) waits until npm serves the new version. |
+| `pack_client` / `pack_cli` | None | Requires every check job. Checks the tag version equals `package.json` `version`; checks `CHANGELOG.md` has an entry for that version; frozen install with `--ignore-scripts`, so no dependency lifecycle script runs; for the library, builds the `.d.ts` declarations; packs (the CLI through the [staging-copy script](#cli-to-library-dependency)); runs the pack check against the expected file list; persists the tarball to the workspace. |
+| `publish_client` / `publish_cli` | `pidgey-npm` | Requires its pack job. Checks out the repository, attaches the workspace, installs nothing, and runs the [publish script](#publish-script) on the pack job's tarball. |
 
 - The publish jobs share `serial-group: << pipeline.project.slug >>/pidgey-npm`, so publishes
   run one at a time.
-- `npm publish <tarball>` publishes the tarball built and checked by the pack job; it never
-  re-packs.
+- The scripts, their order of checks and the executor are described in
+  [pipeline.md](../../deployment/pipeline.md#npm-publish-chain).
+
+### Publish script
+
+`clients/scripts/release_publish.sh [--dry-run] <tag> <tarball>`:
+
+1. takes the package and the version from the **tag**; the `package.json` of the checkout must
+   have that version;
+2. packs a **reference** tarball from the checkout, the way the pack job does. Only the
+   library's `dist/` (build output, not in git) comes from the pack job's tarball;
+3. before anything is asked of or sent to the registry, requires the reference to match the
+   expected file list and to be **byte-identical** to the pack job's tarball;
+4. if `npm view <pkg>@<version>` already answers, ends as a **no-op success**, so a failed
+   workflow can be re-run;
+5. for the CLI, waits for the floor ([below](#both-packages-in-one-release));
+6. publishes those identical bytes with
+   `npm publish <tarball> --access public --ignore-scripts`, without `--provenance`
+   ([Provenance](#provenance));
+7. waits until npm serves the new version.
+
+- **What is published.** The published bytes are the ones the pack job built and checked. The
+  second pack is only a comparison: if the two differ, nothing is published.
+- **Why:** the pack job runs third-party code, so its tarball is not trusted. A security review
+  found that `npm publish <tarball>` honours the tarball's `publishConfig`, which could
+  redirect the token, and that inspecting the archive with `tar` is not reliable. Equality with
+  a tarball built from the checkout settles both. The content of the library's `dist/`
+  declarations is the one part this does not verify
+  ([known-gaps.md](../../deployment/known-gaps.md#npm-type-declarations-are-not-verified-at-publish)).
+- **Dry run.** `--dry-run` runs the same path without publishing: the same checks, comparison
+  and no-op; `npm publish --dry-run` without a token; a CLI floor missing from npm is only a
+  warning; no wait for the new version. CI never passes it; it exercises the publish path
+  before a real release
+  ([operations.md](../../deployment/operations.md#dry-run-a-client-release-locally)).
 
 ### Both packages in one release
 
-The maintainer pushes both tags; the two pipelines may run in parallel.
+**Decided in #253:** one tag at a time, library first. The maintainer pushes the library tag,
+and pushes the CLI tag only after `publish_client` succeeded. Pushing both tags at once is not
+the procedure.
 
+- **Why:** the publish jobs share one serial group, which stays as #253 specifies. CircleCI
+  skips a job that joins a busy serial group with a lower pipeline number than the job waiting
+  or running, and `publish_cli` holds the group while it waits for the library. With both tags
+  pushed at once, the library publish can be skipped, or run only after the CLI has given up
+  ([known-gaps.md](../../deployment/known-gaps.md#releasing-both-clients-at-once)).
 - `publish_cli` **polls** `npm view pidgey-client@<floor>` every 10 s for up to 5 minutes, and
   aborts if the library version never shows up. This refines the registry check of
   [CLI to library dependency](#cli-to-library-dependency): the check is the same, it just waits
-  for npm propagation and for a library pipeline running at the same time.
+  for npm propagation.
 - A CLI-only release keeps the current library version as its floor, which is already on npm,
   so the wait ends at once.
 
@@ -267,32 +315,56 @@ The maintainer pushes both tags; the two pipelines may run in parallel.
 - A **new** CircleCI context `pidgey-npm`, holding only `NPM_TOKEN`, separate from
   `pidgey-deploy`, so the SSH deploy key and the npm token are never reachable from the same
   job.
-- **Expression restriction** in the CircleCI organization settings:
-  `pipeline.git.tag =~ "^pidgey-(client|cli)-v[0-9]+\.[0-9]+\.[0-9]+$"`. No security group.
+- **Restrictions** in the CircleCI organization settings, no security group
+  ([pipeline.md](../../deployment/pipeline.md#context-restriction)):
+  - a **project restriction** to the Pidgey project, since otherwise every project of the
+    organization can use the context;
+  - an **expression restriction**, so only client release tags get the token and an SSH rerun
+    does not:
+    `pipeline.git.tag =~ "^pidgey-(client|cli)-v[0-9]+\.[0-9]+\.[0-9]+$" and not job.ssh.enabled`.
 - Attached only to the two publish jobs. Never a project variable; "Pass secrets to builds
   from forked pull requests" stays off.
 - **Token:** an npm **granular** access token, read and write, limited to the packages
-  `pidgey-client` and `pidgey-cli`, with an expiry date. npm caps write tokens at 90 days.
-  - **To confirm** (implementation sub-issue): the current cap, the exact setting names, and
-    the 2FA bypass a CI token needs.
+  `pidgey-client` and `pidgey-cli`, with an expiry date.
+  - **Settings:** "Read and write (publish and stage)", "Only select packages and scopes", and
+    the "Bypass two-factor authentication" checkbox checked, since CI cannot answer a 2FA
+    prompt
+    ([creating and viewing access tokens](https://docs.npmjs.com/creating-and-viewing-access-tokens)).
+    The full table is in [variables.md](../../deployment/variables.md#npm-context).
+  - **Lifetime:** npm announced a 90-day maximum and a 7-day default for write tokens
+    ([September 2025](https://github.blog/changelog/2025-09-29-strengthening-npm-security-important-changes-to-authentication-and-token-management/)).
+    The current token pages state neither.
 - **2FA:** required on the maintainer's npm account and in both packages' publishing
   settings, allowing only 2FA or a granular token.
-- **Rotation** (documented in `operations.md`):
-  1. create a new token with the same settings;
-  2. replace `NPM_TOKEN` in `pidgey-npm`;
-  3. revoke the old token;
-  4. set a reminder before the next expiry.
-  An expired or revoked token shows up as a `401`/`403` in the publish job: rotate, then
-  re-run the job (it is idempotent).
+  - The exact name of the option under a package's "Publishing access" that allows a token
+    bypassing 2FA could **not be verified**. What is known: "Require two-factor authentication
+    and disallow tokens" must not be chosen
+    ([trusted publishers](https://docs.npmjs.com/trusted-publishers)).
+- **Time limit:** npm announces that direct publishing with granular tokens is removed in
+  **January 2027** ([about access tokens](https://docs.npmjs.com/about-access-tokens), read
+  2026-11-27). The publish jobs stop working then, and rotating the token does not help. The
+  switch to trusted publishing is the follow-up #266
+  ([known-gaps.md](../../deployment/known-gaps.md#npm-token-publishing-ends-in-january-2027)).
+- **Rotation:** a new token with the same settings replaces `NPM_TOKEN`, then the old one is
+  revoked ([operations.md](../../deployment/operations.md#rotate-the-npm-token)). An expired or
+  revoked token shows up as a `401`/`403` in the publish job: rotate, then re-run the job (it
+  is idempotent).
 - The token is never echoed; no release script uses `set -x`.
 
 ### Provenance
 
-- Goal kept: `npm publish --provenance`, or npm trusted publishing (OIDC) instead of the
-  stored token, if npm supports CircleCI for it.
-- **To confirm** (implementation sub-issue): whether npm supports CircleCI for provenance or
-  trusted publishing. If it does not, this section records the gap explicitly (published
-  without provenance attestations, and why). The goal is not dropped silently.
+**Outcome (#253): the packages are published without provenance attestations**, so a consumer
+cannot verify that a tarball was built from a commit of this repository. Authentication stays
+the `NPM_TOKEN` of `pidgey-npm`.
+
+- `npm publish --provenance` supports only GitHub Actions and GitLab CI/CD
+  ([generating provenance statements](https://docs.npmjs.com/generating-provenance-statements)).
+- npm trusted publishing (OIDC) supports CircleCI cloud, but generates no provenance there
+  ([trusted publishers](https://docs.npmjs.com/trusted-publishers)). Switching to it is #266,
+  which replaces the stored token but does **not** close the provenance gap.
+- The goal stays: the gap is recorded in
+  [known-gaps.md](../../deployment/known-gaps.md#npm-packages-published-without-provenance) and
+  closes when npm supports provenance from CircleCI.
 
 ### Pre-publish gate
 
@@ -300,10 +372,14 @@ A publish happens only if all of these hold:
 
 1. every check job of the pipeline passed (backend, frontend and client checks, including the
    pack smoke test, [testing.md](testing.md#pack-smoke-test-adopted));
-2. the tag's version equals the package's `package.json` `version`;
+2. **bound to the tag:** the package and the version are the ones the tag names, never read
+   from the tarball, and that version equals the package's `package.json` `version` (checked
+   by both release jobs);
 3. `CHANGELOG.md` has an entry for that version;
 4. the pack check passes for the tarball being published;
-5. for the CLI: the floor is on npm (the wait above).
+5. **byte comparison:** the pack job's tarball is byte-identical to the one the publish job
+   packs from the checkout ([publish script](#publish-script));
+6. for the CLI: the floor is on npm (the wait above).
 
 A version already on npm is not an error but a no-op, as described above.
 
@@ -311,9 +387,16 @@ A version already on npm is not an error but a no-op, as described above.
 
 1. **Release PR:** bumps `version` in the package's `package.json` and adds its `CHANGELOG.md`
    entry. A release changing both packages bumps both in the same PR.
-2. After merge, the maintainer tags the merge commit on `main` (`pidgey-client-vX.Y.Z`, then
-   `pidgey-cli-vX.Y.Z` if needed) and pushes the tag(s).
+2. After merge, the maintainer tags the merge commit on `main` and pushes **one tag**:
+   `pidgey-client-vX.Y.Z`, or `pidgey-cli-vX.Y.Z` for a CLI-only release.
 3. CI runs the gate and publishes.
+4. When both packages are released, only after `publish_client` succeeded, the maintainer
+   tags and pushes `pidgey-cli-vX.Y.Z` ([why](#both-packages-in-one-release)).
+
+The runbook is in [operations.md](../../deployment/operations.md#release-a-client-package).
+Before the first release, the maintainer does the
+[npm publishing setup](../../deployment/operations.md#set-up-npm-publishing), placeholders
+included.
 
 ### Rollback
 
@@ -327,14 +410,20 @@ A version already on npm is not an error but a no-op, as described above.
   release ([CLI to library dependency](#cli-to-library-dependency)).
 - No dist-tag juggling (`next`, `beta`) and no pre-releases on `0.x`.
 
-### Docs for the implementation sub-issue
+### Deployment docs
 
-The sub-issue that builds the pipeline updates `docs/agents/deployment/` (owned by
+The pipeline as built (#253) is documented in `docs/agents/deployment/` (owned by
 `architect`):
 
-- `pipeline.md`: the four jobs, their filters, the context restriction and the serial group;
-- `variables.md`: the `pidgey-npm` context and `NPM_TOKEN`;
-- `operations.md`: the release procedure, token rotation, deprecation and unpublish.
+- [pipeline.md](../../deployment/pipeline.md#npm-publish-chain): the four jobs, their filters,
+  the release scripts and the dry run; the
+  [context restriction](../../deployment/pipeline.md#context-restriction) and the
+  [serial group](../../deployment/pipeline.md#serial-group);
+- [variables.md](../../deployment/variables.md#npm-context): the `pidgey-npm` context,
+  `NPM_TOKEN` and the token settings;
+- [operations.md](../../deployment/operations.md#set-up-npm-publishing): setup, release, dry
+  run, rerun, token rotation, deprecation and unpublish;
+- [known-gaps.md](../../deployment/known-gaps.md): what the publishing does not cover yet.
 
 ### Supply chain
 
@@ -354,7 +443,8 @@ the pack check and the hardened publishing token that navi lacks.
   `pidgey --version` and `--help`, import through the `exports` map, type-check the `.d.ts`)
   runs on every build and is specified in
   [testing.md](testing.md#pack-smoke-test-adopted) and
-  [testing.md](testing.md#dts-type-check-adopted).
+  [testing.md](testing.md#dts-type-check-adopted). At release, the same expected list is
+  compared with the files of the packed tarball itself.
 - **No install scripts.** Neither package declares `preinstall`, `install` or `postinstall`
   scripts: installing them runs no code.
 - **2FA and token.** 2FA is required on the maintainer's npm account and in each package's
@@ -362,19 +452,19 @@ the pack check and the hardened publishing token that navi lacks.
   and `pidgey-cli`, with an expiry date, never a classic long-lived automation token. Where
   the token lives, its rotation and the release procedure are in
   [Credential](#credential-the-pidgey-npm-context) and [Release procedure](#release-procedure).
-- **Provenance.** The goal is provenance-attested releases: `npm publish --provenance`, or
-  npm trusted publishing (OIDC), whenever CircleCI is supported for it. If it is not, this
-  spec records the gap explicitly instead of dropping the goal silently; see
-  [Provenance](#provenance).
+- **Provenance.** The goal is provenance-attested releases. It is not met: npm generates no
+  provenance from CircleCI, so releases are published without it
+  ([Provenance](#provenance)).
 - **Committed-file lint.** `clients/scripts/checks.sh` fails if the committed
   `clients/cli/package.json` declares `pidgey-client` as anything other than `file:../nodejs`,
   so the published range only ever comes from the staging-copy pack
   ([CLI to library dependency](#cli-to-library-dependency)).
 - **Range versus pin.** The range admits only this project's own releases, published under
-  the token, 2FA and provenance rules above and in [Publishing](#publishing). The one added risk is that a
-  compromised `pidgey-client` publish reaches CLI installs without a CLI release; a pin would
-  not protect library consumers from the same publish, so the publishing controls remain the
-  defence.
+  the token, 2FA and gate rules above and in [Publishing](#publishing). The one added risk is
+  that a compromised `pidgey-client` publish reaches CLI installs without a CLI release; a pin
+  would not protect library consumers from the same publish, so the publishing controls remain
+  the defence.
 - **Frozen installs.** CI installs with the committed lockfile frozen
   (`yarn install --frozen-lockfile`, matching the Yarn tooling in [Stack](#stack)), so a
-  release never resolves new dependency versions.
+  release never resolves new dependency versions. The release pack install also passes
+  `--ignore-scripts`, so no dependency lifecycle script runs in it.

@@ -15,7 +15,7 @@ The `clients/` folder:
 | --- | --- | --- |
 | `clients/nodejs/` | The Node.js library `pidgey-client`. | Built: send, retries, errors, validation, the types generated from the OpenAPI document and the contract spec. |
 | `clients/cli/` | The command-line client `pidgey-cli`. | Built: the send flags, the token file and environment, the body and capped stdin, the output, the exit codes and SIGINT. |
-| `clients/scripts/` | Shared scripts. `checks.sh` runs the checks of every package; `pack_cli.sh` packs the CLI from a staging copy; `smoke_test.sh` is the pack smoke test; `integration.sh` runs the integration specs, with `integration_seed.mjs` and `integration_support.mjs`. | Built. |
+| `clients/scripts/` | Shared scripts. `checks.sh` runs the checks of every package; `pack_cli.sh` packs the CLI from a staging copy; `smoke_test.sh` is the pack smoke test; `integration.sh` runs the integration specs, with `integration_seed.mjs` and `integration_support.mjs`; `release_pack.sh`, `release_publish.sh` and `release_lib.sh` are the npm release scripts ([Releases](#releases)). | Built. |
 
 The package folders are independent: there is no workspace tooling and no `package.json` at
 the repository root, so `make tests` stays the single command that runs every check.
@@ -107,19 +107,53 @@ seed's output), run `yarn test:integration` from `clients/nodejs/` or `clients/c
 integration specs are excluded from `yarn test` and `yarn coverage`, so they never count toward
 the 100 % threshold or the Codacy upload.
 
+## Releases
+
+The publish pipeline is built, but **nothing is published yet**: the first release is #254. On
+2026-11-27 neither package name existed on npm, and the maintainer's manual
+[npm publishing setup](deployment/operations.md#set-up-npm-publishing) comes first.
+
+Each package is released on its own, by its own tag (`pidgey-client-vX.Y.Z` or
+`pidgey-cli-vX.Y.Z`): a CircleCI pack job, which holds no secret, then a publish job, which
+holds the npm token ([deployment/pipeline.md](deployment/pipeline.md#npm-publish-chain)). Their
+logic is in `clients/scripts/`, so it also runs locally:
+
+| Script | Role |
+| --- | --- |
+| `release_pack.sh` | The pack job: the tag, version and changelog gates, an install without lifecycle scripts, the pack and the file-list check. |
+| `release_publish.sh` | The publish job: packs a reference from the checkout and publishes only if the pack job's tarball is byte-identical to it. It has a [dry-run mode](deployment/operations.md#dry-run-a-client-release-locally). |
+| `release_lib.sh` | Shared by the two, so both read the tag, pack and check the file list in the same way. Sourced, never run. |
+
+Both pack the CLI through `pack_cli.sh`
+([clients/cli.md](clients/cli.md#the-dependency-on-the-library)).
+
+**Changelog.** Each package has a `CHANGELOG.md`, today a skeleton: an `## Unreleased` heading
+and no version entry (the `0.1.0` entries belong to the release of #254). The release gate reads
+its `## X.Y.Z` heading (optionally `## X.Y.Z - YYYY-MM-DD`, without brackets around the
+version). The file does not ship in the tarball.
+
+**Procedure and limits.** The library is released first, and the CLI tag is pushed only after
+the library is published
+([operations.md](deployment/operations.md#release-a-client-package)). The packages carry
+[no provenance](deployment/known-gaps.md#npm-packages-published-without-provenance), and
+[publishing with the npm token ends in January 2027](deployment/known-gaps.md#npm-token-publishing-ends-in-january-2027)
+(#266). The rules are in
+[specs/node-client/packaging.md](specs/node-client/packaging.md#publishing).
+
 ## Owners
 
 | Owner | Owns |
 | --- | --- |
 | `nodejs` | `clients/nodejs/`. |
 | `cli` | `clients/cli/`. |
-| `infra` | `clients/scripts/` (including the pack script, the smoke test and the integration scripts), the `clients` compose service (with its `source/openapi` mount), the `integration_app` compose service, the `make` targets and the CI jobs. |
+| `infra` | `clients/scripts/` (including the pack script, the smoke test, the integration scripts and the release scripts), the `clients` compose service (with its `source/openapi` mount), the `integration_app` compose service, the `make` targets and the CI jobs. |
 | `product-owner` | These docs. |
 
-## Not built yet
+## Still to come
 
 The behaviour of the clients is still in the spec
-[specs/node-client.md](specs/node-client.md), which is removed once these docs cover it. Still
-to come, per sub-issue of epic #219:
+[specs/node-client.md](specs/node-client.md), which is removed once these docs cover it (#229).
+Not done yet:
 
-- publishing.
+- the first release, `0.1.0` of both packages (#254), see [Releases](#releases);
+- the switch to npm trusted publishing (#266).
