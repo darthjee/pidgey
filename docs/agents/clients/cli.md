@@ -156,6 +156,8 @@ Under `clients/cli/specs/`, mirroring the source:
   covers only what an in-process spec cannot prove: the exit status and the streams, a body
   through a real pipe and its cap, SIGINT in flight (`130`, the connection aborted), and that
   the process exits promptly after a send;
+- `specs/integration/Send_spec.js`: the end-to-end spec against a real Pidgey, run by
+  `yarn test:integration` only ([clients.md](../clients.md#integration));
 - `specs/support/TestServer.js`: the scripted `node:http` server the subprocess spec talks to
   (not a spec).
 
@@ -171,8 +173,9 @@ Run from `clients/cli/`. Each one exits non-zero on failure.
 | --- | --- |
 | `yarn lint` | ESLint over `bin`, `cli` and `specs`. |
 | `yarn typecheck` | `tsc --allowJs --checkJs --noEmit` over `bin`, `cli` and `types`: the JSDoc types are checked, nothing is emitted. |
-| `yarn test` | Jasmine over `specs/`, files named `*_spec.js`. |
-| `yarn coverage` | `c8` running Jasmine. Writes `coverage/lcov.info` and **fails below 100 %**. |
+| `yarn test` | Jasmine over `specs/` (the directories of the unit and subprocess specs, not `specs/integration/`), files named `*_spec.js`. |
+| `yarn coverage` | `c8` running Jasmine over the same specs. Writes `coverage/lcov.info` and **fails below 100 %**. |
+| `yarn test:integration` | Jasmine over `specs/integration/` only: `Send_spec.js` runs the real `pidgey` as a subprocess against a real Pidgey and checks the delivery in Mailpit. Skipped without the `PIDGEY_INTEGRATION_*` environment; see [clients.md](../clients.md#integration). Never part of the coverage. |
 
 ## Pack check
 

@@ -188,6 +188,8 @@ The specs mirror `lib/` under `clients/nodejs/specs/lib/`, plus shared helpers a
 - `specs/contract/OpenApi_spec.js` and `specs/support/Fixtures.js`, see
   [Contract spec](#contract-spec), and `specs/types/consumer.ts`, see
   [Consumer fixture](#consumer-fixture);
+- `specs/integration/Send_spec.js`, the end-to-end spec against a real Pidgey, run by
+  `yarn test:integration` only ([clients.md](../clients.md#integration));
 - `specs/support/TestServer.js`, a scripted in-process `node:http` server on `127.0.0.1` with
   port `0`: it records the requests and answers from a script (JSON or raw bodies, gzip,
   delays, a destroyed socket, a stalled body). The specs use real `fetch` against it.
@@ -282,8 +284,9 @@ Run from `clients/nodejs/`. Each one exits non-zero on failure.
 | `yarn typecheck` | `tsc --allowJs --checkJs --noEmit` over `lib`: the JSDoc types are checked, nothing is emitted. |
 | `yarn generate:types` | Regenerates `types/v1.ts` from `../../source/openapi/v1.json`. Run it after a `/v1` document change and commit the result. |
 | `yarn build:types` | `rm -rf dist && tsc -p tsconfig.build.json`: emits the `.d.ts` declarations into `dist/`. Run by `checks.sh` before the pack check. |
-| `yarn test` | Jasmine over `specs/`, files named `*_spec.js`. |
-| `yarn coverage` | `c8` running Jasmine. Writes `coverage/lcov.info` and **fails below 100 %** of lines, branches, functions and statements, over every file of `lib/` (also those no spec loads). |
+| `yarn test` | Jasmine over `specs/` (the directories of the unit and contract specs, not `specs/integration/`), files named `*_spec.js`. |
+| `yarn coverage` | `c8` running Jasmine over the same specs. Writes `coverage/lcov.info` and **fails below 100 %** of lines, branches, functions and statements, over every file of `lib/` (also those no spec loads). |
+| `yarn test:integration` | Jasmine over `specs/integration/` only: `Send_spec.js` sends through the library against a real Pidgey and checks the delivery in Mailpit. Skipped without the `PIDGEY_INTEGRATION_*` environment; see [clients.md](../clients.md#integration). Never part of the coverage. |
 
 The 100 % threshold applies from the first commit, so no later change retrofits it onto
 merged code.

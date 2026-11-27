@@ -15,7 +15,7 @@ The `clients/` folder:
 | --- | --- | --- |
 | `clients/nodejs/` | The Node.js library `pidgey-client`. | Built: send, retries, errors, validation, the types generated from the OpenAPI document and the contract spec. |
 | `clients/cli/` | The command-line client `pidgey-cli`. | Built: the send flags, the token file and environment, the body and capped stdin, the output, the exit codes and SIGINT. |
-| `clients/scripts/` | Shared scripts. `checks.sh` runs the checks of every package; `pack_cli.sh` packs the CLI from a staging copy; `smoke_test.sh` is the pack smoke test. | Built. |
+| `clients/scripts/` | Shared scripts. `checks.sh` runs the checks of every package; `pack_cli.sh` packs the CLI from a staging copy; `smoke_test.sh` is the pack smoke test; `integration.sh` runs the integration specs, with `integration_seed.mjs` and `integration_support.mjs`. | Built. |
 
 The package folders are independent: there is no workspace tooling and no `package.json` at
 the repository root, so `make tests` stays the single command that runs every check.
@@ -61,13 +61,59 @@ difference is the Node.js version: `make clients-checks` runs on the development
 only, while CI also runs the floor version ([nodejs.md](clients/nodejs.md#ci)). CI also asserts
 that the working tree is unchanged after the checks, which proves no pack touched it.
 
+## Integration
+
+The unit specs run against an in-process server; the integration specs prove the clients
+against a **real Pidgey**. Each package has one spec, `clients/nodejs/specs/integration/Send_spec.js`
+(the library) and `clients/cli/specs/integration/Send_spec.js` (the `pidgey` CLI as a
+subprocess), sharing `clients/scripts/integration_support.mjs`. Each sends a message through the
+client and asserts, through Mailpit's HTTP API, that exactly one message arrived. The cases, in
+both specs: a successful send; the same `Idempotency-Key` and body as a replay (`replayed: true`,
+CLI exit `0`) with still one message; the same key with a different body as
+`422 IDEMPOTENCY_KEY_REUSED`; `409 NO_SMTP_CONNECTION` for an organization without an SMTP
+connection; `401 UNAUTHORIZED` for a revoked token. `409 IDEMPOTENCY_KEY_IN_USE` is not covered: it
+needs a send still in flight. The rules are in
+[specs/node-client/testing.md](specs/node-client/testing.md#integration).
+
+**Stack.** A dedicated compose app service, `integration_app` (reached at `http://integration_app`,
+no published host port), with its own database `pidgey_integration`, `USER_APPROVAL_REQUIRED=false`
+and `SMTP_ALLOW_PRIVATE_HOSTS=true`, next to MySQL and the plain test Mailpit (`mailpit-plain`:
+SMTP on `2025`, HTTP API on `9025`). `clients/scripts/integration_seed.mjs` creates the fixtures
+through the admin JSON API, with fresh organizations per run, so reruns never collide.
+
+**Run.** `make clients-integration` boots the stack and runs `clients/scripts/integration.sh`;
+`make tests` runs it too, and so does the CircleCI job `clients_integration` (machine executor,
+current Node.js only, after `clients_checks`): the `Makefile` target and the job call the same
+script. The script runs `yarn test:integration` in each package.
+
+**Environment handed to the specs** (by `integration.sh`):
+
+| Variable | Value |
+| --- | --- |
+| `PIDGEY_INTEGRATION` | `required`, set only by `integration.sh`. |
+| `PIDGEY_INTEGRATION_URL` | The Pidgey base URL, `http://integration_app`. |
+| `PIDGEY_INTEGRATION_MAILPIT_URL` | The Mailpit HTTP API, `http://mailpit-plain:9025`. |
+| `PIDGEY_INTEGRATION_TOKEN` | A `send` token of organization A, which has an active Mailpit connection. |
+| `PIDGEY_INTEGRATION_REVOKED_TOKEN` | A revoked `send` token of organization A. |
+| `PIDGEY_INTEGRATION_NO_CONNECTION_TOKEN` | A `send` token of organization B, which has no SMTP connection. |
+
+**Skip or required.** With `PIDGEY_INTEGRATION_URL` unset and `PIDGEY_INTEGRATION` not `required`,
+every case is `pending`, so a local `yarn test:integration` without a stack passes by skipping.
+With `PIDGEY_INTEGRATION=required` (CI and `make`), a missing variable fails the run, naming
+the variable and never printing a token.
+
+**One package against a running stack.** With the stack up and the six variables exported (the
+seed's output), run `yarn test:integration` from `clients/nodejs/` or `clients/cli/`. The
+integration specs are excluded from `yarn test` and `yarn coverage`, so they never count toward
+the 100 % threshold or the Codacy upload.
+
 ## Owners
 
 | Owner | Owns |
 | --- | --- |
 | `nodejs` | `clients/nodejs/`. |
 | `cli` | `clients/cli/`. |
-| `infra` | `clients/scripts/` (including the pack script and the smoke test), the `clients` compose service (with its `source/openapi` mount), the `make` targets and the CI job. |
+| `infra` | `clients/scripts/` (including the pack script, the smoke test and the integration scripts), the `clients` compose service (with its `source/openapi` mount), the `integration_app` compose service, the `make` targets and the CI jobs. |
 | `product-owner` | These docs. |
 
 ## Not built yet
@@ -76,4 +122,4 @@ The behaviour of the clients is still in the spec
 [specs/node-client.md](specs/node-client.md), which is removed once these docs cover it. Still
 to come, per sub-issue of epic #219:
 
-- the integration job and publishing.
+- publishing.
