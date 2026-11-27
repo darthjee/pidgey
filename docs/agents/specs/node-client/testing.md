@@ -106,23 +106,41 @@ must exit `0` within a bounded time (for example 5 s).
 
 ## Integration
 
-`specs/integration/Send_spec.js`, run by the dedicated CI job `clients_integration` and a
-matching `Makefile` target:
+One spec per package, `clients/nodejs/specs/integration/Send_spec.js` (the library) and
+`clients/cli/specs/integration/Send_spec.js` (the CLI as a subprocess), sharing
+`clients/scripts/integration_support.mjs` (environment check, unique subject, Mailpit lookups).
+They are run by the dedicated CI job `clients_integration` and a matching `Makefile` target:
 
 1. The job runs on a CircleCI **machine executor** and boots the stack with
-   `docker compose`: Pidgey backend, MySQL, Mailpit. It is the same stack and the same
-   commands as the matching `Makefile` target, `make clients-integration`.
-2. It seeds an organization, a `send`-scoped API token and an SMTP connection pointing at
-   Mailpit.
-3. It sends through the library **and** through the `pidgey` CLI, and asserts delivery
-   through Mailpit's HTTP API (`GET /api/v1/messages`): a real Pidgey delivers over SMTP to
-   Mailpit, and Mailpit lists.
-4. It also covers a real `409 NO_SMTP_CONNECTION` for an organization without an active
-   connection, and a real `401` for a revoked token.
+   `docker compose`: a dedicated Pidgey service `integration_app`, MySQL and the plain test
+   Mailpit (`mailpit-plain`). It is the same stack and the same commands as the matching
+   `Makefile` target, `make clients-integration`.
+2. `integration_app` has its own database and `USER_APPROVAL_REQUIRED=false`. The seed script
+   (`integration_seed.mjs`) goes through the **admin JSON API**, not the database: it creates
+   two fresh organizations per run (random suffix, so reruns never collide), organization A
+   with a `send`-scoped API token and an SMTP connection pointing at Mailpit (plus a second,
+   revoked `send` token) and organization B with a `send` token and no SMTP connection.
+3. Each spec sends through its client (the library, or the `pidgey` CLI), built with
+   `allowInsecureHttp` / `--allow-insecure-http` because the stack is plain HTTP on a
+   non-loopback host, and asserts delivery through Mailpit's HTTP API: a real Pidgey delivers
+   over SMTP to Mailpit, and Mailpit lists exactly one message with the unique subject.
+4. The cases, the same in both specs:
+   - a send with the organization A token succeeds and Mailpit shows one message;
+   - the same `Idempotency-Key` and body succeeds as a replay (`replayed: true`, CLI exit `0`)
+     and Mailpit still shows one message;
+   - the same `Idempotency-Key` with a different body is `422 IDEMPOTENCY_KEY_REUSED`;
+   - the organization B token is `409 NO_SMTP_CONNECTION` with `possiblySent: false`;
+   - the revoked token is `401 UNAUTHORIZED`.
 
-Locally the spec is skipped unless the environment points at a running stack. The exception
-is CI: `clients_integration` sets the "required" flag (for example
-`PIDGEY_INTEGRATION=required`), which turns a missing stack into a failure instead of a skip.
+   `409 IDEMPOTENCY_KEY_IN_USE` is explicitly out of scope: it needs a send still in flight.
+5. `specs/integration/` is excluded from `yarn test` and `yarn coverage` (explicit directory
+   globs), so integration never counts toward the 100 % threshold or the Codacy upload. It runs
+   only through `yarn test:integration`.
+
+Without a stack the spec is skipped: with `PIDGEY_INTEGRATION_URL` unset and
+`PIDGEY_INTEGRATION` not `required`, every case is `pending`. The exception is CI:
+`integration.sh` sets `PIDGEY_INTEGRATION=required`, which turns any missing variable into a
+failure naming it (never its value) instead of a skip.
 
 **Rejected executors:**
 

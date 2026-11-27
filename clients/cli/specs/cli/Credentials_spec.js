@@ -156,14 +156,14 @@ describe('resolveCredentials', () => {
       expect((await failure(resolve({ tokenFile, ...url }))).message).toContain('empty');
     });
 
-    for (const [name, content] of [['CR', 'xy\rz'], ['LF', 'xy\nz'], ['NUL', 'xy\u0000z'], ['tab', 'xy\tz']]) {
+    for (const [name, content] of [['CR', 'leaky-secret\rz'], ['LF', 'leaky-secret\nz'], ['NUL', 'leaky-secret\u0000z'], ['tab', 'leaky-secret\tz']]) {
       it(`rejects a ${name} inside the token, naming the path and not the content`, async () => {
         const tokenFile = await withFile('token', content);
         const error = await failure(resolve({ tokenFile, ...url }));
 
         expect(error).toBeInstanceOf(UsageError);
         expect(error.message).toContain(tokenFile);
-        expect(error.message).not.toContain('xy');
+        expect(error.message).not.toContain('leaky-secret');
       });
     }
 

@@ -22,8 +22,9 @@
   "scripts": {
     "lint": "eslint bin cli specs",
     "typecheck": "tsc --allowJs --checkJs --noEmit -p .",
-    "test": "jasmine \"specs/**/*_spec.js\"",
-    "coverage": "c8 jasmine \"specs/**/*_spec.js\""
+    "test": "jasmine \"specs/cli/**/*_spec.js\" \"specs/bin/**/*_spec.js\"",
+    "coverage": "c8 jasmine \"specs/cli/**/*_spec.js\" \"specs/bin/**/*_spec.js\"",
+    "test:integration": "jasmine \"specs/integration/**/*_spec.js\""
   },
   "dependencies": {
     "pidgey-client": "file:../nodejs"

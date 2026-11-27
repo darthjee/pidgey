@@ -27,6 +27,24 @@ services:
       - mysql
     command: apache2-foreground
 
+  # Pidgey instance the client integration specs run against (see
+  # clients/scripts/integration.sh, run with `make clients-integration`). It has
+  # its own database and no published port; the clients service reaches it as
+  # http://integration_app. Registered users are approved at once, so the seed
+  # needs no admin.
+  integration_app:
+    <<: *base
+    environment:
+      PHP_ENV: development
+      DB_NAME: pidgey_integration
+      USER_APPROVAL_REQUIRED: "false"
+      SMTP_ALLOW_PRIVATE_HOSTS: "true"
+    depends_on:
+      - base_build
+      - mysql
+      - mailpit-plain
+    command: apache2-foreground
+
   tests:
     <<: *base
     environment:
