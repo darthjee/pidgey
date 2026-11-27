@@ -233,6 +233,29 @@ jobs:
                 report: clients/cli/coverage/lcov.info
                 prefix: clients/cli
 
+  # End-to-end check of the Node clients against a real Pidgey, booted with
+  # docker compose (see docs/agents/specs/node-client/testing.md for the
+  # rejected executors). The same command runs locally.
+  clients_integration:
+    machine:
+      image: ubuntu-2404:2024.11.1
+    steps:
+      - checkout
+      - run:
+          name: Prepare bind-mounted volumes
+          # The containers write these folders as their own users, whose uid
+          # may differ from the machine user.
+          command: |
+            mkdir -p docker_volumes/vendor docker_volumes/mysql_data \
+              docker_volumes/clients_nodejs_node_modules docker_volumes/clients_cli_node_modules
+            chmod -R a+rwX docker_volumes
+      - run:
+          name: Build the dev image
+          command: docker compose build base_build
+      - run:
+          name: Clients integration
+          command: make clients-integration
+
   coverage_final:
     docker:
       - image: darthjee/circleci_node:0.2.1
@@ -348,6 +371,9 @@ workflows:
           matrix:
             parameters:
               node_image: [cimg/node:22.12.0, darthjee/circleci_node:0.2.1]
+      - clients_integration:
+          requires: [clients_checks]
+          filters: *all_tags
       - coverage_final:
           requires: [backend_tests, frontend_checks, clients_checks]
           filters: *all_tags
