@@ -61,12 +61,20 @@ script (JSON or raw bodies, gzip, a delay, a destroyed socket, a stalled body).
 
 ## CLI (`clients/cli/specs/`)
 
+The scripted server of the subprocess spec is the helper `specs/support/TestServer.js` (not a
+spec): an in-process `node:http` server on `127.0.0.1`, port `0`, that records each request
+and answers from a script (a status and JSON body, or a held answer released later), leaving the
+keep-alive socket open.
+
 | Spec | Covers |
 | --- | --- |
-| `specs/cli/Arguments_spec.js` | Parsing of every flag; `--token-file`/`--url` versus `PIDGEY_TOKEN`/`PIDGEY_URL` precedence; one trailing newline (`\n` or `\r\n`) trimmed from the token file; missing, unreadable and empty token file → exit `2`; a token file over 4 KiB → exit `2`; a non-regular file (`/dev/stdin`, a FIFO, a directory; a symlink to a regular file is accepted) → exit `2`; a control character (CR, LF, NUL, tab) left after the trim → exit `2`, with a message naming the path only; the mode warning taken from `fstat` of the descriptor read; the group/other-readable token file warning; `--token` rejected as an unknown flag; `--idempotency-key` parsed and passed to `send()`; `--allow-insecure-http` parsed, and exit `2` for a non-loopback `http://` `--url` without it; `--help`; `--version` printing `pidgey-cli <version> (pidgey-client <version>)` with both versions (the library one from `VERSION`); unknown flag; repeated flag; missing token or URL. |
-| `specs/cli/Body_spec.js` | Stdin read when neither body flag is given and stdin is not a TTY; no stdin read when `--html` is present; unreadable stdin; the stdin cap ([cli.md](cli.md#stdin-size-cap)): exactly 1 MiB accepted, 1 MiB + 1 byte → exit `2` with a message naming the limit and nothing sent, reading stopped at the cap, and the cap counted in bytes before decoding. |
-| `specs/cli/ExitCode_spec.js` | `0` on a sent message, `1` on a `PidgeyError`, `2` on a usage error and on `CLIENT_CONFIGURATION`, `130` on SIGINT, with nothing printed on success. |
-| `specs/bin/Pidgey_spec.js` | The real `bin/pidgey` spawned against the in-process server ([Extra checks](#cli-subprocess-tests-adopted-thin-layer)), covering only what in-process specs cannot prove: exit `0` with empty stdout; exit `1` with the error on stderr; exit `2` on a usage error and on `CLIENT_CONFIGURATION`; a body piped through stdin reaching the server; a closed or empty stdin; the 1 MiB stdin cap through a real pipe (exit `2`, nothing sent); SIGINT while the request is in flight → exit `130` with the connection aborted; and the [no-hang case](#no-hang-expectation). Parsing, token sources, body selection and the exit-code mapping stay in the three in-process specs above. |
+| `specs/cli/Arguments_spec.js` | Parsing of every flag; `--help` and `--version` (with `--help` winning); `--token` rejected as an unknown flag; unknown, repeated and positional arguments and a missing `--to` or `--subject` as parse errors (the usage is asked for); `--idempotency-key`, `--retry-ambiguous`, `--allow-insecure-http` and `--verbose` parsed. |
+| `specs/cli/Credentials_spec.js` | `--token-file`/`--url` versus `PIDGEY_TOKEN`/`PIDGEY_URL` precedence; missing token or URL → exit `2`; one trailing newline (`\n` or `\r\n`) trimmed from the token file; missing, unreadable (a symlink loop) and empty token file → exit `2`; a token file over 4 KiB → exit `2`, exactly 4 KiB accepted; a non-regular file (`/dev/stdin`, a FIFO, a directory; a symlink to a regular file is accepted) → exit `2`; a control character (CR, LF, NUL, tab) left after the trim → exit `2`, with a message naming the path only; the group/other-readable token file warning, taken from `fstat` of the descriptor read, and none on Windows. |
+| `specs/cli/Body_spec.js` | Stdin read when neither body flag is given and stdin is not a TTY; no stdin read when `--html` is present; unreadable stdin; the stdin cap ([cli.md](cli.md#stdin-size-cap)): exactly 1 MiB accepted, 1 MiB + 1 byte → exit `2` with a message naming the limit and nothing sent, reading stopped at the cap, and the cap counted in bytes before decoding; SIGINT while stdin is being read stops the read and sends nothing. |
+| `specs/cli/ExitCode_spec.js` | `0` on a sent message, `1` on a `PidgeyError`, `2` on a usage error and on `CLIENT_CONFIGURATION`, `130` on SIGINT; the output: nothing on success, the one-line `--verbose` result, the failure lines (code and message, the SMTP reply, the possibly-sent notice), and never the token, the message, the URL userinfo or the response body. |
+| `specs/cli/run_spec.js` | The command in-process, with an injected `io` and client: `--version` and `--help`; the usage after a parse error only; the client built from the credentials and the flags; the message parts, the signal and the idempotency key passed to `send()`; stdin as the text body; a real client built by default. |
+| `specs/cli/version_spec.js` | The CLI `VERSION` equals the `version` in `package.json`. |
+| `specs/bin/Pidgey_spec.js` | The real `bin/pidgey` spawned against the in-process server ([Extra checks](#cli-subprocess-tests-adopted-thin-layer)), covering only what in-process specs cannot prove: exit `0` with empty stdout; exit `1` with the error on stderr; exit `2` on a usage error and on `CLIENT_CONFIGURATION`; a body piped through stdin reaching the server; a closed or empty stdin; the 1 MiB stdin cap through a real pipe (exit `2`, nothing sent); SIGINT while the request is in flight → exit `130` with the connection aborted; and the [no-hang case](#no-hang-expectation). Parsing, token sources, body selection, the output and the exit-code mapping stay in the in-process specs above. |
 
 ## Cross-cutting
 
@@ -224,7 +232,7 @@ indicative: the rule is that the `Makefile` target and the CI job call the same 
 - **Scope:** only what in-process specs cannot prove: the real `bin` and shebang, the
   process exit status, real pipes, signals and the process lifetime. Parsing, token
   sources, body selection and the exit-code mapping stay in `Arguments_spec.js`,
-  `Body_spec.js` and `ExitCode_spec.js`. Rejected: replacing `ExitCode_spec.js` with
+  `Credentials_spec.js`, `Body_spec.js` and `ExitCode_spec.js`. Rejected: replacing `ExitCode_spec.js` with
   subprocess tests; rejecting subprocess tests altogether.
 - **Cases:** see its row in the [CLI table](#cli-clientsclispecs). The **no-hang** case
   settles the [No-hang expectation](#no-hang-expectation).

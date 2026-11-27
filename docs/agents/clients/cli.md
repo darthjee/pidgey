@@ -2,9 +2,9 @@
 
 The `pidgey` command, in `clients/cli/`. It is a thin layer over the library
 ([nodejs.md](nodejs.md)): the HTTP, the errors and the retries live in `pidgey-client`, not
-here. Today it is a **scaffold**: it answers `--version` and `--help`, and everything else is a
-usage error. The send flags come with #251. The rules are specified in
-[specs/node-client/cli.md](../specs/node-client/cli.md) and
+here. It sends one message from the command line, with the token and the URL taken from a file
+or the environment, the body from a flag or stdin, and an exit code per kind of outcome. The
+rules are specified in [specs/node-client/cli.md](../specs/node-client/cli.md) and
 [specs/node-client/packaging.md](../specs/node-client/packaging.md); this page records what was
 built and links the rules instead of copying them.
 
@@ -28,27 +28,97 @@ argument-parsing dependency.
 
 ## Surface
 
-| Command line | Result | Exit |
-| --- | --- | --- |
-| `pidgey --version` | `pidgey-cli <version> (pidgey-client <version>)` on stdout. The CLI version is its own `version` constant; the library version is the `VERSION` export of `pidgey-client`. | `0` |
-| `pidgey --help` | The usage on stdout. | `0` |
-| Anything else | `pidgey: <one-line reason>` and the usage on stderr, nothing on stdout. | `2` |
+```shell
+pidgey --to user@example.com --subject Hello --text 'Hi!'
+printf 'Hi!' | pidgey --to user@example.com --subject Hello
+```
 
-"Anything else" covers no argument, an unknown flag, a positional argument, a repeated flag,
-and the send flags, which do not exist yet: the scaffold never answers "not implemented". When
-`--help` and `--version` are both given, `--help` wins.
+### Flags
 
-`run.js` treats **any** error thrown by the argument parser as a usage error, so a future
-parser failure of another kind would also exit `2`; this is deliberate while the parser can
-only fail on a usage mistake.
+| Flag | Value |
+| --- | --- |
+| `--to`, `--subject` | Recipient and subject. **Required**: a missing one is a parse error. |
+| `--text`, `--html` | The body parts. |
+| `--token-file` | Path to the file holding the token. |
+| `--url` | The Pidgey base URL. |
+| `--idempotency-key` | Forwarded as given to `send()`; the library validates it. |
+| `--retry-ambiguous` | Passed as `retryAmbiguous: true`. |
+| `--allow-insecure-http` | Passed as `allowInsecureHttp: true`. |
+| `--verbose` | Prints the result on success. |
+| `--help`, `--version` | The usage; `pidgey-cli <version> (pidgey-client <version>)`. Both exit `0`; `--help` wins when both are given. |
+
+The flags are parsed with `parseArgs` in strict mode. An unknown flag (`--token` included), a
+repeated flag, a positional argument, a flag without its value or a missing `--to` or
+`--subject` is a **parse error**. Values are forwarded as given: `--text ''` is sent, and the
+CLI validates nothing, the API does.
+
+### Token and URL
+
+- The token comes from `--token-file`, otherwise from `PIDGEY_TOKEN`; the URL from `--url`,
+  otherwise from `PIDGEY_URL`. An empty `PIDGEY_TOKEN` counts as missing. There is no `--token`
+  flag: the token is never taken from argv or stdin.
+- The token file is opened with `O_NONBLOCK` and everything is checked on that one descriptor:
+  it must be a regular file (a symlink to one is accepted; a FIFO, a device or a directory is
+  refused before anything is read), and at most 4096 bytes are read (`4097` is refused). One
+  trailing `\n` or `\r\n` is trimmed; an empty or whitespace-only token, or one still holding a
+  control character, is refused. The messages name the path and the system error code, never
+  the content.
+- On POSIX, a file readable by group or others (`mode & 0o077`, from `fstat`) writes a warning to
+  stderr (`pidgey: warning: token file '<path>' is readable by group or others`) and the send
+  goes on. There is no check on `win32`.
+- See [Credentials and URL](../specs/node-client/cli.md#credentials-and-url).
+
+### Body and stdin
+
+- With `--text` and/or `--html`, those parts are sent and stdin is not touched (`--html` alone
+  sends no text part).
+- With neither, stdin is the plain-text body, decoded as UTF-8 with replacement characters. A
+  TTY stdin is a usage error instead of a blocking read.
+- Stdin is capped at 1048576 bytes, counted before decoding; the read stops as soon as the
+  input goes over, destroying stdin, and nothing is sent. Exactly 1 MiB is accepted. An
+  unreadable stdin is a usage error. A SIGINT while stdin is being read stops the read and exits
+  `130` without sending or printing.
+
+### Output
+
+- Success: stdout and stderr stay empty. With `--verbose`, one line goes to stdout: the
+  `JSON.stringify` of what `send` resolves with (`status`, `smtp` and `replayed`; fields the API
+  adds later are printed too).
+- Failure, on stderr and in this order: `pidgey: <code>: <message>`; `pidgey: SMTP reply:
+  <code> <message>` when the error has an SMTP reply; `pidgey: the message was possibly sent`
+  when `possiblySent` is `true` (`ABORTED` included). Nothing else: never the message content,
+  the token, the URL or the response body. A non-library error prints only
+  `pidgey: unexpected error (<name>)`.
+- A parse error prints `pidgey: <reason>` and then the usage text. Any other usage error prints
+  only `pidgey: <reason>`: the usage text appears after a parse error only.
+
+### Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Sent (or `--help`, `--version`). |
+| `1` | Any `PidgeyError` except `CLIENT_CONFIGURATION`: a rejected send, the network failures included. |
+| `2` | A usage error: a parse error, a token, URL or stdin problem, or `CLIENT_CONFIGURATION` from the library. |
+| `130` | SIGINT. |
+
+On SIGINT, `bin/pidgey.js` aborts the controller whose signal is passed to `run`, which hands it
+to `send()`; an `ABORTED` error raised while that signal is aborted exits `130`, with the
+possibly-sent notice when the library says so. The handler is `once`: a second SIGINT gets
+Node's default and ends the process at once. `bin/pidgey.js` never calls `process.exit()`: it
+sets `process.exitCode` and the process ends by itself, without waiting on an idle keep-alive
+socket.
 
 ### Source layout
 
 | File | Role |
 | --- | --- |
-| `bin/pidgey.js` | The entry point: calls `run` with the process streams and sets the exit code. No logic of its own. |
-| `cli/run.js` | Runs the command: parses, prints, returns the exit code. It takes the streams as arguments, so the specs call it in-process. |
-| `cli/Arguments.js` | The usage text, the `UsageError` class and the strict parse of the command line. |
+| `bin/pidgey.js` | The entry point: the SIGINT wiring, then `run` with the process streams, environment and signal; sets `process.exitCode`. No other logic. |
+| `cli/run.js` | `run(argv, io)`: parses, resolves the credentials, reads the body, builds the client, sends, prints and returns the exit code. `io` (`env`, `stdin`, `stdout`, `stderr`, `signal`, and optional `createClient` and `platform`) is injected, so the specs call it in-process with a scripted client. |
+| `cli/Arguments.js` | The usage text, the `UsageError` class (a parse error asks for the usage to be printed) and the strict parse of the command line. |
+| `cli/Credentials.js` | The token and URL sources and the token file rules. |
+| `cli/Body.js` | The body selection and the capped stdin read. |
+| `cli/Output.js` | The `--verbose` line and the failure text. |
+| `cli/ExitCode.js` | The exit codes and the mapping from what was thrown. |
 | `cli/version.js` | The CLI `VERSION`, a string literal that a spec keeps equal to `package.json`. |
 | `types/node.d.ts` | See [Typings](#typings). |
 
@@ -58,8 +128,9 @@ import and never a deep import.
 ### Typings
 
 `types/node.d.ts` is a minimal ambient typings shim for the few Node.js APIs the CLI uses
-(`node:util` `parseArgs`, `process`). It stands in for `@types/node` so that the scaffold adds no
-dependency. The folder is excluded from ESLint.
+(`node:util` `parseArgs`, `node:fs` and `node:fs/promises` for the token file, and `process`).
+It stands in for `@types/node` so that the CLI adds no dependency. The folder is excluded from
+ESLint.
 
 The shim declares Node.js only. `pidgey-client` is not declared there: it ships its own
 declarations (`exports` `types` condition, see [nodejs.md](nodejs.md#types)), and the CLI's
@@ -68,21 +139,29 @@ builds the library's declarations before the CLI's install
 ([clients.md](../clients.md#checks)). Outside `checks.sh`, run `yarn build:types` in
 `clients/nodejs/` first.
 
-**Pending decision:** whether to adopt `@types/node` as a devDependency, after the security
-review of the new dependency, or to keep the Node.js shim.
+**Decided in #251:** `@types/node` stays unadopted; the shim grew with the file-system APIs of
+the token file instead of adding a dependency. Adopting `@types/node` remains possible later,
+after a security review of the new dependency.
 
 ## Specs layout
 
 Under `clients/cli/specs/`, mirroring the source:
 
-- `specs/cli/Arguments_spec.js`, `run_spec.js` and `version_spec.js`: in-process specs of
-  the parser, the command and the version constant;
-- `specs/bin/Pidgey_spec.js`: spawns the real `bin/pidgey.js` and covers only what an
-  in-process spec cannot prove: the exit status and the output streams for `--version` and
-  for an unknown flag.
+- `specs/cli/Arguments_spec.js`, `Credentials_spec.js`, `Body_spec.js`, `ExitCode_spec.js`,
+  `run_spec.js` and `version_spec.js`: in-process specs of the parser, the credentials, the
+  body and stdin, the exit codes with the output, the command and the version constant.
+  `Credentials_spec.js` is apart from `Arguments_spec.js` to keep each file under the lint's
+  line limit. The unreadable token file is provoked with a symlink loop;
+- `specs/bin/Pidgey_spec.js`: spawns the real `bin/pidgey.js` against the in-process server and
+  covers only what an in-process spec cannot prove: the exit status and the streams, a body
+  through a real pipe and its cap, SIGINT in flight (`130`, the connection aborted), and that
+  the process exits promptly after a send;
+- `specs/support/TestServer.js`: the scripted `node:http` server the subprocess spec talks to
+  (not a spec).
 
 The coverage threshold is 100 % of lines, branches, functions and statements, over `bin/` and
-`cli/`.
+`cli/`. One block of `Credentials.js` is excluded with `c8 ignore`: a failing `fstat` or read on
+a descriptor that just opened cannot be provoked from a spec.
 
 ## Scripts
 
@@ -99,7 +178,8 @@ Run from `clients/cli/`. Each one exits non-zero on failure.
 
 As for the library ([nodejs.md](nodejs.md#pack-check)): `clients/cli/pack-files.txt` is the
 committed list of expected files (`README.md`, `bin/pidgey.js`, `cli/Arguments.js`,
-`cli/run.js`, `cli/version.js`, `package.json`), compared by `checks.sh` with
+`cli/Body.js`, `cli/Credentials.js`, `cli/ExitCode.js`, `cli/Output.js`, `cli/run.js`,
+`cli/version.js`, `package.json`), compared by `checks.sh` with
 `npm pack --dry-run --json`. A file added or missing fails the checks.
 
 The check packs the committed tree, so it sees the `file:../nodejs` dependency. The packed
