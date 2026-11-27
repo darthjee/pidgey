@@ -219,10 +219,15 @@ it is in the repository, and no real publish has run yet (see
 
 1. Enable 2FA on the npm account.
 2. Make sure `pidgey-client` and `pidgey-cli` exist on npm (the `0.0.0` placeholders, #227):
-   the token is limited to those two packages.
+   the token is limited to those two packages. If one is missing, publish its placeholder by
+   hand from a temporary directory outside the repository: a `package.json` with only `name`,
+   `version` (`0.0.0`), `description`, `repository` (this repository) and `license` (`MIT`),
+   plus a `README.md` saying the name is reserved, then `npm publish --access public`
+   confirmed with 2FA.
 3. In each package's **Settings** → **Publishing access**, require 2FA while still allowing a
-   granular access token that bypasses it. Do **not** select
-   "Require two-factor authentication and disallow tokens": it blocks token publishing.
+   granular access token that bypasses it. The exact name of that option was not verified. Do
+   **not** select "Require two-factor authentication and disallow tokens": it blocks token
+   publishing.
 4. Create the granular access token with the settings in
    [variables.md](variables.md#npm-context).
 5. Create the CircleCI context `pidgey-npm` holding only `NPM_TOKEN`, with the project
