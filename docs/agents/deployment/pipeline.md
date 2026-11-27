@@ -4,7 +4,8 @@ Describe the CircleCI workflow as defined in `.circleci/config.yml`: which jobs 
 when, in which order, with which secrets, and how they reach the host.
 
 The workflow is `main`. Every job is in it; filters decide which jobs run for a branch or a
-tag.
+tag. Besides the checks, it holds two release chains: the [deploy chain](#deploy-chain) of the
+application and the [npm publish chain](#npm-publish-chain) of the client packages.
 
 ## Check jobs
 
@@ -16,7 +17,7 @@ These run on **every branch and every tag** (`tags: only: /.*/`).
 | `backend_tests` | `darthjee/circleci_pidgey-base` (which ships the Mailpit binary), plus a `mysql:9` service container | Starts the three test Mailpit instances on `localhost` and waits for them, then `composer db:prepare`, `composer coverage`, then a partial Codacy coverage upload. |
 | `frontend_checks` | `darthjee/circleci_node` | `yarn install --frozen-lockfile`, `npm run lint`, `npm run coverage`, then a partial Codacy coverage upload. |
 | `clients_checks` | A matrix over two Node.js images: `cimg/node:22.12.0` (the floor of `engines`) and `darthjee/circleci_node:0.2.1` (the current one) | `clients/scripts/checks.sh`, the same script as `make clients-checks`: for the packages `nodejs` and `cli`, the frozen install, `yarn lint`, `yarn typecheck`, `yarn coverage` (100 % threshold) and the pack file-list check, the committed-file lint for `cli`, then the pack smoke test once. A step then asserts that the working tree is unchanged (`git status --porcelain` is empty). The instance on `darthjee/circleci_node:0.2.1` then does two partial Codacy coverage uploads (`clients/nodejs` and `clients/cli`); the floor instance does none. The job holds no context. See [clients.md](../clients.md#checks) and [clients/cli.md](../clients/cli.md). |
-| `clients_integration` | A machine executor (`ubuntu-2404`), not a Docker one: the stack is booted with `docker compose` | Requires `clients_checks`. Builds the dev base image from `dockerfiles/dev_pidgey-base` (`make build-base`; `darthjee/dev_pidgey-base` is not published to Docker Hub and the job has no registry credentials), builds the dev image on top of it (`docker compose build base_build`), then runs `make clients-integration`, the same command as locally: it starts `mysql` and `mailpit-plain`, prepares the `pidgey_integration` database, starts `integration_app`, and runs `clients/scripts/integration.sh` (seed through the admin API, then `yarn test:integration` in `clients/nodejs` and `clients/cli`). The job holds no context and uploads no coverage; it does not feed `coverage_final` and the deploy jobs do not require it. See [clients.md](../clients.md#checks). |
+| `clients_integration` | A machine executor (`ubuntu-2404`), not a Docker one: the stack is booted with `docker compose` | Requires `clients_checks`. Builds the dev base image from `dockerfiles/dev_pidgey-base` (`make build-base`; `darthjee/dev_pidgey-base` is not published to Docker Hub and the job has no registry credentials), builds the dev image on top of it (`docker compose build base_build`), then runs `make clients-integration`, the same command as locally: it starts `mysql` and `mailpit-plain`, prepares the `pidgey_integration` database, starts `integration_app`, and runs `clients/scripts/integration.sh` (seed through the admin API, then `yarn test:integration` in `clients/nodejs` and `clients/cli`). The job holds no context and uploads no coverage; it does not feed `coverage_final` and the deploy jobs do not require it (the client [pack jobs](#npm-publish-chain) do). See [clients.md](../clients.md#checks). |
 | `coverage_final` | `darthjee/circleci_node` | Requires `backend_tests`, `frontend_checks` and `clients_checks`; sends the Codacy `final` call. |
 
 ### Database access in CI
@@ -128,21 +129,103 @@ the uploaded files. The deploy chain builds the UI and uploads it into `static/`
 (the frontend delivery decision in
 [frontend/build.md](../frontend/build.md#production-delivery)).
 
+## npm publish chain
+
+Publishes the client packages to the public npm registry. Each package is released by its own
+tag, and its jobs run **only on that tag** (`branches: ignore: /.*/`):
+
+| Package | Tag filter | Jobs |
+| --- | --- | --- |
+| `pidgey-client` (`clients/nodejs/`) | `/^pidgey-client-v\d+\.\d+\.\d+$/` | `pack_client`, `publish_client` |
+| `pidgey-cli` (`clients/cli/`) | `/^pidgey-cli-v\d+\.\d+\.\d+$/` | `pack_cli`, `publish_cli` |
+
+Neither filter matches the other, nor the deploy filter `/^\d+\.\d+\.\d+$/`: a client tag
+never deploys the backend, and a deploy tag never publishes to npm.
+
+| Job | Context | Requires | What it does |
+| --- | --- | --- | --- |
+| `pack_client` / `pack_cli` | None | `backend_checks`, `backend_tests`, `frontend_checks`, `clients_checks` (every instance of the matrix), `clients_integration` | `clients/scripts/release_pack.sh "$CIRCLE_TAG" release`, then persists `release/` (the tarball) to the workspace. |
+| `publish_client` / `publish_cli` | `pidgey-npm` | Its pack job | Checks out the repository (the scripts and the package sources come from git), attaches the workspace at `/tmp/workspace`, fails unless it holds exactly one `release/*.tgz`, then runs `clients/scripts/release_publish.sh "$CIRCLE_TAG" <tarball>`. |
+
+The four workflow entries use two job definitions, `pack_package` and `publish_package`, on
+the executor `client-release` (`cimg/node:22.12.0`, the floor of the packages' `engines`,
+with npm 10.9.0).
+
+### Pack script
+
+`release_pack.sh <tag> <out_dir>` fails unless, in order:
+
+1. the tag is `pidgey-client-vX.Y.Z` or `pidgey-cli-vX.Y.Z`;
+2. the tag version equals `version` in the package's `package.json`;
+3. the package's `CHANGELOG.md` has a heading `## X.Y.Z` (optionally followed by a date);
+4. `yarn install --frozen-lockfile --ignore-scripts` succeeds, and for the library
+   `yarn build:types` (the `.d.ts` files of `dist/`);
+5. the package packs to `<out_dir>/<name>-<version>.tgz` (the CLI through `pack_cli.sh`, so
+   its dependency on the library is `^<library version>`);
+6. the file list of that tarball equals the package's `pack-files.txt`.
+
+It prints the tarball path.
+
+### Publish script
+
+`release_publish.sh [--dry-run] <tag> <tarball>` does not trust the tarball, which was built
+in a job that runs third-party code. npm is never given it, and nothing is decided from its
+`package.json`. The script:
+
+1. takes the package and version from the **tag**, and checks them against the `package.json`
+   of the checkout;
+2. packs a **reference** tarball from the checkout, the same way as the pack script. The only
+   content taken from the received tarball is the library's `dist/`, from a private copy that
+   may hold regular files only;
+3. fails unless the reference's file list equals `pack-files.txt` and the reference is
+   **byte-identical** to the received tarball;
+4. ends as a **no-op success** if `npm view <name>@<version>` already answers. Any npm error
+   other than "not found" fails the job;
+5. for the CLI, polls npm for the library floor (the `^X.Y.Z` it depends on) every 10 s for
+   up to 5 minutes;
+6. publishes the reference (the same bytes) with
+   `npm publish <tarball> --access public --ignore-scripts`, without `--provenance` (see
+   [known-gaps.md](known-gaps.md#npm-packages-published-without-provenance));
+7. polls every 10 s, for up to 5 minutes, until npm serves the new version.
+
+The token is written to no file: a temporary npm user configuration holds the literal
+`${NPM_TOKEN}`, which npm expands itself, and only the publish command uses it. No release
+script enables shell tracing.
+
+The byte comparison needs `npm pack` to give the same bytes in both jobs, so both run on the
+same executor and both pack from a staging copy with normalized file modes. A difference fails
+the publish; nothing is published.
+
+### Dry run
+
+`--dry-run` runs the same path without publishing: the same checks, comparison and
+"already published" no-op; the CLI floor is checked once and a missing floor is only a
+warning; `npm publish --dry-run` runs without a token; there is no wait for npm. CI never
+passes it. See [operations.md](operations.md#dry-run-a-client-release-locally).
+
 ## Build jobs and context jobs
 
-- **Build jobs** (`build_backend`, `build_frontend`) have **no context**. They are the only
-  jobs that install third-party code (Composer and Yarn packages, with their scripts and
-  plugins).
-- **Context jobs** (`upload_backend`, `upload_frontend`, `release`) use the `pidgey-deploy`
-  context, which holds every deploy variable (see [variables.md](variables.md)). They install
-  and build nothing; they only run `deploy_frontend.sh` actions on files already built.
+- **Build jobs** (`build_backend`, `build_frontend`, `pack_client`, `pack_cli`) have **no
+  context**. Among the release jobs, they are the only ones that install third-party code
+  (Composer and Yarn packages). The deploy build jobs run their scripts and plugins; the pack
+  jobs install with `--ignore-scripts`.
+- **Deploy context jobs** (`upload_backend`, `upload_frontend`, `release`) use the
+  `pidgey-deploy` context, which holds every deploy variable (see
+  [variables.md](variables.md)). They install and build nothing; they only run
+  `deploy_frontend.sh` actions on files already built.
+- **Publish jobs** (`publish_client`, `publish_cli`) use the `pidgey-npm` context, which holds
+  only the npm token. They install nothing and run no package lifecycle script; they run the
+  committed release scripts and the tools of the image.
 
-Why: third-party code never runs next to the deploy key. A compromised dependency in a build
-job finds no secret to read; at worst it alters the release content, which is the same risk
-any dependency carries at runtime. Builds hand their output to the context jobs as plain
-files, through the CircleCI workspace (`persist_to_workspace` / `attach_workspace`). Because
-the build jobs hold no secret, Composer's `--no-scripts --no-plugins` (and their Yarn
-equivalents) are not needed.
+Why: third-party code never runs next to the deploy key or the npm token. A compromised
+dependency in a build job finds no secret to read; at worst it alters the release content,
+which is the same risk any dependency carries at runtime. For the npm packages that is
+narrower still, since the publish job rebuilds the tarball from the checkout (see
+[Publish script](#publish-script); the exception is in
+[known-gaps.md](known-gaps.md#npm-type-declarations-are-not-verified-at-publish)). Builds hand
+their output to the context jobs as plain files, through the CircleCI workspace
+(`persist_to_workspace` / `attach_workspace`). Because the deploy build jobs hold no secret,
+Composer's `--no-scripts --no-plugins` (and their Yarn equivalents) are not needed there.
 
 ## Context restriction
 
@@ -163,16 +246,47 @@ Why: the restriction is enforced by CircleCI, outside the repository, so no chan
 `config.yml` can lift it. Together with the tag filter, only someone who can push a semver tag
 can reach the deploy key (see [Who can deploy](#who-can-deploy)).
 
+The `pidgey-npm` context is a separate context, so the deploy key and the npm token are never
+reachable from the same job. The maintainer creates it (see
+[operations.md](operations.md#set-up-npm-publishing)) with two restrictions:
+
+- a **project restriction** to the Pidgey project. Without one, every project of the CircleCI
+  organization can use a context;
+- an **expression restriction**:
+
+  ```
+  pipeline.git.tag =~ "^pidgey-(client|cli)-v[0-9]+\.[0-9]+\.[0-9]+$" and not job.ssh.enabled
+  ```
+
+  Only pipelines on client release tags get the token, and an SSH rerun of a publish job does
+  not. The CircleCI documentation lists `matches /…/` as its regular-expression operator and
+  does not list `=~`; if the settings reject the expression, write the same pattern with
+  `matches`. A rejected or false expression fails closed: the job gets no variables.
+
 ## Serial group
 
-The three context jobs share
+The three deploy context jobs share
 
 ```yaml
 serial-group: << pipeline.project.slug >>/pidgey-deploy
 ```
 
-so deploys run one at a time, in the order they were queued. Pushing or rerunning an older
-tag redeploys that older code.
+so deploys run one at a time. Pushing or rerunning an older tag redeploys that older code.
+
+The two publish jobs share their own group,
+
+```yaml
+serial-group: << pipeline.project.slug >>/pidgey-npm
+```
+
+so publishes run one at a time.
+
+In both groups, CircleCI starts jobs in the order they join the queue, but **skips** a job
+that tries to join a busy group with a lower pipeline number than the job waiting or running.
+For the npm group this matters when both packages are released: `publish_cli` holds the group
+while it waits for the library. Release the library first and push the CLI tag only after
+`publish_client` succeeded (see [operations.md](operations.md#release-a-client-package) and
+[known-gaps.md](known-gaps.md#releasing-both-clients-at-once)).
 
 ## `deploy_setup`
 
@@ -261,7 +375,16 @@ Why: CircleCI job output is visible to anyone with access to the project, and it
 Anyone who can push a semver tag to the repository. Today that is only the owner, the sole
 collaborator, so there is no GitHub tag ruleset.
 
-Why this is enough: the deploy chain runs only on semver tags, every deploy job requires every
-check job, and the `pidgey-deploy` context is available only to semver-tag pipelines (see
-[Context restriction](#context-restriction)). Pushing a branch, or editing `config.yml` on a
-branch, never reaches the host.
+Why this is enough: the deploy chain runs only on semver tags, every deploy job requires the
+backend and frontend check jobs, and the `pidgey-deploy` context is available only to
+semver-tag pipelines (see [Context restriction](#context-restriction)). Pushing a branch, or
+editing `config.yml` on a branch, never reaches the host.
+
+## Who can publish
+
+Anyone who can push a client release tag: today only the owner, the same access model as the
+deploy. This includes any token, app or agent with push access to the repository. The pipeline
+configuration comes from the tagged commit, and the tag may point at any commit, so the tag
+push is the trust boundary (see
+[known-gaps.md](known-gaps.md#client-tags-are-not-protected)). Pushing a branch never gets the
+npm token.

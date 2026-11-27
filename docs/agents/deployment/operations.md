@@ -1,6 +1,8 @@
 # Operations
 
-Runbooks for releasing Pidgey and for the manual tasks the deploy does not automate.
+Runbooks for releasing Pidgey, for the manual tasks the deploy does not automate, and for
+publishing the client packages to npm (from [Set up npm publishing](#set-up-npm-publishing)
+on).
 
 Placeholders: `<live>` is the live folder (`$SSH_REMOTE_DIR`), `<domain>` is Pidgey's domain.
 Commands on the host run over SSH as the host user (see [variables.md](variables.md)).
@@ -208,3 +210,130 @@ release pipeline runs it before the swap. Add the key to the shared `.env` (step
 the rotation above, with no previous key) **before** deploying that release, otherwise the
 release stops before going live. No SMTP rows exist in production yet, so nothing needs
 migrating.
+
+## Set up npm publishing
+
+Manual, done once by the maintainer, **before** pushing the first client release tag. None of
+it is in the repository, and no real publish has run yet (see
+[known-gaps.md](known-gaps.md#npm-publishing-not-set-up-or-exercised-yet)).
+
+1. Enable 2FA on the npm account.
+2. Make sure `pidgey-client` and `pidgey-cli` exist on npm (the `0.0.0` placeholders, #227):
+   the token is limited to those two packages. If one is missing, publish its placeholder by
+   hand from a temporary directory outside the repository: a `package.json` with only `name`,
+   `version` (`0.0.0`), `description`, `repository` (this repository) and `license` (`MIT`),
+   plus a `README.md` saying the name is reserved, then `npm publish --access public`
+   confirmed with 2FA.
+3. In each package's **Settings** → **Publishing access**, require 2FA while still allowing a
+   granular access token that bypasses it. The exact name of that option was not verified. Do
+   **not** select "Require two-factor authentication and disallow tokens": it blocks token
+   publishing.
+4. Create the granular access token with the settings in
+   [variables.md](variables.md#npm-context).
+5. Create the CircleCI context `pidgey-npm` holding only `NPM_TOKEN`, with the project
+   restriction and the expression restriction in
+   [pipeline.md](pipeline.md#context-restriction), **before** storing the token in it.
+6. Check that "Pass secrets to builds from forked pull requests" is off, and that no
+   `NPM_TOKEN` project variable exists.
+7. Set a reminder before the token expires.
+
+## Release a client package
+
+Direct publishing with this token ends in January 2027 (see
+[known-gaps.md](known-gaps.md#npm-token-publishing-ends-in-january-2027)).
+
+1. **Release PR:** bump `version` in the package's `package.json` (`clients/nodejs/` or
+   `clients/cli/`) and add its `CHANGELOG.md` entry, a `## X.Y.Z` heading (optionally
+   `## X.Y.Z - YYYY-MM-DD`). A release of both packages bumps both in the same PR.
+2. After the merge, check that CI is green on `main`, then tag the merge commit and push the
+   tag. When releasing both, push **only the library tag** first:
+
+   ```bash
+   git tag pidgey-client-vX.Y.Z <commit>
+   git push origin pidgey-client-vX.Y.Z
+   ```
+
+3. Watch the `main` workflow for the tag: the check jobs, `pack_client`, then
+   `publish_client` (see [pipeline.md](pipeline.md#npm-publish-chain)).
+4. `npm view pidgey-client@X.Y.Z version` prints the version.
+5. **Only after `publish_client` succeeded**, tag and push the CLI, if it is released too:
+
+   ```bash
+   git tag pidgey-cli-vX.Y.Z <commit>
+   git push origin pidgey-cli-vX.Y.Z
+   ```
+
+   Pushing both tags at once can skip the library publish (see
+   [known-gaps.md](known-gaps.md#releasing-both-clients-at-once)).
+6. Check `pack_cli`, `publish_cli` and `npm view pidgey-cli@X.Y.Z version`.
+
+A CLI-only release needs only its own tag: the library version it depends on is already on
+npm.
+
+## Dry-run a client release locally
+
+Runs the gates, the pack, the byte comparison and `npm publish --dry-run`. Nothing is
+published and no token is needed. Use Node.js 22.12 or later, with Yarn and npm, from the
+repository root. The tag does not need to exist in git, but its version must equal the one in
+`package.json`, and `CHANGELOG.md` must have that entry; to try it before the release PR, add
+the heading locally and do not commit it.
+
+```bash
+out="$(mktemp -d)"
+clients/scripts/release_pack.sh pidgey-client-vX.Y.Z "$out"
+clients/scripts/release_publish.sh --dry-run pidgey-client-vX.Y.Z "$out/pidgey-client-X.Y.Z.tgz"
+```
+
+For the CLI, use `pidgey-cli-vX.Y.Z` and `pidgey-cli-X.Y.Z.tgz`. `--dry-run` must be the
+first argument. When the version is already on npm, the publish script ends as a no-op; when
+the library floor of the CLI is not on npm, it only warns.
+
+## Rerun a failed publish
+
+Use **Rerun from failed** in CircleCI. A publish is safe to repeat: when npm already serves
+the version, the job succeeds without publishing.
+
+| Failure | Action |
+| --- | --- |
+| A gate of the pack job (tag, version, `CHANGELOG.md`, file list) | Fix it in a new commit on `main`. If the version was never published, delete the tag and push it on the new commit, or release the next patch version. |
+| The publish job reports that the tarball differs from the checkout | Nothing was published. Rerun the **whole** workflow, so the tarball is packed again. If it differs again, treat the pack job as suspect (a dependency changing files) and investigate before retrying. |
+| The CLI gave up waiting for the library floor | Publish the library first, then rerun the CLI workflow. |
+| A publish job shows as skipped | The npm serial group was busy with a newer pipeline. Rerun the workflow once no publish job is running or waiting. |
+| npm did not serve the new version within 5 minutes | Rerun: the job succeeds once npm answers. |
+| `401` or `403` from npm | Check the token: see [Rotate the npm token](#rotate-the-npm-token). |
+
+## Rotate the npm token
+
+1. Create a new granular token with the same settings
+   (see [variables.md](variables.md#npm-context)).
+2. Replace `NPM_TOKEN` in the `pidgey-npm` context.
+3. Revoke the old token on npm.
+4. Set a reminder before the next expiry.
+
+An expired or revoked token shows up as a `401` or `403` in the publish job: rotate, then
+rerun the job. From January 2027 a refused publish may instead come from npm's removal of
+direct publishing, which rotating does not fix (see
+[known-gaps.md](known-gaps.md#npm-token-publishing-ends-in-january-2027)). For a **leaked**
+token, revoke it first, then check the published versions of both packages.
+
+## Deprecate a client release
+
+A bad release is deprecated and fixed forward, not unpublished. From the maintainer's machine
+with 2FA, never from CI:
+
+```bash
+npm deprecate <package>@<version> "<reason>; use <fixed version>"
+```
+
+Then [release](#release-a-client-package) a patch version, which also moves the `latest`
+dist-tag. A fixed library patch reaches every CLI install without a CLI release.
+
+After the first real release (`0.1.0`) of a package, deprecate its placeholder the same way:
+`npm deprecate <package>@0.0.0 "placeholder; use >=0.1.0"`.
+
+## Unpublish a client release
+
+Only to remove a leaked secret, within npm's 72-hour window, from the maintainer's machine:
+`npm unpublish <package>@<version>`. **Rotate the leaked secret too**; unpublishing does not
+undo copies already downloaded. Then release a new version: npm does not accept a version
+number twice.

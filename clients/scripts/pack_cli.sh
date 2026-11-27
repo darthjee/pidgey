@@ -37,6 +37,10 @@ node -e '
   fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
 ' "${STAGE}/package.json" "$FLOOR"
 
+# Normalized modes: the packed bytes do not depend on the umask of the checkout
+# or of this shell (release_publish.sh compares them).
+chmod -R u=rwX,go=rX "$STAGE"
+
 PACK_JSON="$(cd "$STAGE" && npm pack --ignore-scripts --json --pack-destination "$OUT_DIR")"
 
 TARBALL="$(printf '%s' "$PACK_JSON" | node -e '

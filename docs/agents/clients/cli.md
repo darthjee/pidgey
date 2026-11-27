@@ -13,11 +13,12 @@ built and links the rules instead of copying them.
 | Field | Value |
 | --- | --- |
 | Name | `pidgey-cli` |
-| Version | `0.1.0`, the first release line; nothing is published before the epic's release. |
+| Version | `0.1.0`, the first release line; nothing is published yet, see [Releases](../clients.md#releases). |
 | Command | `pidgey`, mapped by `bin` to `bin/pidgey.js`. |
 | Module system | ESM (`"type": "module"`). |
 | Node.js | `engines.node` is `>=22.12.0`. |
 | Published files | The `files` allowlist holds `bin/` and `cli/`; npm adds `package.json` and `README.md`. |
+| Changelog | `CHANGELOG.md`, read by the release gate and not part of the published files, see [Releases](../clients.md#releases). |
 | Dependencies | `pidgey-client` only, see [The dependency on the library](#the-dependency-on-the-library). No other runtime dependency. |
 | Install scripts | None (`preinstall`, `install`, `postinstall`, `prepare`). |
 | License | MIT. |
@@ -198,11 +199,13 @@ The CLI depends on `pidgey-client` in two forms, and only the second is ever pub
   CLI requires the library version it was built with.
 
 `clients/scripts/pack_cli.sh <out_dir>` makes the swap. It copies `clients/cli/` (without
-`node_modules` and `coverage`) to a temporary directory, rewrites the dependency there, runs
-`npm pack --ignore-scripts` there into `<out_dir>` and prints the tarball path. The committed
-tree is never modified, so a failed pack cannot leave the file dependency swapped. The
-publishing job (#253) reuses the script. See [clients.md](../clients.md#checks) for the checks
-that guard both forms.
+`node_modules` and `coverage`) to a temporary directory, rewrites the dependency there,
+normalizes the file modes of the copy, runs `npm pack --ignore-scripts` there into `<out_dir>`
+and prints the tarball path. The committed tree is never modified, so a failed pack cannot
+leave the file dependency swapped. Why the modes: the packed bytes must not depend on the umask
+of the checkout, because the publish compares two packs byte for byte. Besides the smoke test,
+both release scripts pack the CLI with it ([clients.md](../clients.md#releases)). See
+[clients.md](../clients.md#checks) for the checks that guard both forms.
 
 **Committed-file lint.** `checks.sh` fails when the committed dependency is anything other
 than `file:../nodejs` (for example `^0.1.0`), before the CLI's own checks run.
@@ -231,5 +234,6 @@ The one-script command needs the dependencies installed; `checks.sh` installs th
 The CLI runs in the same job as the library: `clients_checks`, on both Node.js images
 ([nodejs.md](nodejs.md#ci)). Only the current-version instance uploads
 `clients/cli/coverage/lcov.info` to Codacy, with the prefix `clients/cli`. After the checks,
-the job asserts that the working tree is unchanged. See
+the job asserts that the working tree is unchanged. A `pidgey-cli-v*` tag also runs the release
+jobs `pack_cli` and `publish_cli` ([clients.md](../clients.md#releases)). See
 [deployment/pipeline.md](../deployment/pipeline.md).

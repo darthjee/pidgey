@@ -1,11 +1,12 @@
 # Variables
 
-List every CircleCI variable the deploy uses, what it holds and its format.
+List every CircleCI variable the deploy and the npm publish use, what it holds and its format.
 
 ## Where they live
 
-- Every deploy variable lives **only** in the `pidgey-deploy` CircleCI context. None is set as
-  a project variable, so jobs without the context (check jobs, build jobs) never see them.
+- Every deploy variable lives **only** in the `pidgey-deploy` CircleCI context, and the npm
+  token only in the `pidgey-npm` context (see [npm context](#npm-context)). None is set as a
+  project variable, so jobs without a context (check jobs, build jobs) never see them.
 - The context is attached only to the context jobs and restricted to semver-tag pipelines
   (see [pipeline.md](pipeline.md#context-restriction)).
 - "Pass secrets to builds from forked pull requests" stays **off** in the project settings.
@@ -13,9 +14,40 @@ List every CircleCI variable the deploy uses, what it holds and its format.
   placeholders such as `<live>` and `<domain>`.
 
 `CODACY_PROJECT_TOKEN` is the only project-level variable; it is used by the coverage upload,
-not by the deploy.
+not by the deploy or the npm publish.
 
-## Context variables
+## npm context
+
+The `pidgey-npm` context holds one variable and is attached only to `publish_client` and
+`publish_cli`, with the restrictions in
+[pipeline.md](pipeline.md#context-restriction).
+
+| Variable | Holds | Format | Used by |
+| --- | --- | --- | --- |
+| `NPM_TOKEN` | npm token that publishes both packages. **Secret.** | An npm granular access token, one line. | `release_publish.sh` (the publish command only). |
+
+The token's settings, with the labels of the npm token form:
+
+| Setting | Value |
+| --- | --- |
+| **Packages and scopes**: Permissions | **Read and write (publish and stage)**. |
+| **Packages and scopes**: Select Packages | **Only select packages and scopes**: `pidgey-client` and `pidgey-cli`. |
+| **Organizations** | No access. |
+| **Bypass two-factor authentication** | Checked: CI cannot answer a 2FA prompt. Unchecked by default. |
+| **Expiration** | A date, at most 90 days ahead. npm announced a 90-day maximum and a 7-day default for write tokens in [September 2025](https://github.blog/changelog/2025-09-29-strengthening-npm-security-important-changes-to-authentication-and-token-management/); the current token pages do not state either, so check the form. |
+
+Labels and behaviour as read on 2026-11-27 in
+[creating and viewing access tokens](https://docs.npmjs.com/creating-and-viewing-access-tokens)
+and [about access tokens](https://docs.npmjs.com/about-access-tokens). The latter announces
+that granular tokens lose direct publishing in **January 2027** (see
+[known-gaps.md](known-gaps.md#npm-token-publishing-ends-in-january-2027)). Classic tokens no
+longer exist.
+
+`NPM_TOKEN` is never a project variable, and "Pass secrets to builds from forked pull
+requests" stays off. Rotation steps are in
+[operations.md](operations.md#rotate-the-npm-token).
+
+## Deploy context variables
 
 | Variable | Holds | Format | Used by |
 | --- | --- | --- | --- |

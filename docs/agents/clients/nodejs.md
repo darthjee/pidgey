@@ -13,11 +13,12 @@ records what was built and links the rules instead of copying them.
 | Field | Value |
 | --- | --- |
 | Name | `pidgey-client` |
-| Version | `0.1.0`, the first release line; nothing is published before the epic's release. |
+| Version | `0.1.0`, the first release line; nothing is published yet, see [Releases](../clients.md#releases). |
 | Module system | ESM (`"type": "module"`). |
 | Entry point | `exports` maps `.` to `{ "types": "./dist/lib/index.d.ts", "default": "./lib/index.js" }`: the runtime is `lib/index.js` and the declarations are in `dist/`, see [Types](#types). |
 | Node.js | `engines.node` is `>=22.12.0`. |
 | Published files | The `files` allowlist holds `lib/` (eight modules) and `dist/` (the generated declarations); npm adds `package.json` and `README.md`. |
+| Changelog | `CHANGELOG.md`, read by the release gate and not part of the published files, see [Releases](../clients.md#releases). |
 | Dependencies | No runtime dependency. Why: the library stays dependency-free to keep its supply chain empty. The type generator and the contract-spec validators are devDependencies, pinned to exact versions (see [Types](#types)). |
 | Install scripts | None (`preinstall`, `install`, `postinstall`, `prepare`). Why: nothing runs at the consumer's install. |
 | License | MIT. |
@@ -227,10 +228,11 @@ is kept, so the public signature stays the generated one.
 `strict`, `nodenext`) for `lib/` and `types/` into the git-ignored `dist/`: `dist/lib/*.d.ts`
 and `dist/types/v1.d.ts`. The `types/` declaration is emitted so that the relative
 `../types/v1.js` imports inside the `lib` declarations resolve inside the tarball. There is no
-`prepack` hook, because the smoke test packs with `--ignore-scripts`: `checks.sh` builds
-explicitly instead ([clients.md](../clients.md#checks)). `dist/` is ignored through
-`clients/*/dist/` in the root `.gitignore` and by ESLint, and is listed in `pack-files.txt`:
-every emitted `.d.ts` is an expected file of the pack check.
+`prepack` hook, because both the smoke test and the release scripts pack with
+`--ignore-scripts`: `checks.sh` and `release_pack.sh` build explicitly instead
+([Checks](../clients.md#checks), [Releases](../clients.md#releases)). `dist/` is ignored
+through `clients/*/dist/` in the root `.gitignore` and by ESLint, and is listed in
+`pack-files.txt`: every emitted `.d.ts` is an expected file of the pack check.
 
 **Typecheck versus build.** `yarn typecheck` (JSDoc check, no emit) and `yarn build:types`
 (emit) are separate scripts. The typecheck resolves the generated types through the committed
@@ -283,7 +285,7 @@ Run from `clients/nodejs/`. Each one exits non-zero on failure.
 | `yarn lint` | ESLint over `lib` and `specs`. |
 | `yarn typecheck` | `tsc --allowJs --checkJs --noEmit` over `lib`: the JSDoc types are checked, nothing is emitted. |
 | `yarn generate:types` | Regenerates `types/v1.ts` from `../../source/openapi/v1.json`. Run it after a `/v1` document change and commit the result. |
-| `yarn build:types` | `rm -rf dist && tsc -p tsconfig.build.json`: emits the `.d.ts` declarations into `dist/`. Run by `checks.sh` before the pack check. |
+| `yarn build:types` | `rm -rf dist && tsc -p tsconfig.build.json`: emits the `.d.ts` declarations into `dist/`. Run by `checks.sh` before the pack check, and by `release_pack.sh` before the release pack. |
 | `yarn test` | Jasmine over `specs/` (the directories of the unit and contract specs, not `specs/integration/`), files named `*_spec.js`. |
 | `yarn coverage` | `c8` running Jasmine over the same specs. Writes `coverage/lcov.info` and **fails below 100 %** of lines, branches, functions and statements, over every file of `lib/` (also those no spec loads). |
 | `yarn test:integration` | Jasmine over `specs/integration/` only: `Send_spec.js` sends through the library against a real Pidgey and checks the delivery in Mailpit. Skipped without the `PIDGEY_INTEGRATION_*` environment; see [clients.md](../clients.md#integration). Never part of the coverage. |
@@ -310,6 +312,9 @@ npm pack --dry-run --json \
 ```
 
 If an unexpected file appears, narrow `files` instead of accepting it in the list.
+
+The [release scripts](../clients.md#releases) compare the same list with the files of the
+tarball they actually pack, so a release cannot ship a file the list does not name.
 
 ## Pack smoke test
 
@@ -356,4 +361,6 @@ requires it. Only the current-version instance uploads coverage to Codacy: `clie
 with the prefix `clients/nodejs`, then `clients/cli/coverage/lcov.info` with the prefix
 `clients/cli` ([cli.md](cli.md#ci)). The job also runs the smoke test (through `checks.sh`) and
 then asserts that the working tree is unchanged. The clients are not deployed, so no deploy job
-requires it. See [deployment/pipeline.md](../deployment/pipeline.md).
+requires it; the pack jobs of a client release do. A `pidgey-client-v*` tag also runs the
+release jobs `pack_client` and `publish_client` ([clients.md](../clients.md#releases)). See
+[deployment/pipeline.md](../deployment/pipeline.md).

@@ -216,13 +216,15 @@ indicative: the rule is that the `Makefile` target and the CI job call the same 
 - **CLI tarball:** the CLI is installed together with the packed library tarball. The
   committed `clients/cli/package.json` declares `file:../nodejs`, whose tarball would not
   resolve outside the repository, so the smoke test packs the CLI through the staging-copy
-  script, the same script the publish uses: the tarball carries the published `^<floor>`
+  script, the same script both release jobs use: the tarball carries the published `^<floor>`
   form and the working tree is never modified.
 - **Registry check not run here:** `npm view pidgey-client@<floor>` runs at publish time
   only, so the smoke test works before the first publish.
 - **Publish gate:** specified in
-  [packaging.md](packaging.md#pre-publish-gate). The publish job re-uses the tarball the pack
-  job built and checked; it never re-packs.
+  [packaging.md](packaging.md#pre-publish-gate). The published bytes are the ones the pack job
+  built and checked; the publish job packs the checkout a second time only to compare, and
+  publishes nothing unless the two tarballs are byte-identical
+  ([packaging.md](packaging.md#publish-script)).
 
 ### `.d.ts` type check: adopted
 

@@ -6,6 +6,10 @@ executors:
   pidgey-base:
     docker:
       - image: *ci_base_image
+  # Stock image at the clients' Node floor (engines), with Yarn and npm.
+  client-release:
+    docker:
+      - image: cimg/node:22.12.0
 
 commands:
   prepare_source:
@@ -353,6 +357,40 @@ jobs:
           name: Cleanup
           command: deploy_frontend.sh cleanup
 
+  # npm release of one client package (docs/agents/deployment/pipeline.md). The
+  # pack job installs third-party code and has no context. The publish job holds
+  # the npm token, takes its scripts from the checkout and installs nothing: it
+  # packs the checkout again and publishes only if those bytes equal the packed
+  # tarball, so both jobs must run on the same executor.
+  pack_package:
+    executor: client-release
+    steps:
+      - checkout
+      - run:
+          name: Gate and pack
+          command: clients/scripts/release_pack.sh "$CIRCLE_TAG" release
+      - persist_to_workspace:
+          root: .
+          paths:
+            - release
+
+  publish_package:
+    executor: client-release
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Publish to npm
+          command: |
+            shopt -s nullglob
+            tarballs=(/tmp/workspace/release/*.tgz)
+            if [ "${#tarballs[@]}" -ne 1 ]; then
+              echo "Expected exactly one tarball in /tmp/workspace/release, found ${#tarballs[@]}" >&2
+              exit 1
+            fi
+            clients/scripts/release_publish.sh "$CIRCLE_TAG" "${tarballs[0]}"
+
 all_tags: &all_tags
   tags:
     only: /.*/
@@ -362,6 +400,27 @@ deploy_tags: &deploy_tags
     only: /^\d+\.\d+\.\d+$/
   branches:
     ignore: /.*/
+
+# Per-package release tags. Neither matches deploy_tags, nor the other.
+client_tags: &client_tags
+  tags:
+    only: /^pidgey-client-v\d+\.\d+\.\d+$/
+  branches:
+    ignore: /.*/
+
+cli_tags: &cli_tags
+  tags:
+    only: /^pidgey-cli-v\d+\.\d+\.\d+$/
+  branches:
+    ignore: /.*/
+
+# Every check job, required before a client package is packed for a release.
+release_checks: &release_checks
+  - backend_checks
+  - backend_tests
+  - frontend_checks
+  - clients_checks
+  - clients_integration
 
 workflows:
   main:
@@ -404,3 +463,25 @@ workflows:
           context: pidgey-deploy
           serial-group: << pipeline.project.slug >>/pidgey-deploy
           filters: *deploy_tags
+      # npm releases (docs/agents/deployment/pipeline.md): only the publish jobs
+      # get the pidgey-npm context, and they run one at a time.
+      - pack_package:
+          name: pack_client
+          requires: *release_checks
+          filters: *client_tags
+      - publish_package:
+          name: publish_client
+          requires: [pack_client]
+          context: pidgey-npm
+          serial-group: << pipeline.project.slug >>/pidgey-npm
+          filters: *client_tags
+      - pack_package:
+          name: pack_cli
+          requires: *release_checks
+          filters: *cli_tags
+      - publish_package:
+          name: publish_cli
+          requires: [pack_cli]
+          context: pidgey-npm
+          serial-group: << pipeline.project.slug >>/pidgey-npm
+          filters: *cli_tags

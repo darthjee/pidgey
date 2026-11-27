@@ -79,6 +79,83 @@ the worker pool for up to `SMTP_TOTAL_TIMEOUT` seconds per request. With
 do it. A global limit belongs to the open rate-limit decision in
 [api/pending.md](../api/pending.md).
 
+## npm publishing not set up or exercised yet
+
+The [npm publish chain](pipeline.md#npm-publish-chain) is in the repository, but its real
+publish path (token, upload, wait for npm) has never run: only dry runs and runs against a
+stand-in `npm`. On 2026-11-27, `npm view` answered "not found" for `pidgey-client` and
+`pidgey-cli`, so the `0.0.0` placeholders of #227 are not published, and the manual setup in
+[operations.md](operations.md#set-up-npm-publishing) is the maintainer's to do. The first
+release is #254.
+
+## npm token publishing ends in January 2027
+
+npm announces in [about access tokens](https://docs.npmjs.com/about-access-tokens) (read
+2026-11-27): "The ability to publish new package versions directly with a granular access
+token will be removed in **January 2027**." The publish jobs publish exactly that way, so
+from then on they stop working, and rotating the token will not help. Either the first release
+(#254) happens before, or the switch to npm trusted publishing (OIDC), which supports
+CircleCI, lands first: #266.
+
+## npm packages published without provenance
+
+The packages are published without a provenance attestation, so a consumer cannot verify that
+a tarball was built from a commit of this repository.
+
+- `npm publish --provenance` supports only GitHub Actions and GitLab CI/CD
+  ([generating provenance statements](https://docs.npmjs.com/generating-provenance-statements),
+  read 2026-11-27).
+- npm trusted publishing supports CircleCI, but "Provenance generation is not currently
+  supported for CircleCI" ([trusted publishers](https://docs.npmjs.com/trusted-publishers),
+  read 2026-11-27). The switch of #266 therefore does not close this gap.
+
+It closes when npm supports provenance from CircleCI. Publishing from a second CI system was
+rejected when the mechanism was chosen (#223).
+
+## Releasing both clients at once
+
+`publish_client` and `publish_cli` share one
+[serial group](pipeline.md#serial-group), and `publish_cli` holds it while it waits for the
+library. With both tags pushed at once, if `publish_cli` takes the group first it waits for a
+library version that cannot be published meanwhile, and fails after 5 minutes. The library
+publish then runs after it, or is **skipped** if its pipeline number is lower. Nothing wrong
+is published; the workflows are rerun one at a time.
+
+Until that changes, push the CLI tag only after the library is published (see
+[operations.md](operations.md#release-a-client-package)). One serial group per package would
+remove the restriction; it is not tracked yet.
+
+## Client tags are not protected
+
+No GitHub tag ruleset covers `pidgey-client-v*` / `pidgey-cli-v*`, and a tag may point at any
+commit, not only one of `main`. The pipeline configuration comes from that commit, so whoever
+can push such a tag can run any job with the `pidgey-npm` context, whatever the committed
+release scripts check. Today only the owner can push. Not tracked yet.
+
+## npm type declarations are not verified at publish
+
+The publish job rebuilds the tarball from the checkout and compares the bytes, but the
+library's `dist/*.d.ts` files are build output of the pack job, which runs third-party code.
+Their names, count, file type and mode are enforced, their content is not. They are type
+declarations, never executed. Not tracked yet.
+
+## npm publish job hardening
+
+- When npm already serves the version, the publish job succeeds without comparing the
+  published content with the tarball, so a version published by other means also reports
+  success.
+- The `client-release` image is referenced by a tag, not pinned by digest.
+- `NPM_TOKEN` is in the environment of every step of the publish job, not only of the publish
+  command.
+
+Not tracked yet.
+
+## Deploy context restriction
+
+The `pidgey-deploy` [restriction](pipeline.md#context-restriction) documented here checks only
+the tag: it has no project restriction and does not exclude SSH reruns, both of which the
+`pidgey-npm` context has. Not tracked yet.
+
 ## No automated image builds
 
 The images CI and development use (`dev_pidgey-base`, `circleci_pidgey-base`,
