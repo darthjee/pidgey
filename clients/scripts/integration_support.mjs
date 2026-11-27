@@ -3,14 +3,6 @@
 // environment prepared by clients/scripts/integration.sh.
 import { randomUUID } from 'node:crypto';
 
-const VARIABLES = {
-  url: 'PIDGEY_INTEGRATION_URL',
-  mailpitUrl: 'PIDGEY_INTEGRATION_MAILPIT_URL',
-  token: 'PIDGEY_INTEGRATION_TOKEN',
-  revokedToken: 'PIDGEY_INTEGRATION_REVOKED_TOKEN',
-  noConnectionToken: 'PIDGEY_INTEGRATION_NO_CONNECTION_TOKEN',
-};
-
 /**
  * Reads the integration environment.
  *
@@ -24,18 +16,24 @@ const VARIABLES = {
 export function integrationEnv(env = process.env) {
   const required = env.PIDGEY_INTEGRATION === 'required';
 
-  if (!env[VARIABLES.url] && !required) {
+  if (!env.PIDGEY_INTEGRATION_URL && !required) {
     return null;
   }
 
-  const missing = Object.values(VARIABLES).filter((name) => !env[name]);
+  const entries = [
+    ['url', 'PIDGEY_INTEGRATION_URL', env.PIDGEY_INTEGRATION_URL],
+    ['mailpitUrl', 'PIDGEY_INTEGRATION_MAILPIT_URL', env.PIDGEY_INTEGRATION_MAILPIT_URL],
+    ['token', 'PIDGEY_INTEGRATION_TOKEN', env.PIDGEY_INTEGRATION_TOKEN],
+    ['revokedToken', 'PIDGEY_INTEGRATION_REVOKED_TOKEN', env.PIDGEY_INTEGRATION_REVOKED_TOKEN],
+    ['noConnectionToken', 'PIDGEY_INTEGRATION_NO_CONNECTION_TOKEN', env.PIDGEY_INTEGRATION_NO_CONNECTION_TOKEN],
+  ];
+
+  const missing = entries.filter(([, , value]) => !value).map(([, name]) => name);
   if (missing.length > 0) {
     throw new Error(`Missing integration environment variable(s): ${missing.join(', ')}`);
   }
 
-  return Object.fromEntries(
-    Object.entries(VARIABLES).map(([key, name]) => [key, env[name]]),
-  );
+  return Object.fromEntries(entries.map(([key, , value]) => [key, value]));
 }
 
 /**
@@ -76,17 +74,17 @@ export async function findMessages(mailpitUrl, subject) {
 export async function waitForMessage(mailpitUrl, subject, { timeoutMs = 10000 } = {}) {
   const deadline = Date.now() + timeoutMs;
 
-  for (;;) {
-    const messages = await findMessages(mailpitUrl, subject);
-    if (messages.length > 1) {
-      throw new Error(`Expected one Mailpit message with subject "${subject}", found ${messages.length}`);
-    }
-    if (messages.length === 1) {
-      return messages[0];
-    }
-    if (Date.now() >= deadline) {
-      throw new Error(`No Mailpit message with subject "${subject}" after ${timeoutMs} ms`);
-    }
+  let messages = await findMessages(mailpitUrl, subject);
+  while (messages.length === 0 && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 250));
+    messages = await findMessages(mailpitUrl, subject);
   }
+
+  if (messages.length > 1) {
+    throw new Error(`Expected one Mailpit message with subject "${subject}", found ${messages.length}`);
+  }
+  if (messages.length === 0) {
+    throw new Error(`No Mailpit message with subject "${subject}" after ${timeoutMs} ms`);
+  }
+  return messages[0];
 }

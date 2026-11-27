@@ -16,9 +16,8 @@ export PIDGEY_INTEGRATION_MAILPIT_URL="${PIDGEY_INTEGRATION_MAILPIT_URL:-http://
 wait_for() {
   local name="$1"
   local url="$2"
-  local attempt
 
-  for attempt in $(seq 1 "$WAIT_SECONDS"); do
+  for _ in $(seq 1 "$WAIT_SECONDS"); do
     if node -e '
           fetch(process.argv[1])
             .then((response) => process.exit(response.status === 200 ? 0 : 1))
@@ -36,12 +35,13 @@ wait_for() {
 wait_for "Pidgey" "${PIDGEY_INTEGRATION_URL}/health.json"
 wait_for "Mailpit" "${PIDGEY_INTEGRATION_MAILPIT_URL}/api/v1/info"
 
-# The seed writes the tokens to a private file, never to the job output.
+# The seed prints the tokens on its standard output, redirected to a private
+# file, never to the job output.
 SEED_FILE="$(mktemp)"
 trap 'rm -f "$SEED_FILE"' EXIT
 chmod 600 "$SEED_FILE"
 
-node "${CLIENTS_DIR}/scripts/integration_seed.mjs" "$SEED_FILE"
+node "${CLIENTS_DIR}/scripts/integration_seed.mjs" > "$SEED_FILE"
 
 set -a
 # shellcheck disable=SC1090

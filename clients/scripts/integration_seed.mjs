@@ -1,15 +1,15 @@
 // Seeds the fixtures the client integration specs need, through the admin
 // JSON API of a running Pidgey (see clients/scripts/integration.sh).
 //
-// Usage: node integration_seed.mjs <output-file>
+// Usage: node integration_seed.mjs > private-file
 // Reads the Pidgey base URL from PIDGEY_INTEGRATION_URL.
 //
 // Writes PIDGEY_INTEGRATION_TOKEN, PIDGEY_INTEGRATION_REVOKED_TOKEN and
-// PIDGEY_INTEGRATION_NO_CONNECTION_TOKEN as KEY=value lines to the output
-// file (mode 0600). A failure reports the method, path, status and error
-// code, never a token or a cookie.
+// PIDGEY_INTEGRATION_NO_CONNECTION_TOKEN as KEY=value lines to the standard
+// output, which the caller redirects to a private (mode 0600) file, never to
+// the job output. A failure reports the method, path, status and error code
+// on the standard error, never a token or a cookie.
 import { randomBytes } from 'node:crypto';
-import { chmodSync, writeFileSync } from 'node:fs';
 
 const PASSWORD = 'integration-secret-1';
 
@@ -131,12 +131,8 @@ async function createToken(baseUrl, cookie, name) {
  * @returns {Promise<void>}
  */
 async function main() {
-  const outputFile = process.argv[2];
   const baseUrl = (process.env.PIDGEY_INTEGRATION_URL || '').replace(/\/+$/, '');
 
-  if (!outputFile) {
-    fail('usage: integration_seed.mjs <output-file>');
-  }
   if (!baseUrl) {
     fail('PIDGEY_INTEGRATION_URL is not set');
   }
@@ -168,8 +164,7 @@ async function main() {
     `PIDGEY_INTEGRATION_REVOKED_TOKEN=${revoked.token}`,
     `PIDGEY_INTEGRATION_NO_CONNECTION_TOKEN=${noConnection.token}`,
   ];
-  writeFileSync(outputFile, `${lines.join('\n')}\n`, { mode: 0o600 });
-  chmodSync(outputFile, 0o600);
+  process.stdout.write(`${lines.join('\n')}\n`);
 }
 
 await main();
