@@ -25,8 +25,9 @@
   "scripts": {
     "lint": "eslint lib specs",
     "typecheck": "tsc --allowJs --checkJs --noEmit -p .",
-    "test": "jasmine \"specs/**/*_spec.js\"",
-    "coverage": "c8 jasmine \"specs/**/*_spec.js\"",
+    "test": "jasmine \"specs/lib/**/*_spec.js\" \"specs/contract/**/*_spec.js\"",
+    "test:integration": "jasmine \"specs/integration/**/*_spec.js\"",
+    "coverage": "c8 jasmine \"specs/lib/**/*_spec.js\" \"specs/contract/**/*_spec.js\"",
     "build:types": "rm -rf dist && tsc -p tsconfig.build.json",
     "generate:types": "openapi-typescript ../../source/openapi/v1.json -o types/v1.ts"
   },
