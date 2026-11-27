@@ -21,9 +21,9 @@ The client specs only run against an in-process server. Nothing proves that the 
    - **Cases**:
      - a real send, asserted as delivered through Mailpit's HTTP API (`GET /api/v1/messages`);
      - a real `409 NO_SMTP_CONNECTION` for the organization without an active connection;
-     - a real `409 IDEMPOTENCY_KEY_IN_USE`: the same `Idempotency-Key` reused with a different body;
+     - idempotency: the same `Idempotency-Key` with the same body is replayed (`replayed: true`, no second Mailpit message), and with a different body answers a real `422 IDEMPOTENCY_KEY_REUSED`. (`409 IDEMPOTENCY_KEY_IN_USE` needs a send still in flight, which Mailpit cannot hold open: not covered here.)
      - a real `401` for a revoked token.
 2. **`clients/scripts/integration.sh`**: runs the spec with the "required" flag set. The `Makefile` target and the CI job call this same script.
 3. **`clients_integration` CircleCI job**: machine executor, boots Pidgey + MySQL + Mailpit with `docker compose` (same stack and commands as the `Makefile` target), current Node.js version only, `requires: [clients_checks]`. It holds no publishing credential.
 4. **`Makefile`**: `make clients-integration` boots the compose stack (migrated DB, `SMTP_ALLOW_PRIVATE_HOSTS` so Pidgey can reach Mailpit) and runs `integration.sh`; `make tests` runs it too (accepted: slower local run).
-5. **Docs**: `docs/agents/deployment/pipeline.md` gains the job; `docs/agents/clients.md` documents how to run the integration spec; `docs/agents/specs/node-client/testing.md` (Integration, item 4) lists both `409` cases and the admin-API seeding.
+5. **Docs**: `docs/agents/deployment/pipeline.md` gains the job; `docs/agents/clients.md` documents how to run the integration spec; `docs/agents/specs/node-client/testing.md` (Integration, item 4) lists the idempotency cases and the admin-API seeding.
