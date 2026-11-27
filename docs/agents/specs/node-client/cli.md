@@ -34,8 +34,8 @@ without breaking the flags.
 
 | Flag | Value | Maps to |
 | --- | --- | --- |
-| `--to` | Recipient address | `message.to` |
-| `--subject` | Subject | `message.subject` |
+| `--to` | Recipient address (required) | `message.to` |
+| `--subject` | Subject (required) | `message.subject` |
 | `--text` | Plain-text body | `message.text` |
 | `--html` | HTML body | `message.html` |
 | `--token-file` | Path to a file holding the API token | `token` option; `PIDGEY_TOKEN` when absent ([Credentials and URL](#credentials-and-url)) |
@@ -43,7 +43,7 @@ without breaking the flags.
 | `--idempotency-key` | Key (1 to 255 printable ASCII characters) | `idempotencyKey` option of `send()`; without it the library generates one per call ([library.md](library.md#idempotency-key)) |
 | `--retry-ambiguous` | Boolean | `retryAmbiguous: true` ([errors-and-retry.md](errors-and-retry.md#retryambiguous)) |
 | `--allow-insecure-http` | Boolean | `allowInsecureHttp: true`: allows an `http://` `--url` on a non-loopback host ([library.md](library.md#cleartext-transport)) |
-| `--verbose` | Boolean | Prints the result on success ([Output](#output)) |
+| `--verbose` | Boolean | Prints the result on success as one line of JSON ([Output](#output)) |
 | `--help` | Boolean | Prints the usage |
 | `--version` | Boolean | Prints `pidgey-cli <version> (pidgey-client <version>)`, for example `pidgey-cli 0.1.0 (pidgey-client 0.1.3)`; the library version is its `VERSION` export ([library.md](library.md#exports)) |
 
@@ -51,6 +51,7 @@ without breaking the flags.
   (exit `2`). No argument-parsing dependency.
 - `--version` prints the **resolved** library version, not the declared range: under a caret
   range, that is the version a bug report needs.
+- `--to` and `--subject` are **required**: a missing one is a usage error (exit `2`).
 - A **repeated** flag (`--to a --to b`) is a usage error (exit `2`), not "last wins": it must
   not suggest multiple recipients.
 - `--idempotency-key` is forwarded as given; an invalid value is the library's
@@ -155,11 +156,22 @@ The CLI process exits right after a send, without waiting on an idle keep-alive 
 
 ## Output
 
-- **Success:** nothing is written, unless `--verbose` is passed.
-- **Failure:** stderr gets the `code` and `message` of the `PidgeyError`, the SMTP reply when
-  `error.smtp` is present, and a `possibly sent` notice when `possiblySent` is `true`. The
-  notice also applies to an `ABORTED` (SIGINT, exit `130`) that reports `possiblySent: true`.
-- **Never printed:** message content, the token, an SMTP password, or the response `body` of
-  the error ([errors-and-retry.md](errors-and-retry.md#response-body)).
+- **Success:** nothing is written to stdout or stderr, unless `--verbose` is passed. With
+  `--verbose`, **one line** goes to stdout: the `JSON.stringify` of what `send` resolves with,
+  which is the API's success body plus `replayed` (for example
+  `{"status":"sent","smtp":{"code":250,"message":"OK"},"replayed":false}`), so scripts can parse
+  it. Fields the API adds later are printed too.
+- **Failure:** stderr gets, in this order, one line each:
+  1. `pidgey: <code>: <message>`, the `code` and `message` of the `PidgeyError`;
+  2. `pidgey: SMTP reply: <smtp.code> <smtp.message>`, only when `error.smtp` is present;
+  3. `pidgey: the message was possibly sent`, only when `possiblySent` is `true`. The notice
+     also applies to an `ABORTED` (SIGINT, exit `130`) that reports `possiblySent: true`.
+- **Usage errors:** a parse error (an unknown, repeated or positional argument, a flag without
+  its value, or a missing `--to` or `--subject`) prints `pidgey: <reason>` followed by the usage
+  text. Any other usage error (a token file problem, a missing token or URL, a
+  `CLIENT_CONFIGURATION` error, unreadable or oversized stdin, a TTY stdin with no body flag)
+  prints only `pidgey: <reason>`: the usage text is printed after a parse error only.
+- **Never printed:** message content, the token, the URL (or its userinfo), an SMTP password, or
+  the response `body` of the error ([errors-and-retry.md](errors-and-retry.md#response-body)).
 - Changing what is printed on success is a breaking change of the CLI
   ([packaging.md](packaging.md#what-is-breaking)).

@@ -7,14 +7,14 @@ of `POST /v1/messages` only; the admin UI keeps its own cookie-authenticated cli
 | File | Content |
 | --- | --- |
 | [nodejs.md](clients/nodejs.md) | The `pidgey-client` package: core (send, retries, errors, validation), current surface, the generated types and the contract spec, scripts, coverage threshold, pack check, the pack smoke test, commands, CI job. |
-| [cli.md](clients/cli.md) | The `pidgey-cli` package and its `pidgey` command: surface (`--version`, `--help`, usage error), scripts, pack check, the dependency on the library, commands, CI. |
+| [cli.md](clients/cli.md) | The `pidgey-cli` package and its `pidgey` command: surface (flags, token and URL, body and stdin, output, exit codes), source and specs layout, scripts, pack check, the dependency on the library, commands, CI. |
 
 The `clients/` folder:
 
 | Path | Role | Status |
 | --- | --- | --- |
 | `clients/nodejs/` | The Node.js library `pidgey-client`. | Built: send, retries, errors, validation, the types generated from the OpenAPI document and the contract spec. |
-| `clients/cli/` | The command-line client `pidgey-cli`. | Scaffold built: `--version` and `--help`; the send flags come in #251. |
+| `clients/cli/` | The command-line client `pidgey-cli`. | Built: the send flags, the token file and environment, the body and capped stdin, the output, the exit codes and SIGINT. |
 | `clients/scripts/` | Shared scripts. `checks.sh` runs the checks of every package; `pack_cli.sh` packs the CLI from a staging copy; `smoke_test.sh` is the pack smoke test. | Built. |
 
 The package folders are independent: there is no workspace tooling and no `package.json` at
@@ -76,5 +76,4 @@ The behaviour of the clients is still in the spec
 [specs/node-client.md](specs/node-client.md), which is removed once these docs cover it. Still
 to come, per sub-issue of epic #219:
 
-- the CLI send flags, token handling and exit codes beyond `2` (#251);
 - the integration job and publishing.
