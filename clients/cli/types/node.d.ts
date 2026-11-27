@@ -17,6 +17,24 @@ declare module 'node:util' {
   };
 }
 
+declare module 'node:fs' {
+  export const constants: { O_RDONLY: number; O_NONBLOCK: number };
+}
+
+declare module 'node:fs/promises' {
+  export interface FileHandle {
+    stat(): Promise<{ isFile(): boolean; mode: number }>;
+    read(
+      buffer: Uint8Array,
+      offset: number,
+      length: number,
+      position: number | null,
+    ): Promise<{ bytesRead: number }>;
+    close(): Promise<void>;
+  }
+  export function open(path: string, flags: number): Promise<FileHandle>;
+}
+
 declare const process: {
   argv: string[];
   env: Record<string, string | undefined>;
