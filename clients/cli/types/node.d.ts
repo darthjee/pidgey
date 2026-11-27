@@ -19,7 +19,11 @@ declare module 'node:util' {
 
 declare const process: {
   argv: string[];
+  env: Record<string, string | undefined>;
   exitCode: number | undefined;
+  platform: string;
+  stdin: { isTTY?: boolean };
+  once(event: string, listener: () => void): unknown;
   stdout: { write(text: string): unknown };
   stderr: { write(text: string): unknown };
 };

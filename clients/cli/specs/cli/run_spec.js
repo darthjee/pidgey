@@ -23,38 +23,53 @@ function memoryStream() {
 describe('run', () => {
   let stdout;
   let stderr;
+  let io;
 
   beforeEach(() => {
     stdout = memoryStream();
     stderr = memoryStream();
+    io = {
+      env: {},
+      stdin: { isTTY: true },
+      stdout,
+      stderr,
+      signal: new AbortController().signal,
+    };
   });
 
-  it('prints both versions for --version', () => {
-    expect(run(['--version'], { stdout, stderr })).toBe(0);
+  it('prints both versions for --version', async () => {
+    expect(await run(['--version'], io)).toBe(0);
     expect(stdout.text).toBe(`pidgey-cli ${CLI_VERSION} (pidgey-client ${LIBRARY_VERSION})\n`);
     expect(stderr.text).toBe('');
   });
 
-  it('prints the usage for --help', () => {
-    expect(run(['--help'], { stdout, stderr })).toBe(0);
+  it('prints the usage for --help', async () => {
+    expect(await run(['--help'], io)).toBe(0);
     expect(stdout.text).toBe(USAGE);
     expect(stderr.text).toBe('');
   });
 
-  it('prefers --help when both are given', () => {
-    expect(run(['--version', '--help'], { stdout, stderr })).toBe(0);
+  it('prefers --help when both are given', async () => {
+    expect(await run(['--version', '--help'], io)).toBe(0);
     expect(stdout.text).toBe(USAGE);
   });
 
-  it('reports a usage error on stderr with exit 2', () => {
-    expect(run(['--bogus'], { stdout, stderr })).toBe(2);
+  it('reports a parse error on stderr with the usage and exit 2', async () => {
+    expect(await run(['--bogus'], io)).toBe(2);
     expect(stdout.text).toBe('');
     expect(stderr.text).toMatch(/^pidgey: .+\n/);
     expect(stderr.text.endsWith(USAGE)).toBeTrue();
   });
 
-  it('reports no argument as a usage error', () => {
-    expect(run([], { stdout, stderr })).toBe(2);
+  it('reports a missing required flag as a parse error', async () => {
+    expect(await run([], io)).toBe(2);
     expect(stdout.text).toBe('');
+    expect(stderr.text).toContain("pidgey: Missing required option '--to'");
+    expect(stderr.text.endsWith(USAGE)).toBeTrue();
+  });
+
+  it('does not send yet', async () => {
+    expect(await run(['--to', 'a@example.com', '--subject', 'Hi'], io)).toBe(2);
+    expect(stderr.text).toBe('pidgey: sending is not available yet\n');
   });
 });
