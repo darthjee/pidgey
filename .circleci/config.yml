@@ -358,8 +358,10 @@ jobs:
           command: deploy_frontend.sh cleanup
 
   # npm release of one client package (docs/agents/deployment/pipeline.md). The
-  # pack job installs third-party code and has no context; the publish job holds
-  # the npm token, takes its script from the checkout and installs nothing.
+  # pack job installs third-party code and has no context. The publish job holds
+  # the npm token, takes its scripts from the checkout and installs nothing: it
+  # packs the checkout again and publishes only if those bytes equal the packed
+  # tarball, so both jobs must run on the same executor.
   pack_package:
     executor: client-release
     steps:
@@ -387,7 +389,7 @@ jobs:
               echo "Expected exactly one tarball in /tmp/workspace/release, found ${#tarballs[@]}" >&2
               exit 1
             fi
-            clients/scripts/release_publish.sh "${tarballs[0]}"
+            clients/scripts/release_publish.sh "$CIRCLE_TAG" "${tarballs[0]}"
 
 all_tags: &all_tags
   tags:
